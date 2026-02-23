@@ -6,9 +6,9 @@ import csv
 import io
 import re
 from collections import defaultdict
-
+from django.views.decorators.http import require_POST
 from django.core.paginator import Paginator
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.db.models import Q
 from django.http import HttpResponse
 from django.shortcuts import render, get_object_or_404, redirect
@@ -921,6 +921,55 @@ def add_material_to_tep(request):
         messages.error(request, f"Failed to add material: {e}")
 
     return redirect(reverse("app:admin_dashboard") + "?tab=customers")
+
+
+@require_POST
+def customer_create(request):
+    customer_name = (request.POST.get("customer_name") or "").strip()
+    part_code = (request.POST.get("part_code") or "").strip()
+    part_name = (request.POST.get("part_name") or "").strip()
+    tep_code = (request.POST.get("tep_code") or "").strip()
+    parts_json_raw = (request.POST.get("parts_json") or "[]").strip()
+
+    if not customer_name or not part_code or not part_name or not tep_code:
+        messages.error(request, "Please fill up all fields.")
+        return redirect("app:customer_list")
+
+    try:
+        parts = json.loads(parts_json_raw) if parts_json_raw else []
+        if not isinstance(parts, list):
+            parts = []
+    except Exception:
+        parts = []
+
+    try:
+        with transaction.atomic():
+            customer = Customer(customer_name=customer_name, parts=parts)
+            customer.full_clean()
+            customer.save()
+
+            tep = TEPCode(customer=customer, part_code=part_code, tep_code=tep_code)
+            tep.full_clean()  
+            tep.save()
+
+        messages.success(request, "Customer created successfully.")
+        return redirect("app:customer_list")
+
+    except IntegrityError as e:
+        msg = str(e)
+
+        if "tepcode.tep_code" in msg.lower():
+            messages.error(request, "TEP Code already exists.")
+        elif "customer.customer_name" in msg.lower():
+            messages.error(request, "Customer name already exists.")
+        else:
+            messages.error(request, "Failed to save customer record.")
+        return redirect("app:customer_list")
+
+    except Exception:
+        messages.error(request, "Failed to save customer record.")
+        return redirect("app:customer_list")
+
 
 def logout_view(request):
     logout(request)

@@ -1,13 +1,7 @@
-
-#from django.db import models
-
-# Create your models here.
-
-   
 from django.db import models
 from django.core.exceptions import ValidationError
-from django.conf import settings
 from django.contrib.auth.models import User
+
 
 class Customer(models.Model):
     customer_name = models.CharField(max_length=120, unique=True)
@@ -50,10 +44,7 @@ class TEPCode(models.Model):
 
     part_code = models.CharField(max_length=60)
 
-    tep_code = models.CharField(max_length=60)
-
-    class Meta:
-        unique_together = ("customer", "part_code", "tep_code")
+    tep_code = models.CharField(max_length=60, unique=True)
 
     def __str__(self):
         return f"{self.customer.customer_name} | {self.part_code} | {self.tep_code}"
@@ -85,6 +76,7 @@ class Material(models.Model):
 
     def __str__(self):
         return f"{self.mat_partname} ({self.mat_partcode})"
+
 
 class MaterialList(models.Model):
     UNIT_CHOICES = [

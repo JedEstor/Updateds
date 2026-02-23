@@ -24,5 +24,6 @@ urlpatterns = [
 
     path("tep/materials/add/", views.add_material_to_tep, name="add_material_to_tep"),
 
-
+    path("customers/create/", views.customer_create, name="customer_create"),
+    
 ]
