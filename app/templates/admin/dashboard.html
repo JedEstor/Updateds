@@ -6,7 +6,22 @@
   <script src="https://cdn.tailwindcss.com"></script>
 
   <style>
-    /* Sidebar expand behavior */
+    .ui-select {
+    height: 40px;              
+    min-width: 160px;          
+    padding: 0 10px;
+    border-radius: 0.75rem;    
+    border: 1px solid #cbd5e1; 
+    background-color: #fff;
+    font-size: 0.875rem;       
+    line-height: 1.25rem;
+  }
+
+  .ui-select:focus {
+    outline: none;
+    border-color: #3b82f6;     
+    box-shadow: 0 0 0 2px rgba(59,130,246,.25);
+  }
     .sidebar {
       width: 72px;
       transition: width 180ms ease;
@@ -14,8 +29,6 @@
     .sidebar:hover {
       width: 260px;
     }
-
-    /* Main content shifts based on sidebar hover */
     .main-wrap {
       padding-left: 72px;
       transition: padding-left 180ms ease;
@@ -24,7 +37,6 @@
       padding-left: 260px;
     }
 
-    /* Text fades in when expanded */
     .nav-text {
       opacity: 0;
       transform: translateX(-6px);
@@ -35,32 +47,76 @@
       opacity: 1;
       transform: translateX(0);
     }
+
+    .sidebar-gradient {
+      background:
+        linear-gradient(
+          180deg,
+          #0a1222 0%,
+          #0b1a33 28%,
+          #0c2344 55%,
+          #0b1a33 78%,
+          #0a1222 100%
+        );
+      position: relative;
+      box-shadow:
+        inset -1px 0 0 rgba(255,255,255,0.04);
+    }
+
+    .sidebar-gradient::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(
+          ellipse at bottom center,
+          rgba(255,255,255,0.12) 0%,
+          rgba(255,255,255,0.06) 25%,
+          rgba(255,255,255,0.02) 45%,
+          rgba(255,255,255,0) 70%
+        );
+      pointer-events: none;
+    }
+
+    .topbar-gradient {
+      background:
+        linear-gradient(
+          90deg,
+          #0a1222 0%,
+          #0c2344 50%,
+          #0a1222 100%
+        );
+    }
+
+    .sidebar:hover {
+      box-shadow: 4px 0 18px rgba(0,0,0,0.35);
+    }
   </style>
 </head>
 
 <body class="min-h-screen bg-slate-100 text-slate-900">
 
-  <aside class="sidebar fixed left-0 top-0 h-full z-50 bg-slate-900 text-slate-100 border-r border-slate-800 overflow-hidden">
+  <aside class="sidebar sidebar-gradient fixed left-0 top-0 h-full z-50 text-slate-100 border-r border-slate-800 overflow-hidden">
     <div class="h-full flex flex-col">
 
-      <div class="p-4 border-b border-slate-800">
+      <div class="p-4 border-b border-white/10">
         <div class="flex items-center gap-3">
           <div class="h-10 w-10 rounded-xl bg-blue-600 flex items-center justify-center font-bold">
             AD
           </div>
           <div class="nav-text">
             <div class="font-semibold leading-tight">Admin</div>
-            <div class="text-xs text-slate-300 -mt-0.5">Dashboard</div>
+            <div class="text-xs text-slate-200/80 -mt-0.5">Dashboard</div>
           </div>
         </div>
       </div>
 
       <nav class="p-3 space-y-2 flex-1">
+
         <a href="?tab=customers&q={{ q|urlencode }}"
-           class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-slate-800 transition
-                  {% if tab == 'customers' %}bg-slate-800{% endif %}">
-          <span class="inline-flex h-9 w-9 rounded-lg bg-slate-800 items-center justify-center border border-slate-700">
-          
+           class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition
+                  {% if tab == 'customers' %}bg-white/10{% endif %}">
+          <span class="inline-flex h-9 w-9 rounded-lg bg-white/5 items-center justify-center border border-white/10">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M17 20h5v-2a4 4 0 00-4-4h-1M9 20H4v-2a4 4 0 014-4h1m4-4a4 4 0 11-8 0 4 4 0 018 0zm10 4a4 4 0 10-8 0 4 4 0 008 0z" />
@@ -68,14 +124,14 @@
           </span>
           <div class="nav-text">
             <div class="font-medium">Customer Records</div>
-            <div class="text-xs text-slate-300">View, Add, Insert Materials</div>
+            <div class="text-xs text-slate-200/80">View, Add, Insert Materials</div>
           </div>
         </a>
 
         <a href="?tab=materials&mq={{ mq|urlencode }}"
-           class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-slate-800 transition
-                  {% if tab == 'materials' %}bg-slate-800{% endif %}">
-          <span class="inline-flex h-9 w-9 rounded-lg bg-slate-800 items-center justify-center border border-slate-700">
+           class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition
+                  {% if tab == 'materials' %}bg-white/10{% endif %}">
+          <span class="inline-flex h-9 w-9 rounded-lg bg-white/5 items-center justify-center border border-white/10">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M20 13V7a2 2 0 00-2-2h-4M4 7v10a2 2 0 002 2h4m4 0h4a2 2 0 002-2v-4m-10 6V5m0 14H8m4 0h4" />
@@ -83,14 +139,14 @@
           </span>
           <div class="nav-text">
             <div class="font-medium">Material List</div>
-            <div class="text-xs text-slate-300">View & Add Materials</div>
+            <div class="text-xs text-slate-200/80">View & Add Materials</div>
           </div>
         </a>
 
         <a href="?tab=users&uq={{ uq|urlencode }}"
-           class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-slate-800 transition
-                  {% if tab == 'users' %}bg-slate-800{% endif %}">
-          <span class="inline-flex h-9 w-9 rounded-lg bg-slate-800 items-center justify-center border border-slate-700">
+           class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition
+                  {% if tab == 'users' %}bg-white/10{% endif %}">
+          <span class="inline-flex h-9 w-9 rounded-lg bg-white/5 items-center justify-center border border-white/10">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M12 11c1.657 0 3-1.343 3-3S13.657 5 12 5s-3 1.343-3 3 1.343 3 3 3zm0 2c-2.761 0-5 1.79-5 4v1h10v-1c0-2.21-2.239-4-5-4z" />
@@ -98,15 +154,15 @@
           </span>
           <div class="nav-text">
             <div class="font-medium">User Management</div>
-            <div class="text-xs text-slate-300">Admin controls</div>
+            <div class="text-xs text-slate-200/80">Admin controls</div>
           </div>
         </a>
 
-        <div class="pt-2 border-t border-slate-800"></div>
+        <div class="pt-2 border-t border-white/10"></div>
 
         <a href="{% url 'app:customer_list' %}"
-           class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-slate-800 transition">
-          <span class="inline-flex h-9 w-9 rounded-lg bg-slate-800 items-center justify-center border border-slate-700">
+           class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition">
+          <span class="inline-flex h-9 w-9 rounded-lg bg-white/5 items-center justify-center border border-white/10">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M8 7V3h8v4M6 7h12M6 7v14h12V7" />
@@ -114,13 +170,13 @@
           </span>
           <div class="nav-text">
             <div class="font-medium">Customers Page</div>
-            <div class="text-xs text-slate-300">Go to customer list</div>
+            <div class="text-xs text-slate-200/80">Go to customer list</div>
           </div>
         </a>
 
         <a href="{% url 'app:logout' %}"
-           class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-slate-800 transition">
-          <span class="inline-flex h-9 w-9 rounded-lg bg-slate-800 items-center justify-center border border-slate-700">
+           class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition">
+          <span class="inline-flex h-9 w-9 rounded-lg bg-white/5 items-center justify-center border border-white/10">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H7a2 2 0 01-2-2V7a2 2 0 012-2h4a2 2 0 012 2v1" />
@@ -130,42 +186,44 @@
             <div class="font-medium">Logout</div>
           </div>
         </a>
+
       </nav>
 
-      <div class="p-3 border-t border-slate-800">
-        <div class="text-xs text-slate-400 nav-text">Taisei IT OJT • 2026.</div>
-        <div class="text-[11px] text-slate-500">v1</div>
+      <div class="p-3 border-t border-white/10">
+        <div class="text-xs text-slate-200/70 nav-text">Taisei IT OJT • 2026.</div>
+        <div class="text-[11px] text-slate-200/50">v1</div>
       </div>
+
     </div>
   </aside>
 
   <div class="main-wrap">
 
-    <div class="bg-slate-900 text-slate-100">
+    <div class="topbar-gradient text-slate-100">
       <div class="max-w-7xl mx-auto p-6 space-y-6">
 
         <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 class="text-2xl font-bold text-blue-400">Admin Dashboard</h1>
-            <p class="text-sm text-slate-300">Overview + quick access</p>
+            <h1 class="text-2xl font-bold text-blue-300">Admin Dashboard</h1>
+            <p class="text-sm text-slate-200/80">Overview + quick access</p>
           </div>
         </div>
 
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div class="bg-slate-800 border border-slate-700 rounded-xl p-4">
-            <div class="text-sm text-slate-300">Customers</div>
+          <div class="bg-white/5 border border-white/10 rounded-xl p-4">
+            <div class="text-sm text-slate-200/80">Customers</div>
             <div class="text-2xl font-semibold">{{ customers_count }}</div>
           </div>
-          <div class="bg-slate-800 border border-slate-700 rounded-xl p-4">
-            <div class="text-sm text-slate-300">TEP Codes</div>
+          <div class="bg-white/5 border border-white/10 rounded-xl p-4">
+            <div class="text-sm text-slate-200/80">TEP Codes</div>
             <div class="text-2xl font-semibold">{{ tep_count }}</div>
           </div>
-          <div class="bg-slate-800 border border-slate-700 rounded-xl p-4">
-            <div class="text-sm text-slate-300">Materials</div>
+          <div class="bg-white/5 border border-white/10 rounded-xl p-4">
+            <div class="text-sm text-slate-200/80">Materials</div>
             <div class="text-2xl font-semibold">{{ materials_count }}</div>
           </div>
-          <div class="bg-slate-800 border border-slate-700 rounded-xl p-4">
-            <div class="text-sm text-slate-300">Users</div>
+          <div class="bg-white/5 border border-white/10 rounded-xl p-4">
+            <div class="text-sm text-slate-200/80">Users</div>
             <div class="text-2xl font-semibold">{{ users_count }}</div>
           </div>
         </div>
@@ -239,7 +297,7 @@
                       <td class="px-4 py-3 font-medium">{{ c.customer_name }}</td>
 
                       <td class="px-4 py-3">
-                        <select class="part-code-dropdown px-2 py-1 rounded border border-slate-300 bg-white text-slate-900"
+                        <select class="part-code-dropdown ui-select"
                                 data-row="{{ forloop.counter0 }}">
                           {% for pc in c.part_code_options %}
                             <option value="{{ pc }}" {% if pc == c.default_part_code %}selected{% endif %}>{{ pc }}</option>
@@ -248,7 +306,7 @@
                       </td>
 
                       <td class="px-4 py-3">
-                        <select class="tep-code-dropdown px-2 py-1 rounded border border-slate-300 bg-white text-slate-900"
+                        <select class="tep-code-dropdown ui-select"
                                 data-row="{{ forloop.counter0 }}"
                                 id="tep-dd-{{ forloop.counter0 }}">
                           {% for t in c.default_tep_options %}
@@ -539,8 +597,7 @@
                 <div>
                   <label class="text-sm font-medium text-slate-700">Unit</label>
                   <select name="unit"
-                          class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
-                                 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                      class="mt-1 w-full ui-select">
                     <option value="pc">pc</option>
                     <option value="pcs">pcs</option>
                     <option value="m">m</option>
@@ -1100,7 +1157,7 @@
       });
     });
 
-    const MASTER_MAP = {{ master_map_json|safe }};
+    window.MASTER_MAP = {{ master_map_json|safe }};
 
     const mpCode = document.getElementById("mat-partcode-input");
     const mpName = document.getElementById("mat-partname");
