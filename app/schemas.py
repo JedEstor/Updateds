@@ -6,7 +6,6 @@ class CustomerPart(Schema):
     Partcode: str
     Partname: str
 
-
 class MaterialIn(Schema):
     mat_partcode: str
     dim_qty: float
@@ -70,3 +69,5 @@ class MaterialListOut(Schema):
     mat_partname: str
     mat_maker: str
     unit: str
+
+

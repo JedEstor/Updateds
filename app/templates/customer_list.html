@@ -2,6 +2,32 @@
 {% block title %}Customers{% endblock %}
 
 {% block content %}
+
+<div class="mb-5 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+  <div>
+    <p class="text-xs uppercase tracking-wide text-slate-500">Welcome</p>
+    <h2 class="text-2xl font-bold text-slate-900 leading-tight">
+      {% if staff_full_name %}
+        {{ staff_full_name }} 👋
+      {% else %}
+        {{ request.user.get_username }} 👋
+      {% endif %}
+    </h2>
+    <p class="text-sm text-slate-600">
+      Here are the customer records you can manage today.
+    </p>
+  </div>
+
+  <div class="mt-2 sm:mt-0 text-sm text-slate-500">
+    <span class="font-medium text-slate-700">{{ request.user.username }}</span>
+    {% if request.user.email %}
+      <span class="mx-2 text-slate-300">•</span>
+      <span>{{ request.user.email }}</span>
+    {% endif %}
+  </div>
+</div>
+
+
   <div class="flex items-end justify-between gap-4 mb-6">
     <div>
       <h1 class="text-2xl font-bold">Customers</h1>

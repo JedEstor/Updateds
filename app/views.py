@@ -1,32 +1,23 @@
 # views.py
 from django.views.decorators.cache import never_cache
 
-import json
-import csv
-import io
-import re
+import json, csv, io, re
 from collections import defaultdict
+
 from django.views.decorators.http import require_POST
 from django.core.paginator import Paginator
 from django.db import transaction, IntegrityError
 from django.db.models import Q
 from django.http import HttpResponse
 from django.shortcuts import render, get_object_or_404, redirect
-
 from django.contrib import messages
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required, user_passes_test
-
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
-
 from .models import Customer, TEPCode, Material, MaterialList
 from .forms import EmployeeCreateForm
-
-from django.contrib.auth import logout
-from django.shortcuts import redirect
-from django.urls import reverse
 
 
 def is_admin(user):
@@ -243,6 +234,7 @@ def build_customer_table(q: str):
 
     return customers
 
+
 @never_cache
 @login_required
 @user_passes_test(is_admin)
@@ -257,10 +249,6 @@ def admin_dashboard(request):
             part_code = _normalize_space(request.POST.get("part_code"))
             part_name = _normalize_space(request.POST.get("part_name"))
             tep_code = _normalize_space(request.POST.get("tep_code"))
-
-            mat_partcode = _normalize_space(request.POST.get("mat_partcode"))
-            dim_qty_raw = (request.POST.get("dim_qty") or "").strip()
-            loss_raw = (request.POST.get("loss_percent") or "").strip()
 
             if not customer_name:
                 messages.error(request, "Customer Name is required.")
@@ -278,76 +266,40 @@ def admin_dashboard(request):
                 messages.error(request, "TEP Code is required.")
                 return redirect(reverse("app:admin_dashboard") + "?tab=customers")
 
-            if not mat_partcode:
-                messages.error(request, "Material Partcode is required.")
-                return redirect(reverse("app:admin_dashboard") + "?tab=customers")
-
-            if not dim_qty_raw:
-                messages.error(request, "Dim Qty is required.")
-                return redirect(reverse("app:admin_dashboard") + "?tab=customers")
-
-            try:
-                dim_qty = float(dim_qty_raw)
-            except Exception:
-                messages.error(request, "Dim Qty must be a number.")
-                return redirect(reverse("app:admin_dashboard") + "?tab=customers")
-
-            loss_percent = 10.0
-            if loss_raw != "":
-                try:
-                    loss_percent = float(loss_raw)
-                except Exception:
-                    messages.error(request, "Loss % must be a number.")
-                    return redirect(reverse("app:admin_dashboard") + "?tab=customers")
-
-            master = MaterialList.objects.filter(mat_partcode=mat_partcode).first()
-            if not master:
-                messages.error(request, f"mat_partcode not found in master list: {mat_partcode}")
-                return redirect(reverse("app:admin_dashboard") + "?tab=customers")
-
-            total = round(float(dim_qty) * (1 + (float(loss_percent) / 100.0)), 4)
-
             try:
                 with transaction.atomic():
                     customer, _ = Customer.objects.get_or_create(customer_name=customer_name)
 
+                    # Ensure parts JSON contains this part code + part name
                     _ensure_customer_part_entry(customer, part_code, part_name)
 
-                    tep, _ = TEPCode.objects.get_or_create(
+                    # Create the TEPCode record
+                    # If you have unique constraint on tep_code, this will raise IntegrityError for duplicates
+                    TEPCode.objects.create(
                         customer=customer,
                         part_code=part_code,
                         tep_code=tep_code,
                     )
 
-                    final_name = _allocate_material_name(
-                        tep=tep,
-                        base_name=master.mat_partname,
-                        exclude_partcode=mat_partcode
-                    )
-
-                    material, created = Material.objects.get_or_create(
-                        tep_code=tep,
-                        mat_partcode=mat_partcode,
-                        defaults={
-                            "mat_partname": final_name,
-                            "mat_maker": master.mat_maker,
-                            "unit": master.unit,
-                            "dim_qty": dim_qty,
-                            "loss_percent": loss_percent,
-                            "total": total,
-                        }
-                    )
-
-                    if not created:
-                        messages.error(request, f"Material already exists for TEP {tep_code} + {mat_partcode}.")
-                        return redirect(reverse("app:admin_dashboard") + "?tab=customers")
-
                 messages.success(
                     request,
-                    f"Saved: {customer_name} | {part_code} | {tep_code} | {mat_partcode}"
+                    f"Saved customer record: {customer_name} | {part_code} | {tep_code}"
                 )
+
+            except IntegrityError as e:
+                msg = str(e).lower()
+
+                # ✅ Friendly duplicate message
+                # sqlite examples: "UNIQUE constraint failed: app_tepcode.tep_code"
+                if "tepcode.tep_code" in msg or "app_tepcode.tep_code" in msg:
+                    messages.error(request, "TEP Code already exists.")
+                elif "customer.customer_name" in msg or "app_customer.customer_name" in msg:
+                    messages.error(request, "Customer name already exists.")
+                else:
+                    messages.error(request, "Failed to save customer record.")
+
             except Exception as e:
-                messages.error(request, f"Failed to save full customer record: {e}")
+                messages.error(request, f"Failed to save customer record: {e}")
 
             return redirect(reverse("app:admin_dashboard") + "?tab=customers")
 
@@ -678,6 +630,7 @@ def admin_dashboard(request):
     }
     return render(request, "admin/dashboard.html", context)
 
+
 @login_required
 @user_passes_test(is_admin)
 def admin_users(request):
@@ -814,6 +767,7 @@ def customer_list(request):
     customers = build_customer_table(q)
     return render(request, "customer_list.html", {"customers": customers, "q": q})
 
+
 @never_cache
 @login_required
 def customer_detail(request, tep_id: int):
@@ -845,8 +799,9 @@ def customer_detail(request, tep_id: int):
         "tep_id": tep.id,
     })
 
+
 @login_required
-@user_passes_test(is_admin)  
+@user_passes_test(is_admin)
 def add_material_to_tep(request):
     if request.method != "POST":
         return redirect("app:admin_dashboard")
@@ -920,7 +875,7 @@ def add_material_to_tep(request):
     except Exception as e:
         messages.error(request, f"Failed to add material: {e}")
 
-    return redirect(reverse("app:admin_dashboard") + "?tab=customers")
+    return redirect(reverse("app:admin_dashboard") + f"?tab=customers&tep_id={tep_id}")
 
 
 @require_POST
@@ -949,7 +904,7 @@ def customer_create(request):
             customer.save()
 
             tep = TEPCode(customer=customer, part_code=part_code, tep_code=tep_code)
-            tep.full_clean()  
+            tep.full_clean()
             tep.save()
 
         messages.success(request, "Customer created successfully.")
@@ -958,9 +913,9 @@ def customer_create(request):
     except IntegrityError as e:
         msg = str(e)
 
-        if "tepcode.tep_code" in msg.lower():
+        if "tepcode.tep_code" in msg.lower() or "app_tepcode.tep_code" in msg.lower():
             messages.error(request, "TEP Code already exists.")
-        elif "customer.customer_name" in msg.lower():
+        elif "customer.customer_name" in msg.lower() or "app_customer.customer_name" in msg.lower():
             messages.error(request, "Customer name already exists.")
         else:
             messages.error(request, "Failed to save customer record.")
@@ -973,4 +928,4 @@ def customer_create(request):
 
 def logout_view(request):
     logout(request)
-    return redirect(reverse("app:login"))  
+    return redirect(reverse("app:login"))

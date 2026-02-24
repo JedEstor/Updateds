@@ -31,18 +31,30 @@
         </p>
       </div>
 
-      <div class="flex gap-2">
-        {% if selected_tep %}
-          <a href="/api/tep-codes/{{ selected_tep }}/materials" target="_blank"
-            class="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800">
-            View Materials JSON
-          </a>
-
-        {% endif %}
-        
+      <div class="flex items-start gap-2">
+        <button
+          type="button"
+          id="openAddMaterial"
+          class="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800"
+        >
+          + Add Material
+        </button>
       </div>
     </div>
   </div>
+
+  {% if messages %}
+    <div class="mt-4 space-y-2">
+      {% for message in messages %}
+        <div class="p-3 rounded-xl border
+          {% if message.tags == 'success' %} bg-green-50 border-green-200 text-green-700
+          {% elif message.tags == 'error' %} bg-red-50 border-red-200 text-red-700
+          {% else %} bg-slate-50 border-slate-200 text-slate-700 {% endif %}">
+          {{ message }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
 
   <div class="mt-6 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
     <div class="px-4 py-3 border-b flex justify-between">
@@ -90,4 +102,133 @@
       </table>
     </div>
   </div>
+  <div id="addMaterialModal" class="fixed inset-0 hidden z-50">
+    <div id="addMaterialOverlay" class="absolute inset-0 bg-black/40"></div>
+
+    <div class="relative max-w-2xl mx-auto mt-16 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+      <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-bold">Add Material</h2>
+          <p class="text-sm text-slate-500">
+            This will be saved under TEP:
+            <span class="font-semibold">{{ selected_tep }}</span>
+          </p>
+        </div>
+        <button type="button" id="closeAddMaterial" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200">
+          ✕
+        </button>
+      </div>
+
+      <form method="post" action="{% url 'app:add_material_to_tep' %}" class="p-5 space-y-4">
+        {% csrf_token %}
+        <input type="hidden" name="tep_id" value="{{ tep_id }}">
+
+        <input type="hidden" name="redirect_part_code" value="{{ selected_part }}">
+        <input type="hidden" name="redirect_customer_name" value="{{ customer.customer_name }}">
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="text-sm font-semibold">Material Code</label>
+            <input
+              name="mat_partcode"
+              required
+              class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400"
+              placeholder="e.g. 0-292215-3"
+            />
+          </div>
+
+          <div>
+            <label class="text-sm font-semibold">Material Name</label>
+            <input
+              name="mat_partname"
+              required
+              class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400"
+              placeholder="e.g. Wire AVSS 2"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label class="text-sm font-semibold">Maker</label>
+          <input
+            name="mat_maker"
+            required
+            class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400"
+            placeholder="e.g. XINYA"
+          />
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="text-sm font-semibold">Unit</label>
+            <select
+              name="unit"
+              required
+              class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400"
+            >
+              <option value="pc">pc</option>
+              <option value="pcs">pcs</option>
+              <option value="m">m</option>
+              <option value="g">g</option>
+              <option value="kg">kg</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="text-sm font-semibold">Dim/Qty</label>
+            <input
+              name="dim_qty"
+              type="number"
+              step="0.0001"
+              required
+              class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400"
+              placeholder="e.g. 0.865"
+            />
+          </div>
+
+          <div>
+            <label class="text-sm font-semibold">Loss %</label>
+            <input
+              name="loss_percent"
+              type="number"
+              step="0.01"
+              value="10"
+              class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400"
+            />
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2">
+          <button type="button" id="cancelAddMaterial" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200">
+            Cancel
+          </button>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800">
+            Save
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // ✅ Modal open/close
+    const matModal = document.getElementById("addMaterialModal");
+    const openMatBtn = document.getElementById("openAddMaterial");
+    const closeMatBtn = document.getElementById("closeAddMaterial");
+    const cancelMatBtn = document.getElementById("cancelAddMaterial");
+    const matOverlay = document.getElementById("addMaterialOverlay");
+
+    function openMatModal() { matModal.classList.remove("hidden"); }
+    function closeMatModal() { matModal.classList.add("hidden"); }
+
+    openMatBtn?.addEventListener("click", openMatModal);
+    closeMatBtn?.addEventListener("click", closeMatModal);
+    cancelMatBtn?.addEventListener("click", closeMatModal);
+    matOverlay?.addEventListener("click", closeMatModal);
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeMatModal();
+    });
+  </script>
+
 {% endblock %}
