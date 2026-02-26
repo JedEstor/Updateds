@@ -16,7 +16,8 @@ from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
-from .models import Customer, TEPCode, Material, MaterialList
+
+from .models import Customer, TEPCode, Material, MaterialList, MaterialStock  # ✅ added MaterialStock
 from .forms import EmployeeCreateForm
 
 
@@ -235,6 +236,51 @@ def build_customer_table(q: str):
     return customers
 
 
+# ✅ NEW: update material stock (for dashboard Stocks tab)
+@require_POST
+@login_required
+@user_passes_test(is_admin)
+def update_material_stock(request):
+    material_id = (request.POST.get("material_id") or "").strip()
+    on_hand_qty_raw = (request.POST.get("on_hand_qty") or "").strip()
+    sq = (request.GET.get("sq") or request.POST.get("sq") or "").strip()
+
+    if not material_id:
+        messages.error(request, "Missing material_id.")
+        return redirect(reverse("app:admin_dashboard") + "?tab=stocks")
+
+    try:
+        on_hand_qty = int(on_hand_qty_raw) if on_hand_qty_raw != "" else 0
+        if on_hand_qty < 0:
+            on_hand_qty = 0
+    except Exception:
+        messages.error(request, "On hand qty must be a whole number.")
+        return redirect(reverse("app:admin_dashboard") + "?tab=stocks")
+
+    mat = get_object_or_404(MaterialList, id=material_id)
+
+    # IMPORTANT:
+    # This assumes your MaterialStock.material points to MaterialList
+    # and your related_name is "stock" (as you used in template: m.stock.on_hand_qty)
+    try:
+        MaterialStock.objects.update_or_create(
+            material=mat,
+            defaults={
+                "on_hand_qty": on_hand_qty,
+                "last_updated_by": request.user,
+            }
+        )
+        messages.success(request, f"Saved stock: {mat.mat_partcode} = {on_hand_qty}")
+    except Exception as e:
+        messages.error(request, f"Failed to save stock: {e}")
+
+    # keep your search text (sq) if you have it
+    url = reverse("app:admin_dashboard") + "?tab=stocks"
+    if sq:
+        url += f"&sq={sq}"
+    return redirect(url)
+
+
 @never_cache
 @login_required
 @user_passes_test(is_admin)
@@ -270,11 +316,8 @@ def admin_dashboard(request):
                 with transaction.atomic():
                     customer, _ = Customer.objects.get_or_create(customer_name=customer_name)
 
-                    # Ensure parts JSON contains this part code + part name
                     _ensure_customer_part_entry(customer, part_code, part_name)
 
-                    # Create the TEPCode record
-                    # If you have unique constraint on tep_code, this will raise IntegrityError for duplicates
                     TEPCode.objects.create(
                         customer=customer,
                         part_code=part_code,
@@ -288,9 +331,6 @@ def admin_dashboard(request):
 
             except IntegrityError as e:
                 msg = str(e).lower()
-
-                # ✅ Friendly duplicate message
-                # sqlite examples: "UNIQUE constraint failed: app_tepcode.tep_code"
                 if "tepcode.tep_code" in msg or "app_tepcode.tep_code" in msg:
                     messages.error(request, "TEP Code already exists.")
                 elif "customer.customer_name" in msg or "app_customer.customer_name" in msg:
@@ -433,7 +473,6 @@ def admin_dashboard(request):
                 user.is_superuser = False
                 user.save()
 
-                # create employeeprofile
                 try:
                     from .models import EmployeeProfile
                     EmployeeProfile.objects.create(
@@ -582,6 +621,19 @@ def admin_dashboard(request):
     users_page = users_paginator.get_page(upage)
     user_total = users_qs.count()
 
+    sq = (request.GET.get("sq") or "").strip()
+
+    materials_master_qs = MaterialList.objects.all().order_by("mat_partcode")
+
+    if sq:
+        materials_master_qs = materials_master_qs.filter(
+            Q(mat_partcode__icontains=sq) |
+            Q(mat_partname__icontains=sq) |
+            Q(mat_maker__icontains=sq)
+        )
+
+    materials_master = materials_master_qs.select_related("stock")
+
     tep_id = request.GET.get("tep_id")
     is_ajax = request.headers.get("x-requested-with") == "XMLHttpRequest"
 
@@ -621,6 +673,9 @@ def admin_dashboard(request):
         "material_total": material_total,
         "material_list": material_list,
         "page_obj": page_obj,
+
+        "sq": sq,
+        "materials_master": materials_master,
 
         "uq": uq,
         "user_total": user_total,

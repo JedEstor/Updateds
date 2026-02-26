@@ -7,21 +7,22 @@
 
   <style>
     .ui-select {
-    height: 40px;              
-    min-width: 160px;          
-    padding: 0 10px;
-    border-radius: 0.75rem;    
-    border: 1px solid #cbd5e1; 
-    background-color: #fff;
-    font-size: 0.875rem;       
-    line-height: 1.25rem;
-  }
+      height: 40px;
+      min-width: 160px;
+      padding: 0 10px;
+      border-radius: 0.75rem;
+      border: 1px solid #cbd5e1;
+      background-color: #fff;
+      font-size: 0.875rem;
+      line-height: 1.25rem;
+    }
 
-  .ui-select:focus {
-    outline: none;
-    border-color: #3b82f6;     
-    box-shadow: 0 0 0 2px rgba(59,130,246,.25);
-  }
+    .ui-select:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 2px rgba(59,130,246,.25);
+    }
+
     .sidebar {
       width: 72px;
       transition: width 180ms ease;
@@ -140,6 +141,22 @@
           <div class="nav-text">
             <div class="font-medium">Material List</div>
             <div class="text-xs text-slate-200/80">View & Add Materials</div>
+          </div>
+        </a>
+
+        <!-- ✅ Material Stocks tab -->
+        <a href="?tab=stocks&sq={{ sq|urlencode }}"
+           class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition
+                  {% if tab == 'stocks' %}bg-white/10{% endif %}">
+          <span class="inline-flex h-9 w-9 rounded-lg bg-white/5 items-center justify-center border border-white/10">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M20 7H4m16 0v10a2 2 0 01-2 2H6a2 2 0 01-2-2V7m16 0l-8-4-8 4" />
+            </svg>
+          </span>
+          <div class="nav-text">
+            <div class="font-medium">Material Stocks</div>
+            <div class="text-xs text-slate-200/80">Encode stock on hand</div>
           </div>
         </a>
 
@@ -617,6 +634,120 @@
           </div>
 
         </div>
+        {% endif %}
+
+        <!-- ✅ STOCKS TAB (UPDATED: shows Material, On Hand, Last Updated At, Last Updated By) -->
+        {% if tab == "stocks" %}
+
+        <div class="grid grid-cols-1 gap-6">
+          <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+
+            <div class="px-5 py-4 border-b border-slate-200 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h2 class="text-lg font-semibold text-slate-900">Material Stocks (On Hand)</h2>
+                <p class="text-sm text-slate-500">Encode stock on hand after monthly physical inventory.</p>
+              </div>
+
+              <form method="get" class="flex items-center gap-2">
+                <input type="hidden" name="tab" value="stocks">
+                <input
+                  type="text"
+                  name="sq"
+                  value="{{ sq|default:'' }}"
+                  placeholder="Search partcode / name / maker..."
+                  class="h-10 w-80 max-w-full px-3 rounded-xl bg-white border border-slate-300 text-slate-900
+                         focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <button class="h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white" type="submit">
+                  Search
+                </button>
+              </form>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full min-w-[1180px] text-sm">
+                <thead class="bg-slate-50 text-slate-700">
+                  <tr>
+                    <th class="px-4 py-3 text-left">Material</th>
+                    <th class="px-4 py-3 text-left">On Hand Qty</th>
+                    <th class="px-4 py-3 text-left">Last Updated At</th>
+                    <th class="px-4 py-3 text-left">Last Updated By</th>
+                    <th class="px-4 py-3 text-right">Action</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {% for m in materials_master %}
+                  <tr class="border-t border-slate-200 hover:bg-slate-50 align-middle">
+                    <td class="px-4 py-3">
+                      <div class="font-medium text-slate-900">{{ m.mat_partcode }}</div>
+                      <div class="text-xs text-slate-500">{{ m.mat_partname }}</div>
+                      <div class="text-[11px] text-slate-500 mt-0.5">
+                        Maker: {{ m.mat_maker|default:"—" }} • Unit: {{ m.unit|default:"—" }}
+                      </div>
+                    </td>
+
+                    <td class="px-4 py-3">
+                      <form method="post" action="{% url 'app:update_material_stock' %}" class="flex items-center gap-2 justify-start">
+                        {% csrf_token %}
+                        <input type="hidden" name="material_id" value="{{ m.id }}">
+
+                        <!-- IMPORTANT: use m.on_hand_qty (needs to be provided by your view) -->
+                        <input
+                          type="number"
+                          min="0"
+                          name="on_hand_qty"
+                          value="{{ m.on_hand_qty|default:0 }}"
+                          class="h-10 w-36 px-3 rounded-xl border border-slate-300 bg-white
+                                 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                    </td>
+
+                    <td class="px-4 py-3 text-slate-700">
+                      {% if m.last_updated_at %}
+                        {{ m.last_updated_at|date:"Y-m-d H:i" }}
+                      {% else %}
+                        <span class="text-slate-400">—</span>
+                      {% endif %}
+                    </td>
+
+                    <td class="px-4 py-3 text-slate-700">
+                      {% if m.last_updated_by %}
+                        {{ m.last_updated_by }}
+                      {% else %}
+                        <span class="text-slate-400">—</span>
+                      {% endif %}
+                    </td>
+
+                    <td class="px-4 py-3 text-right">
+                        <button
+                          type="submit"
+                          class="h-10 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white"
+                        >
+                          Save
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                  {% empty %}
+                  <tr>
+                    <td colspan="5" class="px-4 py-10 text-center text-slate-500">
+                      No materials found in master list.
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+
+              </table>
+            </div>
+
+            <div class="px-5 py-4 border-t border-slate-200 text-sm text-slate-600">
+              Tip: Use the search box to quickly find a part code/name, then update on-hand qty.
+            </div>
+
+          </div>
+        </div>
+
         {% endif %}
 
         {% if tab == "users" %}

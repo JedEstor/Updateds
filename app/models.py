@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.contrib.auth.models import User
 
@@ -112,3 +113,32 @@ class EmployeeProfile(models.Model):
 
     def __str__(self):
         return f"{self.employee_id} - {self.full_name}"
+    
+class MaterialStock(models.Model):
+    """
+    Stock on hand is STATIC / manually encoded (e.g., monthly inventory).
+    This MUST reference the MASTER list: MaterialList.
+    """
+    material = models.OneToOneField(
+        MaterialList,
+        on_delete=models.CASCADE,
+        related_name="stock"
+    )
+    on_hand_qty = models.PositiveIntegerField(
+        default=0,
+        help_text="Physical stock counted during monthly inventory"
+    )
+    last_updated_at = models.DateTimeField(auto_now=True)
+    last_updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
+    class Meta:
+        verbose_name = "Material Stock"
+        verbose_name_plural = "Material Stocks"
+
+    def __str__(self):
+        return f"{self.material} - On hand: {self.on_hand_qty}"
