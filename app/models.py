@@ -115,10 +115,6 @@ class EmployeeProfile(models.Model):
         return f"{self.employee_id} - {self.full_name}"
     
 class MaterialStock(models.Model):
-    """
-    Stock on hand is STATIC / manually encoded (e.g., monthly inventory).
-    This MUST reference the MASTER list: MaterialList.
-    """
     material = models.OneToOneField(
         MaterialList,
         on_delete=models.CASCADE,
@@ -142,3 +138,68 @@ class MaterialStock(models.Model):
 
     def __str__(self):
         return f"{self.material} - On hand: {self.on_hand_qty}"
+    
+
+class MaterialAllocation(models.Model):
+    """
+    Represents RESERVED / ALLOCATED stock.
+    Does NOT change physical stock directly.
+    """
+
+    STATUS_CHOICES = [
+        ("reserved", "Reserved"),
+        ("fulfilled", "Fulfilled"),  
+        ("released", "Released"),  
+    ]
+
+    material = models.ForeignKey(
+        MaterialList,
+        on_delete=models.CASCADE,
+        related_name="allocations"
+    )
+
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.CASCADE,
+        related_name="material_allocations"
+    )
+
+    tep_code = models.ForeignKey(
+        TEPCode,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="material_allocations"
+    )
+
+    qty_allocated = models.PositiveIntegerField(
+        help_text="Quantity reserved from stock"
+    )
+
+    forecast_ref = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Optional forecast reference (month/week/code)"
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="reserved"
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
+    class Meta:
+        ordering = ["created_at"]
+        verbose_name = "Material Allocation"
+        verbose_name_plural = "Material Allocations"
+
+    def __str__(self):
+        return f"{self.material.mat_partcode} | {self.qty_allocated} | {self.status}"

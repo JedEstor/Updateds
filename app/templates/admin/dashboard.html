@@ -663,78 +663,111 @@
             </div>
 
             <div class="overflow-x-auto">
-              <table class="w-full min-w-[1180px] text-sm table-fixed">
+              <table class="w-full min-w-[1100px] table-fixed text-sm">
                 <colgroup>
-                  <col style="width: 20%">
-                  <col style="width: 16%">
-                  <col style="width: 16%">
-                  <col style="width: 16%">
-                  <col style="width: 10%">
+                  <col class="w-[250px]">  
+                  <col class="w-[110px]">  
+                  <col class="w-[110px]">  
+                  <col class="w-[110px]">  
+                  <col class="w-[160px]">  
+                  <col class="w-[110px]">  
+                  <col class="w-[140px]">  
                 </colgroup>
-                <thead class="bg-slate-50 text-slate-700">
+
+                <thead class="bg-slate-50 text-slate-700 sticky top-0 z-10">
                   <tr>
-                    <th class="px-4 py-3 text-left">Material</th>
-                    <th class="px-4 py-3 text-left">On Hand Qty</th>
-                    <th class="px-4 py-3 text-left">Last Updated At</th>
-                    <th class="px-4 py-3 text-left">Last Updated By</th>
-                    <th class="px-4 py-3 text-right">Action</th>
+                    <th class="px-4 py-3 text-left font-semibold">Material</th>
+                    <th class="px-4 py-3 text-right font-semibold tabular-nums whitespace-nowrap">On Hand</th>
+                    <th class="px-4 py-3 text-right font-semibold tabular-nums whitespace-nowrap">Reserved</th>
+                    <th class="px-4 py-3 text-right font-semibold tabular-nums whitespace-nowrap pr-8">Available</th>
+                    <th class="px-4 py-3 text-left  font-semibold whitespace-nowrap pl-8">Last Updated</th>
+                    <th class="px-4 py-3 text-left font-semibold whitespace-nowrap">By</th>
+                    <th class="px-4 py-3 text-right font-semibold whitespace-nowrap">Action</th>
                   </tr>
                 </thead>
 
-                <tbody>
+                <tbody class="divide-y divide-slate-200">
                   {% for m in materials_master %}
-                <tr class="border-t border-slate-200 hover:bg-slate-50 align-middle">
-                  <td class="px-4 py-3">
-                    <div class="font-medium text-slate-900">{{ m.mat_partcode }}</div>
-                    <div class="text-xs text-slate-500">{{ m.mat_partname }}</div>
-                    <div class="text-[11px] text-slate-500 mt-0.5">
-                      Maker: {{ m.mat_maker|default:"—" }} • Unit: {{ m.unit|default:"—" }}
-                    </div>
+                  <tr class="hover:bg-slate-50 align-middle">
+                    
+                    <td class="px-4 py-3">
+                      <div class="leading-tight">
+                        <div class="font-semibold text-slate-900 truncate">
+                          {{ m.mat_partcode }} <span class="font-normal text-slate-500">•</span> {{ m.mat_partname }}
+                        </div>
+                        <div class="text-xs text-slate-500 truncate mt-1">
+                          {{ m.mat_maker|default:"—" }} • Unit: {{ m.unit|default:"—" }}
+                        </div>
+                      </div>
+                    </td>
+
+                    <td class="px-4 py-3 text-right tabular-nums whitespace-nowrap">
+                      <input
+                        form="stock-form-{{ m.id }}"
+                        type="number"
+                        min="0"
+                        name="on_hand_qty"
+                        value="{{ m.on_hand_qty|default:0 }}"
+                        class="h-9 w-[92px] text-right px-2 rounded-lg border border-slate-300 bg-white
+                              focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </td>
+
+                    <td class="px-4 py-3 text-right tabular-nums whitespace-nowrap">
+                      <span class="font-medium text-amber-600">
+                        {{ m.reserved_qty|default:0 }}
+                      </span>
+                    </td>
+
+                   <td class="px-4 py-3 text-right tabular-nums whitespace-nowrap pr-8">
+                    <span class="font-semibold {% if m.available_qty <= 0 %}text-rose-600{% else %}text-slate-900{% endif %}">
+                      {{ m.available_qty|default:0 }}
+                    </span>
                   </td>
 
-                  <td class="px-4 py-3">
-                    <input
-                      type="number"
-                      min="0"
-                      name="on_hand_qty"
-                      form="stock-form-{{ m.id }}"
-                      value="{% if m.stock %}{{ m.stock.on_hand_qty }}{% else %}0{% endif %}"
-                      class="h-10 w-36 px-3 rounded-xl border border-slate-300 bg-white
-                            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </td>
-
-                  <td class="px-4 py-3 text-slate-700">
-                    {% if m.stock %}
-                      {{ m.stock.last_updated_at|date:"Y-m-d H:i" }}
+                  <td class="px-4 py-3 whitespace-nowrap text-slate-700 pl-8">
+                    {% if m.last_updated_at %}
+                      {{ m.last_updated_at|date:"Y-m-d H:i" }}
                     {% else %}
                       <span class="text-slate-400">—</span>
                     {% endif %}
                   </td>
 
-                  <td class="px-4 py-3 text-slate-700">
-                    {% if m.stock and m.stock.last_updated_by %}
-                      {{ m.stock.last_updated_by }}
-                    {% else %}
-                      <span class="text-slate-400">—</span>
-                    {% endif %}
-                  </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-slate-700">
+                      {% if m.last_updated_by %}
+                        {{ m.last_updated_by }}
+                      {% else %}
+                        <span class="text-slate-400">—</span>
+                      {% endif %}
+                    </td>
 
-                  <td class="px-4 py-3 text-right">
-                    <form id="stock-form-{{ m.id }}" method="post" action="{% url 'app:update_material_stock' %}">
-                      {% csrf_token %}
-                      <input type="hidden" name="material_id" value="{{ m.id }}">
-                      <input type="hidden" name="sq" value="{{ sq|default:'' }}">
-                      <button
-                        type="submit"
-                        class="h-10 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white"
+                    <td class="px-4 py-3 text-right whitespace-nowrap">
+                      <form
+                        id="stock-form-{{ m.id }}"
+                        method="post"
+                        action="{% url 'app:update_material_stock' %}"
+                        class="inline-flex items-center justify-end gap-2"
                       >
-                        Save
-                      </button>
-                    </form>
-                  </td>
-                </tr>
-                {% endfor %}
+                        {% csrf_token %}
+                        <input type="hidden" name="material_id" value="{{ m.id }}">
+                        <input type="hidden" name="sq" value="{{ sq|default:'' }}">
+
+                        <button
+                          type="submit"
+                          class="h-9 px-4 rounded-lg bg-slate-900 text-white hover:bg-slate-800"
+                        >
+                          Save
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                  {% empty %}
+                  <tr>
+                    <td colspan="7" class="px-4 py-10 text-center text-slate-500">
+                      No materials found in master list.
+                    </td>
+                  </tr>
+                  {% endfor %}
                 </tbody>
 
               </table>

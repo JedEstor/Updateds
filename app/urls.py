@@ -26,5 +26,6 @@ urlpatterns = [
     
     path("customers/create/", views.customer_create, name="customer_create"),
     path("material-stock/update/", views.update_material_stock, name="update_material_stock"),
+    path("material-allocation/create/", views.create_material_allocation, name="create_material_allocation"),
     
 ]
