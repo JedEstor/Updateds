@@ -17,7 +17,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 
-from .models import Customer, TEPCode, Material, MaterialList, MaterialStock  # ✅ added MaterialStock
+from .models import Customer, TEPCode, Material, MaterialList, MaterialStock 
 from .forms import EmployeeCreateForm
 
 
@@ -31,6 +31,7 @@ def can_edit(user):
 
 def home(request):
     return HttpResponse("Welcome to the Home Page!")
+
 
 
 def login_view(request):
@@ -235,8 +236,6 @@ def build_customer_table(q: str):
 
     return customers
 
-
-# ✅ NEW: update material stock (for dashboard Stocks tab)
 @require_POST
 @login_required
 @user_passes_test(is_admin)
@@ -256,7 +255,7 @@ def update_material_stock(request):
     except Exception:
         messages.error(request, "On hand qty must be a whole number.")
         return redirect(reverse("app:admin_dashboard") + "?tab=stocks")
-
+        print("POST:", request.POST)
     mat = get_object_or_404(MaterialList, id=material_id)
 
     # IMPORTANT:
@@ -620,7 +619,6 @@ def admin_dashboard(request):
     upage = request.GET.get("upage")
     users_page = users_paginator.get_page(upage)
     user_total = users_qs.count()
-
     sq = (request.GET.get("sq") or "").strip()
 
     materials_master_qs = MaterialList.objects.all().order_by("mat_partcode")
@@ -632,7 +630,25 @@ def admin_dashboard(request):
             Q(mat_maker__icontains=sq)
         )
 
-    materials_master = materials_master_qs.select_related("stock")
+    materials_master_qs = materials_master_qs.select_related("stock", "stock__last_updated_by")
+
+    # ✅ paginate stocks like masterlist (8 per page)
+    stock_paginator = Paginator(materials_master_qs, 8)
+    spage = request.GET.get("spage")
+    stock_page_obj = stock_paginator.get_page(spage)
+
+    materials_master = stock_page_obj
+
+    for m in materials_master:
+        try:
+            s = m.stock
+            m.on_hand_qty = s.on_hand_qty
+            m.last_updated_at = s.last_updated_at
+            m.last_updated_by = s.last_updated_by
+        except MaterialStock.DoesNotExist:
+            m.on_hand_qty = 0
+            m.last_updated_at = None
+            m.last_updated_by = None
 
     tep_id = request.GET.get("tep_id")
     is_ajax = request.headers.get("x-requested-with") == "XMLHttpRequest"
@@ -676,6 +692,7 @@ def admin_dashboard(request):
 
         "sq": sq,
         "materials_master": materials_master,
+        "stock_page_obj": stock_page_obj,
 
         "uq": uq,
         "user_total": user_total,
@@ -930,7 +947,7 @@ def add_material_to_tep(request):
     except Exception as e:
         messages.error(request, f"Failed to add material: {e}")
 
-    return redirect(reverse("app:admin_dashboard") + f"?tab=customers&tep_id={tep_id}")
+    return redirect(reverse("app:admin_dashboard")+ f"?tab=customers&open_panel=1&tep_id={tep_id}")
 
 
 @require_POST

@@ -636,7 +636,6 @@
         </div>
         {% endif %}
 
-        <!-- ✅ STOCKS TAB (UPDATED: shows Material, On Hand, Last Updated At, Last Updated By) -->
         {% if tab == "stocks" %}
 
         <div class="grid grid-cols-1 gap-6">
@@ -645,7 +644,6 @@
             <div class="px-5 py-4 border-b border-slate-200 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
                 <h2 class="text-lg font-semibold text-slate-900">Material Stocks (On Hand)</h2>
-                <p class="text-sm text-slate-500">Encode stock on hand after monthly physical inventory.</p>
               </div>
 
               <form method="get" class="flex items-center gap-2">
@@ -665,7 +663,14 @@
             </div>
 
             <div class="overflow-x-auto">
-              <table class="w-full min-w-[1180px] text-sm">
+              <table class="w-full min-w-[1180px] text-sm table-fixed">
+                <colgroup>
+                  <col style="width: 20%">
+                  <col style="width: 16%">
+                  <col style="width: 16%">
+                  <col style="width: 16%">
+                  <col style="width: 10%">
+                </colgroup>
                 <thead class="bg-slate-50 text-slate-700">
                   <tr>
                     <th class="px-4 py-3 text-left">Material</th>
@@ -678,73 +683,106 @@
 
                 <tbody>
                   {% for m in materials_master %}
-                  <tr class="border-t border-slate-200 hover:bg-slate-50 align-middle">
-                    <td class="px-4 py-3">
-                      <div class="font-medium text-slate-900">{{ m.mat_partcode }}</div>
-                      <div class="text-xs text-slate-500">{{ m.mat_partname }}</div>
-                      <div class="text-[11px] text-slate-500 mt-0.5">
-                        Maker: {{ m.mat_maker|default:"—" }} • Unit: {{ m.unit|default:"—" }}
-                      </div>
-                    </td>
+                <tr class="border-t border-slate-200 hover:bg-slate-50 align-middle">
+                  <td class="px-4 py-3">
+                    <div class="font-medium text-slate-900">{{ m.mat_partcode }}</div>
+                    <div class="text-xs text-slate-500">{{ m.mat_partname }}</div>
+                    <div class="text-[11px] text-slate-500 mt-0.5">
+                      Maker: {{ m.mat_maker|default:"—" }} • Unit: {{ m.unit|default:"—" }}
+                    </div>
+                  </td>
 
-                    <td class="px-4 py-3">
-                      <form method="post" action="{% url 'app:update_material_stock' %}" class="flex items-center gap-2 justify-start">
-                        {% csrf_token %}
-                        <input type="hidden" name="material_id" value="{{ m.id }}">
+                  <td class="px-4 py-3">
+                    <input
+                      type="number"
+                      min="0"
+                      name="on_hand_qty"
+                      form="stock-form-{{ m.id }}"
+                      value="{% if m.stock %}{{ m.stock.on_hand_qty }}{% else %}0{% endif %}"
+                      class="h-10 w-36 px-3 rounded-xl border border-slate-300 bg-white
+                            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </td>
 
-                        <!-- IMPORTANT: use m.on_hand_qty (needs to be provided by your view) -->
-                        <input
-                          type="number"
-                          min="0"
-                          name="on_hand_qty"
-                          value="{{ m.on_hand_qty|default:0 }}"
-                          class="h-10 w-36 px-3 rounded-xl border border-slate-300 bg-white
-                                 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                    </td>
+                  <td class="px-4 py-3 text-slate-700">
+                    {% if m.stock %}
+                      {{ m.stock.last_updated_at|date:"Y-m-d H:i" }}
+                    {% else %}
+                      <span class="text-slate-400">—</span>
+                    {% endif %}
+                  </td>
 
-                    <td class="px-4 py-3 text-slate-700">
-                      {% if m.last_updated_at %}
-                        {{ m.last_updated_at|date:"Y-m-d H:i" }}
-                      {% else %}
-                        <span class="text-slate-400">—</span>
-                      {% endif %}
-                    </td>
+                  <td class="px-4 py-3 text-slate-700">
+                    {% if m.stock and m.stock.last_updated_by %}
+                      {{ m.stock.last_updated_by }}
+                    {% else %}
+                      <span class="text-slate-400">—</span>
+                    {% endif %}
+                  </td>
 
-                    <td class="px-4 py-3 text-slate-700">
-                      {% if m.last_updated_by %}
-                        {{ m.last_updated_by }}
-                      {% else %}
-                        <span class="text-slate-400">—</span>
-                      {% endif %}
-                    </td>
-
-                    <td class="px-4 py-3 text-right">
-                        <button
-                          type="submit"
-                          class="h-10 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white"
-                        >
-                          Save
-                        </button>
-                      </form>
-                    </td>
-                  </tr>
-                  {% empty %}
-                  <tr>
-                    <td colspan="5" class="px-4 py-10 text-center text-slate-500">
-                      No materials found in master list.
-                    </td>
-                  </tr>
-                  {% endfor %}
+                  <td class="px-4 py-3 text-right">
+                    <form id="stock-form-{{ m.id }}" method="post" action="{% url 'app:update_material_stock' %}">
+                      {% csrf_token %}
+                      <input type="hidden" name="material_id" value="{{ m.id }}">
+                      <input type="hidden" name="sq" value="{{ sq|default:'' }}">
+                      <button
+                        type="submit"
+                        class="h-10 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white"
+                      >
+                        Save
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+                {% endfor %}
                 </tbody>
 
               </table>
-            </div>
+              {% if stock_page_obj and stock_page_obj.paginator.num_pages > 1 %}
+  <div class="px-5 py-4 border-t border-slate-200 flex items-center justify-between gap-3 flex-wrap">
+    <div class="text-sm text-slate-500">
+      Showing
+      <span class="font-medium text-slate-900">{{ stock_page_obj.start_index }}</span>–
+      <span class="font-medium text-slate-900">{{ stock_page_obj.end_index }}</span>
+      of
+      <span class="font-medium text-slate-900">{{ stock_page_obj.paginator.count }}</span>
+    </div>
 
-            <div class="px-5 py-4 border-t border-slate-200 text-sm text-slate-600">
-              Tip: Use the search box to quickly find a part code/name, then update on-hand qty.
-            </div>
+    <div class="flex items-center gap-2 flex-wrap">
+      {% if stock_page_obj.has_previous %}
+        <a class="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm"
+           href="?tab=stocks&sq={{ sq|urlencode }}&spage={{ stock_page_obj.previous_page_number }}">
+          ← Prev
+        </a>
+      {% else %}
+        <span class="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-400">
+          ← Prev
+        </span>
+      {% endif %}
 
+      {% for p in stock_page_obj.paginator.page_range %}
+        {% if p == stock_page_obj.number %}
+          <span class="px-3 py-2 rounded-xl bg-blue-600 text-white text-sm">{{ p }}</span>
+        {% elif p >= stock_page_obj.number|add:-2 and p <= stock_page_obj.number|add:2 %}
+          <a class="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm"
+             href="?tab=stocks&sq={{ sq|urlencode }}&spage={{ p }}">{{ p }}</a>
+        {% endif %}
+      {% endfor %}
+
+      {% if stock_page_obj.has_next %}
+        <a class="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm"
+           href="?tab=stocks&sq={{ sq|urlencode }}&spage={{ stock_page_obj.next_page_number }}">
+          Next →
+        </a>
+      {% else %}
+        <span class="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-400">
+          Next →
+        </span>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}
+            </div>
           </div>
         </div>
 
@@ -1219,6 +1257,17 @@
         loadPanel(tepId);
       });
     });
+
+    (function autoOpenPanelFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const open = params.get("open_panel");
+    const tepId = params.get("tep_id");
+
+    if (open === "1" && tepId) {
+      openPanel();
+      loadPanel(tepId);
+    }
+  })();
 
     const openCSV = document.getElementById("open-csv-upload");
     const csvModal = document.getElementById("csv-modal");
