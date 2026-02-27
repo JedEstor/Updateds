@@ -26,14 +26,13 @@ urlpatterns = [
     
     path("customers/create/", views.customer_create, name="customer_create"),
     path("material-stock/update/", views.update_material_stock, name="update_material_stock"),
-<<<<<<< HEAD
+    path("register-allocation/", views.register_allocation, name="register_allocation"),
+
 
     #test for the forecast
     
     path("material-forecast/", views.material_forecast_view, name="material_forecast"),
 
-=======
     path("material-allocation/create/", views.create_material_allocation, name="create_material_allocation"),
->>>>>>> d107a63f67a6eb316c85beb57891b543c2b16f7b
     
 ]

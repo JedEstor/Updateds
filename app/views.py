@@ -3,7 +3,7 @@ from django.views.decorators.cache import never_cache
 
 import json, csv, io, re
 from collections import defaultdict
-
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.core.paginator import Paginator
 from django.db import transaction, IntegrityError
@@ -17,17 +17,15 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 
-<<<<<<< HEAD
 from .service import PART_FORECAST_VALUES, compute_material_total
 from .models import Customer, TEPCode, Material, MaterialList, MaterialStock, MaterialForecast
-=======
-from .models import Customer, TEPCode, Material, MaterialList, MaterialStock, MaterialAllocation
->>>>>>> d107a63f67a6eb316c85beb57891b543c2b16f7b
+from .models import Customer, TEPCode, Material, MaterialList, MaterialStock, MaterialAllocation, ForecastRun, ForecastLine, DailyMaterialAllocation, MaterialForecast
 from .forms import EmployeeCreateForm
 
 from .models import ForecastRun, ForecastLine
 from .service import prototype_static_run
-
+from datetime import date
+from django.utils import timezone
 
 def is_admin(user):
     return user.is_authenticated and user.is_superuser
@@ -1041,6 +1039,7 @@ def customer_create(request):
         messages.error(request, "Failed to save customer record.")
         return redirect("app:customer_list")
 
+# --- Existing functions remain unchanged ---
 @require_POST
 @login_required
 @user_passes_test(is_admin)
@@ -1113,17 +1112,18 @@ def create_material_allocation(request):
         url += f"&spage={spage}"
     return redirect(url)
 
+
 def logout_view(request):
     logout(request)
     return redirect(reverse("app:login"))
 
 
-
-# Static forecast mapping for prototype
+# --- Static forecast mapping for prototype ---
 PART_FORECAST_VALUES = {
     "LT3436-001 REV.D": 5000,
     "LT3435-001 REV.C": 10000,
 }
+
 
 def material_forecast_view(request):
     part_code = request.GET.get('part_code', '').strip()
@@ -1151,34 +1151,109 @@ def material_forecast_view(request):
         "part_code": part_code,
         "part_forecast_values": PART_FORECAST_VALUES,
     })
-from django.shortcuts import render
+
+
+# --- New: Run prototype forecast with monthly context ---
+@require_POST
+@login_required
+@user_passes_test(is_admin)
+def run_prototype_forecast(request):
+    """
+    Generates a prototype forecast for materials.
+    Splits quantities across all days of the selected month.
+    """
+    if request.method != "POST":
+        messages.error(request, "Invalid request method.")
+        return redirect(request.META.get('HTTP_REFERER', '/'))
+
+    # Optional: select month (format: "YYYY-MM")
+    month_str = request.POST.get("month")
+    if month_str:
+        try:
+            year, month = map(int, month_str.split("-"))
+            forecast_month = date(year, month, 1)
+        except Exception:
+            forecast_month = timezone.now().date().replace(day=1)
+    else:
+        forecast_month = timezone.now().date().replace(day=1)
+
+    # Create ForecastRun
+    forecast_run = ForecastRun.objects.create(
+        created_by=request.user,
+        forecast_month=forecast_month,
+        note=f"Prototype forecast for {forecast_month:%B %Y}"
+    )
+
+    # Filter materials if a part_code is provided
+    part_code = request.POST.get("part_code", "").strip()
+    materials = MaterialList.objects.all()
+    if part_code:
+        materials = materials.filter(mat_partcode=part_code)
+
+    # Days in month
+    num_days = monthrange(forecast_month.year, forecast_month.month)[1]
+    dates_in_month = [date(forecast_month.year, forecast_month.month, day) for day in range(1, num_days + 1)]
+
+    for mat in materials:
+        base_forecast = PART_FORECAST_VALUES.get(mat.mat_partcode, 1)
+        quantity = float(request.POST.get(f"quantity_{mat.id}", 0) or 1)
+        per_unit_total = float(request.POST.get(f"unit_{mat.id}", 0) or 1)
+        required_qty = int(quantity * per_unit_total * base_forecast)
+
+        # Create ForecastLine
+        ForecastLine.objects.create(
+            run=forecast_run,
+            part_code=mat.mat_partcode,
+            forecast_qty=int(quantity * base_forecast),
+            customer_name="—",
+            tep_code="—",
+            mat_partcode=mat.mat_partcode,
+            mat_partname=mat.mat_partname,
+            mat_maker=mat.mat_maker,
+            unit=mat.unit,
+            per_unit_total=per_unit_total,
+            required_qty=required_qty
+        )
+
+        # Split into daily allocations
+        daily_qty = required_qty // len(dates_in_month)
+        remainder = required_qty % len(dates_in_month)
+
+        for i, day in enumerate(dates_in_month):
+            qty_for_day = daily_qty + (1 if i < remainder else 0)
+            DailyMaterialAllocation.objects.create(
+                run=forecast_run,
+                material=mat.mat_partcode,
+                quantity=qty_for_day,
+                allocation_date=day
+            )
+
+    messages.success(request, f"Forecast for {forecast_month:%B %Y} generated successfully.")
+    return redirect(request.META.get('HTTP_REFERER', '/'))
+
+
+
 from django.views.decorators.csrf import csrf_exempt
 
-@csrf_exempt  # only if you want to skip CSRF for testing
-def material_forecast_view(request):
-    # Sample list of materials (replace with your DB query if needed)
-    materials = [
-        {"id": 1, "name": "Material A", "unit_price": 100},
-        {"id": 2, "name": "Material B", "unit_price": 50},
-        {"id": 3, "name": "Material C", "unit_price": 75},
-    ]
-    
-    # Forecast multipliers for each part code
-    part_forecast_values = {
-        "LT3436-001 REV.D": 1.2,
-        "LT1234-002": 0.8,
-        "LT5678-003": 1.0,
-    }
-    
-    # Get part code from query string
-    part_code = request.GET.get('part_code', '')
-    
-    # Fetch multiplier, default to 1 if not found
-    forecast_multiplier = part_forecast_values.get(part_code, 1)
 
-    # Render template
-    return render(request, "material_forecast.html", {
-        "materials": materials,
-        "part_code": part_code,
-        "forecast_multiplier": forecast_multiplier,
-    })
+@csrf_exempt
+def register_allocation(request):
+    if request.method == "POST":
+        customer_id = request.POST.get("customer_id")
+        part_code = request.POST.get("part_code")
+        quantity = request.POST.get("quantity")
+        month = request.POST.get("month")
+
+        # Save to database (adjust model fields accordingly)
+        DailyMaterialAllocation.objects.create(
+            customer_id=customer_id,
+            part_code=part_code,
+            quantity=quantity,
+            month=month
+        )
+
+        messages.success(request, "Material registered successfully!")
+        return redirect("app:dashboard")  # or wherever you want to go
+    else:
+        messages.error(request, "Invalid request method.")
+        return redirect("app:dashboard")

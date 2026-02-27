@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # app/service_materiallist.py
 from .models import MaterialList
 
@@ -68,7 +67,6 @@ def forecast_materials_manual(part_code):
 if __name__ == "__main__":
     part_code_input = input("Enter Part Code to compute materials for: ")
     forecast_materials_manual(part_code_input)
-=======
 from dataclasses import dataclass
 from typing import Dict, List, Tuple
 
@@ -194,4 +192,3 @@ def prototype_static_run(created_by=None) -> ForecastRun:
         ForecastInput(part_code="LT3435-001 REV.C", forecast_qty=10000),
     ]
     return run_forecast_and_save(inputs, created_by=created_by, note="STATIC prototype run (5000/10000)")
->>>>>>> d107a63f67a6eb316c85beb57891b543c2b16f7b

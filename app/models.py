@@ -138,7 +138,7 @@ class MaterialStock(models.Model):
 
     def __str__(self):
         return f"{self.material} - On hand: {self.on_hand_qty}"
-<<<<<<< HEAD
+
 
 
 
@@ -154,7 +154,7 @@ class MaterialForecast(models.Model):
 
     def __str__(self):
         return f"{self.part_code} → {self.forecast}"
-=======
+
     
 
 class MaterialAllocation(models.Model):
@@ -268,4 +268,20 @@ class ForecastLine(models.Model):
 
     def __str__(self):
         return f"{self.part_code} -> {self.mat_partcode} req={self.required_qty}"
->>>>>>> d107a63f67a6eb316c85beb57891b543c2b16f7b
+
+class DailyMaterialAllocation(models.Model):
+    """
+    Stores the daily allocation of a material from a forecast run.
+    """
+    run = models.ForeignKey(ForecastRun, on_delete=models.CASCADE, related_name="daily_allocations")
+    material = models.ForeignKey(MaterialList, on_delete=models.CASCADE)
+    allocation_date = models.DateField()
+    quantity = models.DecimalField(max_digits=18, decimal_places=4)
+
+    class Meta:
+        ordering = ["allocation_date"]
+        verbose_name = "Daily Material Allocation"
+        verbose_name_plural = "Daily Material Allocations"
+
+    def __str__(self):
+        return f"{self.material.mat_partcode} → {self.quantity} on {self.allocation_date}"
