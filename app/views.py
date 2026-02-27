@@ -17,7 +17,8 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 
-from .models import Customer, TEPCode, Material, MaterialList, MaterialStock 
+from .service import PART_FORECAST_VALUES, compute_material_total
+from .models import Customer, TEPCode, Material, MaterialList, MaterialStock, MaterialForecast
 from .forms import EmployeeCreateForm
 
 
@@ -1001,3 +1002,69 @@ def customer_create(request):
 def logout_view(request):
     logout(request)
     return redirect(reverse("app:login"))
+
+
+
+# Static forecast mapping for prototype
+PART_FORECAST_VALUES = {
+    "LT3436-001 REV.D": 5000,
+    "LT3435-001 REV.C": 10000,
+}
+
+def material_forecast_view(request):
+    part_code = request.GET.get('part_code', '').strip()
+    materials = []
+    if part_code:
+        materials = MaterialList.objects.filter(mat_partcode=part_code)
+
+    if request.method == "POST":
+        # Save forecast to database
+        for mat in materials:
+            unit_price = float(request.POST.get(f"unit_{mat.id}", 0))
+            quantity = float(request.POST.get(f"quantity_{mat.id}", 0))
+            total = unit_price * quantity
+            base_forecast = PART_FORECAST_VALUES.get(mat.mat_partcode, 1)
+            forecast_value = int(total * base_forecast)
+
+            MaterialForecast.objects.create(
+                part_code=mat.mat_partcode,
+                forecast=forecast_value
+            )
+        return redirect(request.path + f"?part_code={part_code}")
+
+    return render(request, "material_forecast.html", {
+        "materials": materials,
+        "part_code": part_code,
+        "part_forecast_values": PART_FORECAST_VALUES,
+    })
+from django.shortcuts import render
+from django.views.decorators.csrf import csrf_exempt
+
+@csrf_exempt  # only if you want to skip CSRF for testing
+def material_forecast_view(request):
+    # Sample list of materials (replace with your DB query if needed)
+    materials = [
+        {"id": 1, "name": "Material A", "unit_price": 100},
+        {"id": 2, "name": "Material B", "unit_price": 50},
+        {"id": 3, "name": "Material C", "unit_price": 75},
+    ]
+    
+    # Forecast multipliers for each part code
+    part_forecast_values = {
+        "LT3436-001 REV.D": 1.2,
+        "LT1234-002": 0.8,
+        "LT5678-003": 1.0,
+    }
+    
+    # Get part code from query string
+    part_code = request.GET.get('part_code', '')
+    
+    # Fetch multiplier, default to 1 if not found
+    forecast_multiplier = part_forecast_values.get(part_code, 1)
+
+    # Render template
+    return render(request, "material_forecast.html", {
+        "materials": materials,
+        "part_code": part_code,
+        "forecast_multiplier": forecast_multiplier,
+    })

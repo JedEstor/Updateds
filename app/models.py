@@ -142,3 +142,18 @@ class MaterialStock(models.Model):
 
     def __str__(self):
         return f"{self.material} - On hand: {self.on_hand_qty}"
+
+
+
+class MaterialForecast(models.Model):
+    part_code = models.CharField(max_length=50, help_text="Part code identifier")
+    forecast = models.PositiveIntegerField(help_text="Forecasted quantity of materials")
+    created_at = models.DateTimeField(auto_now_add=True, help_text="Timestamp of forecast computation")
+
+    class Meta:
+        ordering = ['-created_at']  # Latest first
+        verbose_name = "Material Forecast"
+        verbose_name_plural = "Material Forecasts"
+
+    def __str__(self):
+        return f"{self.part_code} → {self.forecast}"

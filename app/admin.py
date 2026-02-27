@@ -3,7 +3,7 @@ from django import forms
 from django.contrib import admin
 from django.core.exceptions import ValidationError
 
-from .models import Customer, TEPCode, Material, MaterialList, MaterialStock
+from .models import Customer, TEPCode, Material, MaterialList, MaterialStock, MaterialForecast
 
 
 class TEPCodeInline(admin.TabularInline):
@@ -272,3 +272,11 @@ class MaterialStockAdmin(admin.ModelAdmin):
 
     # ✅ optional: edit qty directly in list (super convenient)
     list_editable = ("on_hand_qty",)
+
+
+
+@admin.register(MaterialForecast)
+class MaterialForecastAdmin(admin.ModelAdmin):
+    list_display = ('part_code', 'forecast', 'created_at')
+    list_filter = ('created_at',)
+    search_fields = ('part_code',)
