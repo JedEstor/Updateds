@@ -7,7 +7,7 @@ from collections import defaultdict
 from django.views.decorators.http import require_POST
 from django.core.paginator import Paginator
 from django.db import transaction, IntegrityError
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.http import HttpResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
@@ -17,9 +17,16 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 
+<<<<<<< HEAD
 from .service import PART_FORECAST_VALUES, compute_material_total
 from .models import Customer, TEPCode, Material, MaterialList, MaterialStock, MaterialForecast
+=======
+from .models import Customer, TEPCode, Material, MaterialList, MaterialStock, MaterialAllocation
+>>>>>>> d107a63f67a6eb316c85beb57891b543c2b16f7b
 from .forms import EmployeeCreateForm
+
+from .models import ForecastRun, ForecastLine
+from .service import prototype_static_run
 
 
 def is_admin(user):
@@ -286,9 +293,17 @@ def update_material_stock(request):
 @user_passes_test(is_admin)
 def admin_dashboard(request):
     tab = (request.GET.get("tab") or "customers").strip().lower()
+    action = ""  # ✅ prevents UnboundLocalError on GET
 
+    # ---------------- POST ACTIONS ----------------
     if request.method == "POST":
         action = (request.POST.get("action") or "").strip()
+
+        # ✅ run prototype forecast MUST be inside POST
+        if action == "run_prototype_forecast":
+            prototype_static_run(created_by=request.user)
+            messages.success(request, "Prototype forecast run created (5000 / 10000).")
+            return redirect(reverse("app:admin_dashboard") + "?tab=forecast")
 
         if action == "add_customer_full":
             customer_name = _normalize_space(request.POST.get("customer_name"))
@@ -299,15 +314,12 @@ def admin_dashboard(request):
             if not customer_name:
                 messages.error(request, "Customer Name is required.")
                 return redirect(reverse("app:admin_dashboard") + "?tab=customers")
-
             if not part_code:
                 messages.error(request, "Partcode is required.")
                 return redirect(reverse("app:admin_dashboard") + "?tab=customers")
-
             if not part_name:
                 messages.error(request, "Partname is required.")
                 return redirect(reverse("app:admin_dashboard") + "?tab=customers")
-
             if not tep_code:
                 messages.error(request, "TEP Code is required.")
                 return redirect(reverse("app:admin_dashboard") + "?tab=customers")
@@ -315,7 +327,6 @@ def admin_dashboard(request):
             try:
                 with transaction.atomic():
                     customer, _ = Customer.objects.get_or_create(customer_name=customer_name)
-
                     _ensure_customer_part_entry(customer, part_code, part_name)
 
                     TEPCode.objects.create(
@@ -324,10 +335,7 @@ def admin_dashboard(request):
                         tep_code=tep_code,
                     )
 
-                messages.success(
-                    request,
-                    f"Saved customer record: {customer_name} | {part_code} | {tep_code}"
-                )
+                messages.success(request, f"Saved customer record: {customer_name} | {part_code} | {tep_code}")
 
             except IntegrityError as e:
                 msg = str(e).lower()
@@ -337,7 +345,6 @@ def admin_dashboard(request):
                     messages.error(request, "Customer name already exists.")
                 else:
                     messages.error(request, "Failed to save customer record.")
-
             except Exception as e:
                 messages.error(request, f"Failed to save customer record: {e}")
 
@@ -499,7 +506,6 @@ def admin_dashboard(request):
 
             try:
                 u = User.objects.get(id=user_id)
-
                 if u.id == request.user.id:
                     messages.error(request, "You can't disable your own account.")
                     return redirect(reverse("app:admin_dashboard") + "?tab=users")
@@ -522,7 +528,6 @@ def admin_dashboard(request):
 
             try:
                 u = User.objects.get(id=user_id)
-
                 if u.id == request.user.id:
                     messages.error(request, "You can't change your own admin role here.")
                     return redirect(reverse("app:admin_dashboard") + "?tab=users")
@@ -553,7 +558,6 @@ def admin_dashboard(request):
 
             try:
                 u = User.objects.get(id=user_id)
-
                 if u.id == request.user.id:
                     messages.error(request, "You can't delete your own account.")
                     return redirect(reverse("app:admin_dashboard") + "?tab=users")
@@ -576,6 +580,7 @@ def admin_dashboard(request):
 
             return redirect(reverse("app:admin_dashboard") + "?tab=users")
 
+    # ---------------- NORMAL GET DATA BUILD ----------------
     q = (request.GET.get("q") or "").strip()
     customers = build_customer_table(q)
 
@@ -590,7 +595,6 @@ def admin_dashboard(request):
 
     mq = (request.GET.get("mq") or "").strip()
     materials_qs = MaterialList.objects.all().order_by("mat_partcode")
-
     if mq:
         materials_qs = materials_qs.filter(
             Q(mat_partcode__icontains=mq) |
@@ -608,7 +612,6 @@ def admin_dashboard(request):
 
     uq = (request.GET.get("uq") or "").strip()
     users_qs = User.objects.all().order_by("-is_superuser", "-is_staff", "username")
-
     if uq:
         users_qs = users_qs.filter(
             Q(username__icontains=uq) |
@@ -620,10 +623,10 @@ def admin_dashboard(request):
     upage = request.GET.get("upage")
     users_page = users_paginator.get_page(upage)
     user_total = users_qs.count()
+
+    # ----- Stocks tab -----
     sq = (request.GET.get("sq") or "").strip()
-
     materials_master_qs = MaterialList.objects.all().order_by("mat_partcode")
-
     if sq:
         materials_master_qs = materials_master_qs.filter(
             Q(mat_partcode__icontains=sq) |
@@ -633,12 +636,22 @@ def admin_dashboard(request):
 
     materials_master_qs = materials_master_qs.select_related("stock", "stock__last_updated_by")
 
-    # ✅ paginate stocks like masterlist (8 per page)
     stock_paginator = Paginator(materials_master_qs, 8)
     spage = request.GET.get("spage")
     stock_page_obj = stock_paginator.get_page(spage)
 
     materials_master = stock_page_obj
+
+    mat_ids = [m.id for m in materials_master]
+    reserved_map = {
+        row["material_id"]: (row["total"] or 0)
+        for row in (
+            MaterialAllocation.objects
+            .filter(material_id__in=mat_ids, status="reserved")
+            .values("material_id")
+            .annotate(total=Sum("qty_allocated"))
+        )
+    }
 
     for m in materials_master:
         try:
@@ -651,6 +664,10 @@ def admin_dashboard(request):
             m.last_updated_at = None
             m.last_updated_by = None
 
+        m.reserved_qty = int(reserved_map.get(m.id, 0) or 0)
+        m.available_qty = max(int(m.on_hand_qty or 0) - int(m.reserved_qty or 0), 0)
+
+    # ----- Customer panel AJAX -----
     tep_id = request.GET.get("tep_id")
     is_ajax = request.headers.get("x-requested-with") == "XMLHttpRequest"
 
@@ -660,7 +677,6 @@ def admin_dashboard(request):
 
         selected_part = (tep.part_code or "").strip()
         selected_part_name = ""
-
         for p in (tep.customer.parts or []):
             if isinstance(p, dict) and str(p.get("Partcode", "")).strip() == selected_part:
                 selected_part_name = str(p.get("Partname", "")).strip()
@@ -674,6 +690,28 @@ def admin_dashboard(request):
             "selected_part_name": selected_part_name,
             "tep_id": tep.id,
         })
+
+    # ----- Forecast tab -----
+    fq = (request.GET.get("fq") or "").strip()
+    forecast_latest = ForecastRun.objects.order_by("-id").first()
+
+    forecast_lines_qs = ForecastLine.objects.none()
+    if forecast_latest:
+        forecast_lines_qs = forecast_latest.lines.all().order_by("part_code", "mat_partcode")
+        if fq:
+            forecast_lines_qs = forecast_lines_qs.filter(
+                Q(part_code__icontains=fq) |
+                Q(mat_partcode__icontains=fq) |
+                Q(mat_partname__icontains=fq) |
+                Q(tep_code__icontains=fq) |
+                Q(customer_name__icontains=fq)
+            )
+
+    forecast_paginator = Paginator(forecast_lines_qs, 10)
+    fpage = request.GET.get("fpage")
+    forecast_page = forecast_paginator.get_page(fpage)
+
+    forecast_totals = {"lines": forecast_lines_qs.count()}
 
     context = {
         "tab": tab,
@@ -698,6 +736,11 @@ def admin_dashboard(request):
         "uq": uq,
         "user_total": user_total,
         "users_page": users_page,
+
+        "forecast_latest": forecast_latest,
+        "forecast_page": forecast_page,
+        "forecast_totals": forecast_totals,
+        "fq": fq,
 
         "master_map_json": json.dumps(master_map, ensure_ascii=False),
     }
@@ -998,6 +1041,77 @@ def customer_create(request):
         messages.error(request, "Failed to save customer record.")
         return redirect("app:customer_list")
 
+@require_POST
+@login_required
+@user_passes_test(is_admin)
+def create_material_allocation(request):
+    material_id = (request.POST.get("material_id") or "").strip()
+    customer_id = (request.POST.get("customer_id") or "").strip()
+    tep_id = (request.POST.get("tep_id") or "").strip()
+    qty_raw = (request.POST.get("qty_allocated") or "").strip()
+    forecast_ref = (request.POST.get("forecast_ref") or "").strip()
+
+    sq = (request.POST.get("sq") or "").strip()
+    spage = (request.POST.get("spage") or "").strip()
+
+    if not material_id or not customer_id or not qty_raw:
+        messages.error(request, "Material, Customer, and Qty are required.")
+        return redirect(reverse("app:admin_dashboard") + "?tab=stocks")
+
+    try:
+        qty = int(qty_raw)
+        if qty <= 0:
+            raise ValueError("qty must be > 0")
+    except Exception:
+        messages.error(request, "Qty must be a whole number greater than 0.")
+        return redirect(reverse("app:admin_dashboard") + "?tab=stocks")
+
+    mat = get_object_or_404(MaterialList, id=material_id)
+    cust = get_object_or_404(Customer, id=customer_id)
+
+    tep = None
+    if tep_id:
+        try:
+            tep = TEPCode.objects.get(id=tep_id)
+        except TEPCode.DoesNotExist:
+            tep = None
+
+    # Compute available = on_hand - reserved
+    on_hand = 0
+    try:
+        on_hand = mat.stock.on_hand_qty
+    except Exception:
+        on_hand = 0
+
+    reserved = (
+        MaterialAllocation.objects.filter(material=mat, status="reserved")
+        .aggregate(total=Sum("qty_allocated"))
+        .get("total") or 0
+    )
+
+    available = max(on_hand - reserved, 0)
+
+    if qty > available:
+        messages.error(request, f"Not enough available stock. Available: {available}")
+    else:
+        MaterialAllocation.objects.create(
+            material=mat,
+            customer=cust,
+            tep_code=tep,
+            qty_allocated=qty,
+            forecast_ref=forecast_ref,
+            status="reserved",
+            created_by=request.user
+        )
+        messages.success(request, f"Allocated {qty} of {mat.mat_partcode} to {cust.customer_name}.")
+
+    # Redirect back to stocks, keeping filters/pagination
+    url = reverse("app:admin_dashboard") + "?tab=stocks"
+    if sq:
+        url += f"&sq={sq}"
+    if spage:
+        url += f"&spage={spage}"
+    return redirect(url)
 
 def logout_view(request):
     logout(request)

@@ -115,10 +115,6 @@ class EmployeeProfile(models.Model):
         return f"{self.employee_id} - {self.full_name}"
     
 class MaterialStock(models.Model):
-    """
-    Stock on hand is STATIC / manually encoded (e.g., monthly inventory).
-    This MUST reference the MASTER list: MaterialList.
-    """
     material = models.OneToOneField(
         MaterialList,
         on_delete=models.CASCADE,
@@ -142,6 +138,7 @@ class MaterialStock(models.Model):
 
     def __str__(self):
         return f"{self.material} - On hand: {self.on_hand_qty}"
+<<<<<<< HEAD
 
 
 
@@ -157,3 +154,118 @@ class MaterialForecast(models.Model):
 
     def __str__(self):
         return f"{self.part_code} → {self.forecast}"
+=======
+    
+
+class MaterialAllocation(models.Model):
+    """
+    Represents RESERVED / ALLOCATED stock.
+    Does NOT change physical stock directly.
+    """
+
+    STATUS_CHOICES = [
+        ("reserved", "Reserved"),
+        ("fulfilled", "Fulfilled"),  
+        ("released", "Released"),  
+    ]
+
+    material = models.ForeignKey(
+        MaterialList,
+        on_delete=models.CASCADE,
+        related_name="allocations"
+    )
+
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.CASCADE,
+        related_name="material_allocations"
+    )
+
+    tep_code = models.ForeignKey(
+        TEPCode,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="material_allocations"
+    )
+
+    qty_allocated = models.PositiveIntegerField(
+        help_text="Quantity reserved from stock"
+    )
+
+    forecast_ref = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Optional forecast reference (month/week/code)"
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="reserved"
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
+    class Meta:
+        ordering = ["created_at"]
+        verbose_name = "Material Allocation"
+        verbose_name_plural = "Material Allocations"
+
+    def __str__(self):
+        return f"{self.material.mat_partcode} | {self.qty_allocated} | {self.status}"
+   
+    
+class ForecastRun(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+    note = models.CharField(max_length=255, blank=True, default="")
+
+    def __str__(self):
+        return f"ForecastRun #{self.id} @ {self.created_at:%Y-%m-%d %H:%M}"
+
+
+class ForecastLine(models.Model):
+    """
+    Stores the computed output rows of a forecast run.
+    Each row corresponds to one material requirement line under a part_code forecast.
+    """
+    run = models.ForeignKey(ForecastRun, on_delete=models.CASCADE, related_name="lines")
+
+    # Inputs
+    part_code = models.CharField(max_length=120)
+    forecast_qty = models.PositiveIntegerField(default=0)
+
+    # Traceability (what BOM we used)
+    customer_name = models.CharField(max_length=120, blank=True, default="")
+    tep_code = models.CharField(max_length=60, blank=True, default="")
+
+    # Material requirement output
+    mat_partcode = models.CharField(max_length=80)
+    mat_partname = models.CharField(max_length=160, blank=True, default="")
+    mat_maker = models.CharField(max_length=120, blank=True, default="")
+    unit = models.CharField(max_length=10, blank=True, default="")
+
+    per_unit_total = models.DecimalField(max_digits=18, decimal_places=4, default=0)
+    required_qty = models.DecimalField(max_digits=18, decimal_places=4, default=0)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["part_code"]),
+            models.Index(fields=["mat_partcode"]),
+        ]
+
+    def __str__(self):
+        return f"{self.part_code} -> {self.mat_partcode} req={self.required_qty}"
+>>>>>>> d107a63f67a6eb316c85beb57891b543c2b16f7b

@@ -175,6 +175,17 @@
           </div>
         </a>
 
+        <a href="?tab=forecast&fq={{ fq|urlencode }}"
+          class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition
+                  {% if tab == 'forecast' %}bg-white/10{% endif %}">
+          <span class="inline-flex h-9 w-9 rounded-lg bg-white/5 items-center justify-center border border-white/10">
+            <!-- icon -->
+          </span>
+          <div class="nav-text">
+            <div class="font-medium">Forecast</div>
+            <div class="text-xs text-slate-200/80">Prototype output</div>
+          </div>
+        </a>
         <div class="pt-2 border-t border-white/10"></div>
 
         <a href="{% url 'app:customer_list' %}"
@@ -185,6 +196,9 @@
                     d="M8 7V3h8v4M6 7h12M6 7v14h12V7" />
             </svg>
           </span>
+
+          
+
           <div class="nav-text">
             <div class="font-medium">Customers Page</div>
             <div class="text-xs text-slate-200/80">Go to customer list</div>
@@ -753,6 +767,145 @@ function closeMaterialModal(){
         </div>
         {% endif %}
 
+        {% if tab == "forecast" %}
+
+        <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+          <div class="px-5 py-4 border-b border-slate-200 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 class="text-lg font-semibold text-slate-900">Forecast</h2>
+              <p class="text-sm text-slate-500">
+                Latest run:
+                {% if forecast_latest %}{{ forecast_latest.created_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}
+              </p>
+            </div>
+
+            <div class="flex items-center gap-2 flex-wrap justify-end">
+              <form method="get" class="flex items-center gap-2">
+                <input type="hidden" name="tab" value="forecast">
+                <input
+                  type="text"
+                  name="fq"
+                  value="{{ fq|default:'' }}"
+                  placeholder="Search partcode / material / tep / customer..."
+                  class="h-10 w-80 max-w-full px-3 rounded-xl bg-white border border-slate-300 text-slate-900
+                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <button class="h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white" type="submit">
+                  Search
+                </button>
+              </form>
+
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="run_prototype_forecast">
+                <button type="submit"
+                        class="h-10 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white">
+                  Run Prototype (5000/10000)
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <div class="px-5 py-3 border-b border-slate-200 text-sm text-slate-600 flex items-center justify-between">
+            <div>Total lines: <span class="font-semibold text-slate-900">{{ forecast_totals.lines }}</span></div>
+            {% if forecast_page %}
+              <div class="text-slate-500">
+                Page <span class="font-semibold text-slate-900">{{ forecast_page.number }}</span>
+                of <span class="font-semibold text-slate-900">{{ forecast_page.paginator.num_pages }}</span>
+              </div>
+            {% endif %}
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full min-w-[1100px] text-sm">
+              <thead class="bg-slate-50 text-slate-700">
+                <tr>
+                  <th class="px-4 py-3 text-left">Part Code</th>
+                  <th class="px-4 py-3 text-right">Forecast</th>
+                  <th class="px-4 py-3 text-left">Customer</th>
+                  <th class="px-4 py-3 text-left">TEP</th>
+                  <th class="px-4 py-3 text-left">Material</th>
+                  <th class="px-4 py-3 text-right">Per Unit</th>
+                  <th class="px-4 py-3 text-right">Required</th>
+                  <th class="px-4 py-3 text-left">Unit</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {% for r in forecast_page %}
+                <tr class="border-t border-slate-200 hover:bg-slate-50 align-middle">
+                  <td class="px-4 py-3 font-medium">{{ r.part_code }}</td>
+                  <td class="px-4 py-3 text-right">{{ r.forecast_qty }}</td>
+                  <td class="px-4 py-3">{{ r.customer_name|default:"—" }}</td>
+                  <td class="px-4 py-3">{{ r.tep_code|default:"—" }}</td>
+                  <td class="px-4 py-3">
+                    <div class="font-medium">{{ r.mat_partcode }}</div>
+                    <div class="text-xs text-slate-500">{{ r.mat_partname }} • {{ r.mat_maker }}</div>
+                  </td>
+                  <td class="px-4 py-3 text-right">{{ r.per_unit_total }}</td>
+                  <td class="px-4 py-3 text-right font-semibold">{{ r.required_qty }}</td>
+                  <td class="px-4 py-3">{{ r.unit }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="8" class="px-4 py-10 text-center text-slate-500">
+                    No forecast output yet. Click “Run Prototype”.
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          <!-- paginator (same style as your masterlist) -->
+          {% if forecast_page and forecast_page.paginator.num_pages > 1 %}
+          <div class="px-5 py-4 border-t border-slate-200 flex items-center justify-between gap-3 flex-wrap">
+            <div class="text-sm text-slate-500">
+              Showing
+              <span class="font-medium text-slate-900">{{ forecast_page.start_index }}</span>–
+              <span class="font-medium text-slate-900">{{ forecast_page.end_index }}</span>
+              of
+              <span class="font-medium text-slate-900">{{ forecast_page.paginator.count }}</span>
+            </div>
+
+            <div class="flex items-center gap-2 flex-wrap">
+              {% if forecast_page.has_previous %}
+                <a class="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm"
+                  href="?tab=forecast&fq={{ fq|urlencode }}&fpage={{ forecast_page.previous_page_number }}">
+                  ← Prev
+                </a>
+              {% else %}
+                <span class="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-400">
+                  ← Prev
+                </span>
+              {% endif %}
+
+              {% for p in forecast_page.paginator.page_range %}
+                {% if p == forecast_page.number %}
+                  <span class="px-3 py-2 rounded-xl bg-blue-600 text-white text-sm">{{ p }}</span>
+                {% elif p >= forecast_page.number|add:-2 and p <= forecast_page.number|add:2 %}
+                  <a class="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm"
+                    href="?tab=forecast&fq={{ fq|urlencode }}&fpage={{ p }}">{{ p }}</a>
+                {% endif %}
+              {% endfor %}
+
+              {% if forecast_page.has_next %}
+                <a class="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm"
+                  href="?tab=forecast&fq={{ fq|urlencode }}&fpage={{ forecast_page.next_page_number }}">
+                  Next →
+                </a>
+              {% else %}
+                <span class="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-400">
+                  Next →
+                </span>
+              {% endif %}
+            </div>
+          </div>
+          {% endif %}
+        </div>
+
+        {% endif %}
+
         {% if tab == "stocks" %}
 
         <div class="grid grid-cols-1 gap-6">
@@ -780,78 +933,111 @@ function closeMaterialModal(){
             </div>
 
             <div class="overflow-x-auto">
-              <table class="w-full min-w-[1180px] text-sm table-fixed">
+              <table class="w-full min-w-[1100px] table-fixed text-sm">
                 <colgroup>
-                  <col style="width: 20%">
-                  <col style="width: 16%">
-                  <col style="width: 16%">
-                  <col style="width: 16%">
-                  <col style="width: 10%">
+                  <col class="w-[250px]">  
+                  <col class="w-[110px]">  
+                  <col class="w-[110px]">  
+                  <col class="w-[110px]">  
+                  <col class="w-[160px]">  
+                  <col class="w-[110px]">  
+                  <col class="w-[140px]">  
                 </colgroup>
-                <thead class="bg-slate-50 text-slate-700">
+
+                <thead class="bg-slate-50 text-slate-700 sticky top-0 z-10">
                   <tr>
-                    <th class="px-4 py-3 text-left">Material</th>
-                    <th class="px-4 py-3 text-left">On Hand Qty</th>
-                    <th class="px-4 py-3 text-left">Last Updated At</th>
-                    <th class="px-4 py-3 text-left">Last Updated By</th>
-                    <th class="px-4 py-3 text-right">Action</th>
+                    <th class="px-4 py-3 text-left font-semibold">Material</th>
+                    <th class="px-4 py-3 text-right font-semibold tabular-nums whitespace-nowrap">On Hand</th>
+                    <th class="px-4 py-3 text-right font-semibold tabular-nums whitespace-nowrap">Reserved</th>
+                    <th class="px-4 py-3 text-right font-semibold tabular-nums whitespace-nowrap pr-8">Available</th>
+                    <th class="px-4 py-3 text-left  font-semibold whitespace-nowrap pl-8">Last Updated</th>
+                    <th class="px-4 py-3 text-left font-semibold whitespace-nowrap">By</th>
+                    <th class="px-4 py-3 text-right font-semibold whitespace-nowrap">Action</th>
                   </tr>
                 </thead>
 
-                <tbody>
+                <tbody class="divide-y divide-slate-200">
                   {% for m in materials_master %}
-                <tr class="border-t border-slate-200 hover:bg-slate-50 align-middle">
-                  <td class="px-4 py-3">
-                    <div class="font-medium text-slate-900">{{ m.mat_partcode }}</div>
-                    <div class="text-xs text-slate-500">{{ m.mat_partname }}</div>
-                    <div class="text-[11px] text-slate-500 mt-0.5">
-                      Maker: {{ m.mat_maker|default:"—" }} • Unit: {{ m.unit|default:"—" }}
-                    </div>
+                  <tr class="hover:bg-slate-50 align-middle">
+                    
+                    <td class="px-4 py-3">
+                      <div class="leading-tight">
+                        <div class="font-semibold text-slate-900 truncate">
+                          {{ m.mat_partcode }} <span class="font-normal text-slate-500">•</span> {{ m.mat_partname }}
+                        </div>
+                        <div class="text-xs text-slate-500 truncate mt-1">
+                          {{ m.mat_maker|default:"—" }} • Unit: {{ m.unit|default:"—" }}
+                        </div>
+                      </div>
+                    </td>
+
+                    <td class="px-4 py-3 text-right tabular-nums whitespace-nowrap">
+                      <input
+                        form="stock-form-{{ m.id }}"
+                        type="number"
+                        min="0"
+                        name="on_hand_qty"
+                        value="{{ m.on_hand_qty|default:0 }}"
+                        class="h-9 w-[92px] text-right px-2 rounded-lg border border-slate-300 bg-white
+                              focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </td>
+
+                    <td class="px-4 py-3 text-right tabular-nums whitespace-nowrap">
+                      <span class="font-medium text-amber-600">
+                        {{ m.reserved_qty|default:0 }}
+                      </span>
+                    </td>
+
+                   <td class="px-4 py-3 text-right tabular-nums whitespace-nowrap pr-8">
+                    <span class="font-semibold {% if m.available_qty <= 0 %}text-rose-600{% else %}text-slate-900{% endif %}">
+                      {{ m.available_qty|default:0 }}
+                    </span>
                   </td>
 
-                  <td class="px-4 py-3">
-                    <input
-                      type="number"
-                      min="0"
-                      name="on_hand_qty"
-                      form="stock-form-{{ m.id }}"
-                      value="{% if m.stock %}{{ m.stock.on_hand_qty }}{% else %}0{% endif %}"
-                      class="h-10 w-36 px-3 rounded-xl border border-slate-300 bg-white
-                            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </td>
-
-                  <td class="px-4 py-3 text-slate-700">
-                    {% if m.stock %}
-                      {{ m.stock.last_updated_at|date:"Y-m-d H:i" }}
+                  <td class="px-4 py-3 whitespace-nowrap text-slate-700 pl-8">
+                    {% if m.last_updated_at %}
+                      {{ m.last_updated_at|date:"Y-m-d H:i" }}
                     {% else %}
                       <span class="text-slate-400">—</span>
                     {% endif %}
                   </td>
 
-                  <td class="px-4 py-3 text-slate-700">
-                    {% if m.stock and m.stock.last_updated_by %}
-                      {{ m.stock.last_updated_by }}
-                    {% else %}
-                      <span class="text-slate-400">—</span>
-                    {% endif %}
-                  </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-slate-700">
+                      {% if m.last_updated_by %}
+                        {{ m.last_updated_by }}
+                      {% else %}
+                        <span class="text-slate-400">—</span>
+                      {% endif %}
+                    </td>
 
-                  <td class="px-4 py-3 text-right">
-                    <form id="stock-form-{{ m.id }}" method="post" action="{% url 'app:update_material_stock' %}">
-                      {% csrf_token %}
-                      <input type="hidden" name="material_id" value="{{ m.id }}">
-                      <input type="hidden" name="sq" value="{{ sq|default:'' }}">
-                      <button
-                        type="submit"
-                        class="h-10 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white"
+                    <td class="px-4 py-3 text-right whitespace-nowrap">
+                      <form
+                        id="stock-form-{{ m.id }}"
+                        method="post"
+                        action="{% url 'app:update_material_stock' %}"
+                        class="inline-flex items-center justify-end gap-2"
                       >
-                        Save
-                      </button>
-                    </form>
-                  </td>
-                </tr>
-                {% endfor %}
+                        {% csrf_token %}
+                        <input type="hidden" name="material_id" value="{{ m.id }}">
+                        <input type="hidden" name="sq" value="{{ sq|default:'' }}">
+
+                        <button
+                          type="submit"
+                          class="h-9 px-4 rounded-lg bg-slate-900 text-white hover:bg-slate-800"
+                        >
+                          Save
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                  {% empty %}
+                  <tr>
+                    <td colspan="7" class="px-4 py-10 text-center text-slate-500">
+                      No materials found in master list.
+                    </td>
+                  </tr>
+                  {% endfor %}
                 </tbody>
 
               </table>
