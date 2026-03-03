@@ -50,6 +50,36 @@ class TEPCode(models.Model):
     def __str__(self):
         return f"{self.customer.customer_name} | {self.part_code} | {self.tep_code}"
 
+    
+class TEPRevision(models.Model):
+    tep = models.ForeignKey(
+        TEPCode,
+        on_delete=models.CASCADE,
+        related_name="revisions"
+    )
+    revision_number = models.PositiveIntegerField()  # 3, 4, etc
+    tep_code = models.CharField(max_length=60, unique=True)  # BIPH-0022-03
+    materials = models.ManyToManyField("Material", blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
+    class Meta:
+        ordering = ["-revision_number"]
+
+    def save(self, *args, **kwargs):
+        # Auto-generate tep_code if not provided
+        if not self.tep_code:
+            self.tep_code = f"{self.tep.base_code}-{self.revision_number:02d}"
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.tep_code
+
 
 class Material(models.Model):
     UNIT_CHOICES = [

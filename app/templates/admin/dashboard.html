@@ -552,6 +552,7 @@ function closeMaterialModal(){
 
 
 </script>
+
         {% endif %}
 
         {% if tab == "materials" %}
@@ -772,89 +773,102 @@ function closeMaterialModal(){
     <label class="text-sm text-slate-500 font-medium">Filter by Month:</label>
     <select id="month-filter" class="h-10 px-3 rounded-xl border border-slate-300">
       {% for m in months_list %}
-        <option value="{{ m|date:'Y-m' }}" {% if selected_month == m %}selected{% endif %}>{{ m|date:"F Y" }}</option>
+        <option value="{{ m|date:'Y-m' }}" {% if selected_month == m %}selected{% endif %}>
+          {{ m|date:"F Y" }}
+        </option>
       {% endfor %}
     </select>
   </div>
 
-  <div x-data="{ openModal: false }">
-    <button
-      type="button"
-      class="h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white"
-      @click="openModal = true"
-    >
-      Register Customer Part Code
-    </button>
+  <button
+    type="button"
+    onclick="openForecastModal()"
+    class="h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white"
+  >
+    Register Customer Part Code
+  </button>
 
-    <!-- Modal -->
-    <div
-      x-show="openModal"
-      x-cloak
-      x-transition
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
-    >
-      <div class="bg-white rounded-2xl shadow-lg w-full max-w-lg p-6">
-        <h2 class="text-lg font-semibold text-slate-900 mb-4">Register Part Code to Month</h2>
+  <!-- MODAL (hidden by default) -->
+  <div id="forecastModal"
+       class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50">
+    <!-- backdrop -->
+    <div class="absolute inset-0" onclick="closeForecastModal()"></div>
 
-        <!-- Customer -->
-        <div class="mb-3">
-          <label class="text-sm text-slate-700">Customer</label>
-          <select x-model="selectedCustomer" class="w-full h-10 px-3 rounded-xl border border-slate-300">
-            <option value="">Select Customer</option>
-            {% for c in customers %}
-              <option value="{{ c.id }}">{{ c.customer_name }}</option>
-            {% endfor %}
-          </select>
+    <!-- panel -->
+    <div class="relative bg-white rounded-2xl shadow-lg w-full max-w-lg p-6" onclick="event.stopPropagation()">
+      <h2 class="text-lg font-semibold text-slate-900 mb-4">Register Part Code to Month</h2>
+
+      <div class="mb-3">
+        <label class="text-sm text-slate-700">Customer</label>
+        <select id="fm_customer" class="w-full h-10 px-3 rounded-xl border border-slate-300">
+          <option value="">Select Customer</option>
+          {% for c in customers %}
+            <option value="{{ c.id }}">{{ c.customer_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="mb-3">
+        <label class="text-sm text-slate-700">Part Code</label>
+        <select id="fm_part" class="w-full h-10 px-3 rounded-xl border border-slate-300">
+          <option value="">Select Part Code</option>
+          {% for p in part_codes %}
+            <option value="{{ p.mat_partcode }}">{{ p.mat_partcode }} • {{ p.mat_partname }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="mb-3">
+        <label class="text-sm text-slate-700">Month</label>
+        <select id="fm_month" class="w-full h-10 px-3 rounded-xl border border-slate-300">
+          {% for m in months_list %}
+            <option value="{{ m|date:'Y-m' }}" {% if selected_month == m %}selected{% endif %}>
+              {{ m|date:"F Y" }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="mb-3">
+        <label class="text-sm text-slate-700">Quantity</label>
+        <input type="number" id="fm_qty" min="0" value="0"
+               class="w-full h-10 px-3 rounded-xl border border-slate-300" />
+        <div class="text-sm text-slate-500 mt-1">
+          Effective Total: <span id="fm_total">0</span>
         </div>
+      </div>
 
-        <!-- Part Code -->
-        <div class="mb-3">
-          <label class="text-sm text-slate-700">Part Code</label>
-          <select x-model="selectedPart" class="w-full h-10 px-3 rounded-xl border border-slate-300">
-            <option value="">Select Part Code</option>
-            {% for p in part_codes %}
-              <option value="{{ p.mat_partcode }}">{{ p.mat_partcode }} • {{ p.mat_partname }}</option>
-            {% endfor %}
-          </select>
-        </div>
+      <!-- Hidden Django form -->
+      <form id="fm_form" method="post" action="{% url 'app:register_allocation' %}" class="hidden">
+        {% csrf_token %}
+        <input type="hidden" name="customer_id" id="fm_h_customer">
+        <input type="hidden" name="part_code" id="fm_h_part">
+        <input type="hidden" name="quantity" id="fm_h_qty">
+        <input type="hidden" name="month" id="fm_h_month">
+      </form>
 
-        <!-- Month -->
-        <div class="mb-3">
-          <label class="text-sm text-slate-700">Month</label>
-          <select x-model="selectedMonth" class="w-full h-10 px-3 rounded-xl border border-slate-300">
-            {% for m in months_list %}
-              <option value="{{ m|date:'Y-m' }}" {% if selected_month == m %}selected{% endif %}>{{ m|date:"F Y" }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <!-- Quantity -->
-        <div class="mb-3">
-          <label class="text-sm text-slate-700">Quantity</label>
-          <input type="number" x-model.number="qty" min="0" class="w-full h-10 px-3 rounded-xl border border-slate-300" />
-          <div class="text-sm text-slate-500 mt-1">Effective Total: <span x-text="qty * multiplier"></span></div>
-        </div>
-
-        <!-- Hidden Form -->
-        <form x-ref="allocationForm" method="post" action="{% url 'app:register_allocation' %}" class="hidden">
-          {% csrf_token %}
-          <input type="hidden" name="customer_id" :value="selectedCustomer">
-          <input type="hidden" name="part_code" :value="selectedPart">
-          <input type="hidden" name="quantity" :value="qty * multiplier">
-          <input type="hidden" name="month" :value="selectedMonth">
-        </form>
-
-        <!-- Buttons -->
-        <div class="flex justify-end gap-2 mt-4">
-          <button @click="openModal = false" class="h-10 px-4 rounded-xl bg-slate-300 hover:bg-slate-400 text-slate-900">Cancel</button>
-          <button @click.prevent="$refs.allocationForm.submit()" class="h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white">Save</button>
-        </div>
+      <div class="flex justify-end gap-2 mt-4">
+        <button type="button"
+                onclick="closeForecastModal()"
+                class="h-10 px-4 rounded-xl bg-slate-300 hover:bg-slate-400 text-slate-900">
+          Cancel
+        </button>
+        <button type="button"
+                onclick="saveForecastModal()"
+                class="h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white">
+          Save
+        </button>
+        <div class="text-xs text-slate-500">
+  months_list={{ months_list|length }} |
+  part_codes={{ part_codes|length }} |
+  customers={{ customers|length }}
+</div>
       </div>
     </div>
   </div>
 </div>
-{% endif %}
-        {% if tab == "stocks" %}
+{% endif %}        
+{% if tab == "stocks" %}
 
         <div class="grid grid-cols-1 gap-6">
           <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
@@ -1265,6 +1279,10 @@ function closeMaterialModal(){
 
     <div class="p-4 border-b border-slate-200 flex justify-between items-center">
       <div class="font-semibold text-blue-700">Customer Details</div>
+      <button id="panel-update"
+             class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200">
+        Update
+      </button>
       <button id="panel-close"
               class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200">
         Close
@@ -1645,6 +1663,70 @@ function closeMaterialModal(){
     if (lossPct) lossPct.addEventListener("input", recalcTotal);
 
     recalcTotal();
+     const FORECAST_MULTIPLIER = 1;
+
+  function openForecastModal() {
+    const modal = document.getElementById("forecastModal");
+    if (!modal) return;
+    modal.classList.remove("hidden");
+    modal.classList.add("flex");
+    recalcForecastTotal();
+  }
+
+  function closeForecastModal() {
+    const modal = document.getElementById("forecastModal");
+    if (!modal) return;
+    modal.classList.add("hidden");
+    modal.classList.remove("flex");
+  }
+
+  function recalcForecastTotal() {
+    const qtyEl = document.getElementById("fm_qty");
+    const totalEl = document.getElementById("fm_total");
+    if (!qtyEl || !totalEl) return;
+
+    const q = Number(qtyEl.value || 0);
+    const total = q * FORECAST_MULTIPLIER;
+    totalEl.textContent = String(total);
+    return total;
+  }
+
+  function saveForecastModal() {
+    const customer = document.getElementById("fm_customer");
+    const part = document.getElementById("fm_part");
+    const month = document.getElementById("fm_month");
+    const form = document.getElementById("fm_form");
+
+    const hCustomer = document.getElementById("fm_h_customer");
+    const hPart = document.getElementById("fm_h_part");
+    const hQty = document.getElementById("fm_h_qty");
+    const hMonth = document.getElementById("fm_h_month");
+
+    if (!customer || !part || !month || !form) return;
+
+    if (!customer.value) { alert("Select a customer."); return; }
+    if (!part.value) { alert("Select a part code."); return; }
+    if (!month.value) { alert("Select a month."); return; }
+
+    const total = recalcForecastTotal();
+
+    hCustomer.value = customer.value;
+    hPart.value = part.value;
+    hQty.value = String(total ?? 0);
+    hMonth.value = month.value;
+
+    form.submit();
+  }
+
+  // Wire up live total + ESC close (safe even if forecast tab isn't present)
+  document.addEventListener("DOMContentLoaded", () => {
+    const qtyEl = document.getElementById("fm_qty");
+    if (qtyEl) qtyEl.addEventListener("input", recalcForecastTotal);
+
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeForecastModal();
+    });
+  });
   </script>
 
 </body>

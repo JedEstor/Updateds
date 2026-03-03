@@ -68,6 +68,90 @@ def login_view(request):
 def _normalize_space(s):
     return re.sub(r"\s+", " ", (s or "").strip())
 
+def _parse_tep_code(tep_code: str):
+    """
+    Returns (base_code, revision_int).
+    Example: "BIPH-0022-03" -> ("BIPH-0022", 3)
+    """
+    s = (tep_code or "").strip()
+    if not s:
+        raise ValueError("TEP code is empty.")
+
+    if "-" not in s:
+        raise ValueError("Invalid TEP format. Expected something like BIPH-0022-03")
+
+    base, rev_str = s.rsplit("-", 1)
+    base = base.strip()
+
+    if not base:
+        raise ValueError("Invalid TEP format (empty base).")
+
+    if not rev_str.isdigit():
+        raise ValueError("Invalid revision format (must be numeric).")
+
+    return base, int(rev_str)
+
+
+def _format_tep_code(base_code: str, revision_int: int) -> str:
+    """
+    ("BIPH-0022", 4) -> "BIPH-0022-04"
+    """
+    if revision_int < 0:
+        raise ValueError("revision_int must be >= 0")
+    return f"{base_code}-{revision_int:02d}"
+
+
+def _max_revision_for_base(base_code: str) -> int:
+    """
+    Scans existing TEPCode rows matching base_code-XX and returns the max revision number.
+    """
+    qs = TEPCode.objects.filter(tep_code__startswith=base_code + "-").values_list("tep_code", flat=True)
+
+    max_rev = 0
+    for code in qs:
+        try:
+            b, r = _parse_tep_code(code)
+            if b == base_code:
+                max_rev = max(max_rev, r)
+        except Exception:
+            # ignore weird formats
+            continue
+    return max_rev
+
+
+def create_tep_revision(old_tep: TEPCode, created_by_user=None) -> TEPCode:
+    """
+    Creates a NEW TEPCode row as the next revision, and copies all Material rows
+    from old_tep to the new one.
+
+    This preserves history:
+      - old revision stays untouched
+      - new revision gets its own snapshot of materials
+    """
+    base, _old_rev = _parse_tep_code(old_tep.tep_code)
+
+    # safer than old_rev+1 (handles when someone already created higher rev)
+    new_rev = _max_revision_for_base(base) + 1
+    new_code = _format_tep_code(base, new_rev)
+
+    with transaction.atomic():
+        # 1) create new TEPCode revision
+        new_tep = TEPCode.objects.create(
+            customer=old_tep.customer,
+            part_code=old_tep.part_code,
+            tep_code=new_code,
+        )
+
+        # 2) copy materials snapshot
+        old_materials = Material.objects.filter(tep_code=old_tep).order_by("id")
+
+        for m in old_materials:
+            m.pk = None          # duplicate row
+            m.tep_code = new_tep # point to new revision
+            m.save()
+
+    return new_tep
+
 
 def _unique_partname_for_customer(customer, base_name, part_code):
     base_name = _normalize_space(base_name)
@@ -347,6 +431,28 @@ def admin_dashboard(request):
                 messages.error(request, f"Failed to save customer record: {e}")
 
             return redirect(reverse("app:admin_dashboard") + "?tab=customers")
+        
+        if action == "revise_tep":
+            tep_id = (request.POST.get("tep_id") or "").strip()
+
+            if not tep_id:
+                messages.error(request, "Missing TEP ID.")
+                return redirect(reverse("app:admin_dashboard") + "?tab=customers")
+
+            old_tep = get_object_or_404(TEPCode, id=tep_id)
+
+            try:
+                new_tep = create_tep_revision(old_tep, request.user)
+                messages.success(request, f"Revision created: {old_tep.tep_code} → {new_tep.tep_code}")
+            except IntegrityError:
+                messages.error(request, "Failed: New revision code conflicts with an existing TEP code.")
+                return redirect(reverse("app:admin_dashboard") + "?tab=customers")
+            except Exception as e:
+                messages.error(request, f"Failed to create revision: {e}")
+                return redirect(reverse("app:admin_dashboard") + "?tab=customers")
+
+            # open the panel for the NEW TEP (so user sees the new revision immediately)
+            return redirect(reverse("app:admin_dashboard") + f"?tab=customers&open_panel=1&tep_id={new_tep.id}")
 
         if action == "add_material":
             mat_partcode = (request.POST.get("mat_partcode") or "").strip()
