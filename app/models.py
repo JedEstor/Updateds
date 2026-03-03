@@ -2,11 +2,11 @@ from django.db import models
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.contrib.auth.models import User
+from django.db.models import Q
 
 
 class Customer(models.Model):
     customer_name = models.CharField(max_length=120, unique=True)
-
     parts = models.JSONField(default=list, blank=True)
 
     def __str__(self):
@@ -44,11 +44,31 @@ class TEPCode(models.Model):
     )
 
     part_code = models.CharField(max_length=60)
-
     tep_code = models.CharField(max_length=60, unique=True)
 
+    is_active = models.BooleanField(default=True)
+
+    superseded_by = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="supersedes",
+    )
+
+    revised_at = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["customer", "part_code", "tep_code"]),
+            models.Index(fields=["is_active"]),
+        ]
+
     def __str__(self):
-        return f"{self.customer.customer_name} | {self.part_code} | {self.tep_code}"
+        status = "ACTIVE" if self.is_active else "OBSOLETE"
+        return f"{self.customer.customer_name} | {self.part_code} | {self.tep_code} ({status})"
 
 
 class Material(models.Model):
@@ -74,6 +94,21 @@ class Material(models.Model):
     dim_qty = models.FloatField()
     loss_percent = models.FloatField(default=10.0)
     total = models.FloatField()
+
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["tep_code", "mat_partcode"]),
+            models.Index(fields=["mat_partcode"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tep_code", "mat_partcode"],
+                name="uniq_material_per_tep_partcode",
+            )
+        ]
 
     def __str__(self):
         return f"{self.mat_partname} ({self.mat_partcode})"
@@ -113,7 +148,8 @@ class EmployeeProfile(models.Model):
 
     def __str__(self):
         return f"{self.employee_id} - {self.full_name}"
-    
+
+
 class MaterialStock(models.Model):
     material = models.OneToOneField(
         MaterialList,
@@ -138,7 +174,7 @@ class MaterialStock(models.Model):
 
     def __str__(self):
         return f"{self.material} - On hand: {self.on_hand_qty}"
-    
+
 
 class MaterialAllocation(models.Model):
     """
@@ -148,8 +184,8 @@ class MaterialAllocation(models.Model):
 
     STATUS_CHOICES = [
         ("reserved", "Reserved"),
-        ("fulfilled", "Fulfilled"),  
-        ("released", "Released"),  
+        ("fulfilled", "Fulfilled"),
+        ("released", "Released"),
     ]
 
     material = models.ForeignKey(
@@ -172,9 +208,7 @@ class MaterialAllocation(models.Model):
         related_name="material_allocations"
     )
 
-    qty_allocated = models.PositiveIntegerField(
-        help_text="Quantity reserved from stock"
-    )
+    qty_allocated = models.PositiveIntegerField(help_text="Quantity reserved from stock")
 
     forecast_ref = models.CharField(
         max_length=50,
@@ -200,11 +234,23 @@ class MaterialAllocation(models.Model):
         ordering = ["created_at"]
         verbose_name = "Material Allocation"
         verbose_name_plural = "Material Allocations"
+        indexes = [
+            models.Index(fields=["material", "status"]),
+            models.Index(fields=["forecast_ref"]),
+            models.Index(fields=["customer", "status"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["forecast_ref", "material", "customer", "tep_code"],
+                condition=Q(status="reserved") & ~Q(forecast_ref=""),
+                name="uniq_reserved_per_ref_material_customer_tep",
+            )
+        ]
 
     def __str__(self):
         return f"{self.material.mat_partcode} | {self.qty_allocated} | {self.status}"
-   
-    
+
+
 class ForecastRun(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(
@@ -226,15 +272,12 @@ class ForecastLine(models.Model):
     """
     run = models.ForeignKey(ForecastRun, on_delete=models.CASCADE, related_name="lines")
 
-    # Inputs
     part_code = models.CharField(max_length=120)
     forecast_qty = models.PositiveIntegerField(default=0)
 
-    # Traceability (what BOM we used)
     customer_name = models.CharField(max_length=120, blank=True, default="")
     tep_code = models.CharField(max_length=60, blank=True, default="")
 
-    # Material requirement output
     mat_partcode = models.CharField(max_length=80)
     mat_partname = models.CharField(max_length=160, blank=True, default="")
     mat_maker = models.CharField(max_length=120, blank=True, default="")
@@ -247,6 +290,7 @@ class ForecastLine(models.Model):
         indexes = [
             models.Index(fields=["part_code"]),
             models.Index(fields=["mat_partcode"]),
+            models.Index(fields=["run"]),
         ]
 
     def __str__(self):
