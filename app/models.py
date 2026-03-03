@@ -298,7 +298,28 @@ class ForecastLine(models.Model):
 
     def __str__(self):
         return f"{self.part_code} -> {self.mat_partcode} req={self.required_qty}"
+    
+class CustomerPartSchedule(models.Model):
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="part_schedules")
+    part_code = models.CharField(max_length=60)
+    part_name = models.CharField(max_length=160, blank=True, default="")
+    schedule_month = models.DateField(help_text="Use first day of the month")
+    quantity = models.DecimalField(max_digits=18, decimal_places=4, default=0)
 
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
+    class Meta:
+        unique_together = ("customer", "part_code", "schedule_month")
+        ordering = ["-schedule_month", "customer__customer_name", "part_code"]
+
+    def __str__(self):
+        return f"{self.customer.customer_name} | {self.part_code} | {self.schedule_month:%Y-%m} | {self.quantity}"
 class DailyMaterialAllocation(models.Model):
     """
     Stores the daily allocation of a material from a forecast run.
@@ -315,3 +336,5 @@ class DailyMaterialAllocation(models.Model):
 
     def __str__(self):
         return f"{self.material.mat_partcode} → {self.quantity} on {self.allocation_date}"
+    
+    

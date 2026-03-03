@@ -19,7 +19,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 
 from .service import PART_FORECAST_VALUES, compute_material_total
 from .models import Customer, TEPCode, Material, MaterialList, MaterialStock, MaterialForecast
-from .models import Customer, TEPCode, Material, MaterialList, MaterialStock, MaterialAllocation, ForecastRun, ForecastLine, DailyMaterialAllocation, MaterialForecast
+from .models import Customer, TEPCode, Material, MaterialList, MaterialStock, MaterialAllocation, ForecastRun, ForecastLine, DailyMaterialAllocation, MaterialForecast, CustomerPartSchedule
 from .forms import EmployeeCreateForm
 
 from .models import ForecastRun, ForecastLine
@@ -817,8 +817,37 @@ def admin_dashboard(request):
 
     forecast_totals = {"lines": forecast_lines_qs.count()}
 
+
+    # ----- Forecast modal dropdown data -----
+    # Keep this separate from `customers = build_customer_table(q)` which is for the Customers tab UI.
+    customers_dropdown = Customer.objects.all().order_by("customer_name")
+    part_codes = MaterialList.objects.all().order_by("mat_partcode")
+
+    # Build next 12 months as real `date` objects (1st day of each month)
+    today = date.today()
+    selected_month = today.replace(day=1)
+
+    months_list = []
+    y, mo = selected_month.year, selected_month.month
+    for _ in range(12):
+        months_list.append(date(y, mo, 1))
+        mo += 1
+        if mo == 13:
+            mo = 1
+            y += 1
+
+
+    
+
     context = {
         "tab": tab,
+
+
+        # Forecast modal dropdowns
+        "customers_dropdown": customers_dropdown,
+        "part_codes": part_codes,
+        "months_list": months_list,
+        "selected_month": selected_month,
 
         "customers_count": Customer.objects.count(),
         "tep_count": TEPCode.objects.count(),
@@ -1363,3 +1392,60 @@ def register_allocation(request):
     else:
         messages.error(request, "Invalid request method.")
         return redirect("app:dashboard")
+    
+  
+
+@require_POST
+@login_required
+@user_passes_test(is_admin)
+def register_customer_part_schedule(request):
+    customer_id = (request.POST.get("customer_id") or "").strip()
+    part_code = (request.POST.get("part_code") or "").strip()
+    part_name = (request.POST.get("part_name") or "").strip()
+    month_str = (request.POST.get("schedule_month") or "").strip()  # "YYYY-MM"
+    qty_raw = (request.POST.get("quantity") or "").strip()
+
+    if not customer_id or not part_code or not month_str:
+        messages.error(request, "Customer, Part Code, and Month are required.")
+        return redirect(reverse("app:admin_dashboard") + "?tab=forecast")
+
+    try:
+        y, m = map(int, month_str.split("-"))
+        schedule_month = date(y, m, 1)
+    except Exception:
+        messages.error(request, "Invalid month.")
+        return redirect(reverse("app:admin_dashboard") + "?tab=forecast")
+
+    try:
+        qty = float(qty_raw or 0)
+        if qty < 0: qty = 0
+    except Exception:
+        messages.error(request, "Quantity must be a number.")
+        return redirect(reverse("app:admin_dashboard") + "?tab=forecast")
+
+    customer = get_object_or_404(Customer, id=customer_id)
+
+    ok = False
+    for p in (customer.parts or []):
+        if isinstance(p, dict) and (p.get("Partcode") or "").strip() == part_code:
+            ok = True
+            if not part_name:
+                part_name = (p.get("Partname") or "").strip()
+            break
+    if not ok:
+        messages.error(request, "That part code is not registered under the selected customer.")
+        return redirect(reverse("app:admin_dashboard") + "?tab=forecast")
+
+    CustomerPartSchedule.objects.update_or_create(
+        customer=customer,
+        part_code=part_code,
+        schedule_month=schedule_month,
+        defaults={
+            "part_name": part_name,
+            "quantity": qty,
+            "created_by": request.user,
+        }
+    )
+
+    messages.success(request, "Saved schedule.")
+    return redirect(reverse("app:admin_dashboard") + "?tab=forecast")
