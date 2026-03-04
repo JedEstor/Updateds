@@ -257,18 +257,16 @@ class MaterialAdmin(admin.ModelAdmin):
 @admin.register(MaterialList)
 class MaterialListAdmin(admin.ModelAdmin):
     list_display = ("mat_partcode", "mat_partname", "mat_maker", "unit")
-    search_fields = ("mat_partcode", "mat_partname", "mat_maker")  # required for autocomplete
+    search_fields = ("mat_partcode", "mat_partname", "mat_maker") 
     list_filter = ("mat_maker",)
 
 
 @admin.register(MaterialStock)
 class MaterialStockAdmin(admin.ModelAdmin):
-    # list page
+    
     list_display = ("material", "on_hand_qty", "last_updated_at", "last_updated_by")
     search_fields = ("material__mat_partcode", "material__mat_partname", "material__mat_maker")
 
-    # ✅ this enables type-to-search on the FK field (no scrolling)
     autocomplete_fields = ("material",)
 
-    # ✅ optional: edit qty directly in list (super convenient)
     list_editable = ("on_hand_qty",)

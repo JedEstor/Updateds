@@ -7,7 +7,6 @@ from django.db.models import Q
 from django.db.models import Prefetch
 import csv, io, re
 from .models import Customer, TEPCode, Material, CustomerCSV, MaterialList
-#new, naglagay nung MaterialList sa itaas na import
 from .schemas import (CustomerIn, CustomerOut, CustomerFullOut, TEPCodeIn, TEPCodeOut, MaterialIn, MaterialOut, MaterialListIn)
 
 
@@ -636,9 +635,7 @@ def upload_csv(request, file: UploadedFile = File(...)):
 
     except Exception as e:
         return jresponse({"error": str(e)}, status=500)
-
-
-#new code for the output    
+  
 @api.get("/output-format", tags=["GET DETAILS"])
 def output_format(request):
     customers = Customer.objects.prefetch_related(
