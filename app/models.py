@@ -336,5 +336,25 @@ class DailyMaterialAllocation(models.Model):
 
     def __str__(self):
         return f"{self.material.mat_partcode} → {self.quantity} on {self.allocation_date}"
+
+class MaterialReservation(models.Model):
+    material = models.ForeignKey(
+        "MaterialStock",  # or your stock/master model name
+        on_delete=models.CASCADE,
+        related_name="reservations",
+    )
+    qty = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    reference = models.CharField(max_length=120, blank=True, default="")
+    remarks = models.CharField(max_length=255, blank=True, default="")
+    is_active = models.BooleanField(default=True)
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
     
     

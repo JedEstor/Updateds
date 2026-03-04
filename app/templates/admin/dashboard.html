@@ -92,6 +92,53 @@
     .sidebar:hover {
       box-shadow: 4px 0 18px rgba(0,0,0,0.35);
     }
+
+    .button-gradient {
+  background:
+    linear-gradient(
+      180deg,
+      #0a1222 0%,
+      #0b1a33 40%,
+      #0c2344 60%,
+      #0b1a33 85%,
+      #0a1222 100%
+    );
+  position: relative;
+  color: white;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    0 4px 10px rgba(0,0,0,0.35);
+  transition: all 0.2s ease;
+}
+
+.button-gradient:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.12),
+    0 6px 16px rgba(0,0,0,0.45);
+}
+
+.button-gradient:active {
+  transform: translateY(0);
+  box-shadow:
+    inset 0 2px 6px rgba(0,0,0,0.5);
+}
+
+.button-gradient::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(
+      ellipse at bottom center,
+      rgba(255,255,255,0.15) 0%,
+      rgba(255,255,255,0.06) 30%,
+      rgba(255,255,255,0.02) 55%,
+      rgba(255,255,255,0) 75%
+    );
+  pointer-events: none;
+}
   </style>
 </head>
 
@@ -767,13 +814,18 @@ function closeMaterialModal(){
 
         </div>
         {% endif %}
+
 {% if tab == "forecast" %}
+
+<!-- HEADER -->
 <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between gap-3 flex-wrap">
   <div class="flex items-center gap-2">
     <label class="text-sm text-slate-500 font-medium">Filter by Month:</label>
-    <select id="month-filter" class="h-10 px-3 rounded-xl border border-slate-300">
+    <select id="month-filter"
+            class="h-10 px-3 rounded-xl border border-slate-300">
       {% for m in months_list %}
-        <option value="{{ m|date:'Y-m' }}" {% if selected_month == m %}selected{% endif %}>
+        <option value="{{ m|date:'Y-m' }}"
+          {% if selected_month == m %}selected{% endif %}>
           {{ m|date:"F Y" }}
         </option>
       {% endfor %}
@@ -790,10 +842,10 @@ function closeMaterialModal(){
 
   <!-- MODAL (hidden by default) -->
   <div id="forecastModal"
-       class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50">
+       class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
     <!-- backdrop -->
     <div class="absolute inset-0" onclick="closeForecastModal()"></div>
-    
+
     <!-- panel -->
     <div class="relative bg-white rounded-2xl shadow-lg w-full max-w-lg p-6" onclick="event.stopPropagation()">
       <h2 class="text-lg font-semibold text-slate-900 mb-4">Register Part Code to Month</h2>
@@ -858,16 +910,80 @@ function closeMaterialModal(){
                 class="h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white">
           Save
         </button>
-        <div class="text-xs text-slate-500">
-  months_list={{ months_list|length }} |
-  part_codes={{ part_codes|length }} |
-  customers={{ customers|length }}
-</div>
       </div>
     </div>
   </div>
 </div>
-{% endif %}        
+
+<!-- TABLE WRAPPER -->
+<div class="mt-4 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+
+  <!-- Table Header -->
+  <div class="px-5 py-4 border-b border-slate-200">
+    <h2 class="text-lg font-semibold text-slate-900">
+      Registered Customer Part Codes
+    </h2>
+    <p class="text-sm text-slate-500">
+      Showing month:
+      <span class="font-medium">
+        {{ selected_month|date:"F Y" }}
+      </span>
+    </p>
+  </div>
+
+  <!-- Table -->
+  <div class="overflow-x-auto">
+    <table class="w-full min-w-[1000px] table-fixed text-sm">
+      <thead class="bg-slate-50 text-slate-700">
+        <tr>
+          <th class="px-4 py-3 text-left font-semibold">Customer</th>
+          <th class="px-4 py-3 text-left font-semibold">Part Code</th>
+          <th class="px-4 py-3 text-left font-semibold">Part Name</th>
+          <th class="px-4 py-3 text-right font-semibold">Quantity</th>
+          <th class="px-4 py-3 text-left font-semibold">Updated</th>
+        </tr>
+      </thead>
+
+      <tbody class="divide-y divide-slate-200">
+        {% for r in forecast_rows %}
+          <tr class="hover:bg-slate-50">
+            <td class="px-4 py-3">
+              {{ r.customer.customer_name }}
+            </td>
+
+            <td class="px-4 py-3 font-semibold">
+              {{ r.part_code }}
+            </td>
+
+            <td class="px-4 py-3">
+              {{ r.part_name|default:"—" }}
+            </td>
+
+            <td class="px-4 py-3 text-right font-semibold">
+              {{ r.quantity|default:0 }}
+            </td>
+
+            <td class="px-4 py-3">
+              {% if r.updated_at %}
+                {{ r.updated_at|date:"Y-m-d H:i" }}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="5" class="px-4 py-10 text-center text-slate-500">
+              No registrations found for this month.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endif %}
 {% if tab == "stocks" %}
 
         <div class="grid grid-cols-1 gap-6">
@@ -973,25 +1089,87 @@ function closeMaterialModal(){
                       {% endif %}
                     </td>
 
-                    <td class="px-4 py-3 text-right whitespace-nowrap">
-                      <form
-                        id="stock-form-{{ m.id }}"
-                        method="post"
-                        action="{% url 'app:update_material_stock' %}"
-                        class="inline-flex items-center justify-end gap-2"
-                      >
-                        {% csrf_token %}
-                        <input type="hidden" name="material_id" value="{{ m.id }}">
-                        <input type="hidden" name="sq" value="{{ sq|default:'' }}">
 
-                        <button
+                    <td class="px-4 py-3 text-right whitespace-nowrap">
+                      <div class="inline-flex items-center justify-end gap-2">
+
+                        <!-- Save On-Hand -->
+                        <form
+                          id="stock-form-{{ m.id }}"
+                          method="post"
+                          action="{% url 'app:update_material_stock' %}"
+                          class="inline-flex items-center justify-end gap-2"
+                        >
+                          {% csrf_token %}
+                          <input type="hidden" name="material_id" value="{{ m.id }}">
+                          <input type="hidden" name="sq" value="{{ sq|default:'' }}">
+                          <input type="hidden" name="spage" value="{{ stock_page_obj.number|default:'' }}">
+<!-- here -->
+                         <button
                           type="submit"
-                          class="h-9 px-4 rounded-lg bg-slate-900 text-white hover:bg-slate-800"
+                          class="h-9 px-4 rounded-lg button-gradient"
                         >
                           Save
                         </button>
-                      </form>
+
+                        <!-- Reserve Button -->
+                        <div x-data="{ open:false }" class="inline-block">
+                          <button
+                            type="button"
+                            onclick="this.nextElementSibling.classList.remove('hidden')"
+                            class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white"
+                          >
+                            Reserve
+                          </button>
+
+                          <!-- Reserve Modal -->
+                          <div class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                            <div class="bg-white w-full max-w-md rounded-2xl shadow-xl p-6 relative">
+                              <h3 class="text-lg font-semibold mb-4">Reserve Allocation</h3>
+
+                              <form method="post" action="{% url 'app:reserve_material' %}" class="space-y-3">
+                                {% csrf_token %}
+                                <input type="hidden" name="material_id" value="{{ m.id }}">
+                                <input type="hidden" name="tab" value="stocks">
+                                <input type="hidden" name="sq" value="{{ sq|default:'' }}">
+                                <input type="hidden" name="spage" value="{{ stock_page_obj.number|default:'' }}">
+
+                                <div>
+                                  <label class="text-sm font-medium text-slate-700">Customer</label>
+                                  <select name="customer_id" required
+                                          class="mt-1 w-full h-10 px-3 rounded-xl border border-slate-300">
+                                    <option value="">Select customer</option>
+                                    {% for c in customers %}
+                                      <option value="{{ c.id }}">{{ c.customer_name }}</option>
+                                    {% endfor %}
+                                  </select>
+                                </div>
+
+                                <div>
+                                  <label class="text-sm font-medium text-slate-700">Quantity</label>
+                                  <input type="number" name="qty_allocated" min="1" required
+                                         class="mt-1 w-full h-10 px-3 rounded-xl border border-slate-300">
+                                </div>
+
+                                <div class="flex justify-end gap-2 pt-3">
+                                  <button type="button"
+                                          onclick="this.closest('.fixed').classList.add('hidden')"
+                                          class="px-4 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50">
+                                    Cancel
+                                  </button>
+                                  <button type="submit"
+                                          class="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800">
+                                    Confirm
+                                  </button>
+                                </div>
+                              </form>
+                            </div>
+                          </div>
+                        </div>
+
+                      </div>
                     </td>
+
                   </tr>
                   {% empty %}
                   <tr>

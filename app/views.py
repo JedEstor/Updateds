@@ -3,7 +3,7 @@ from django.views.decorators.cache import never_cache
 
 import json, csv, io, re
 from collections import defaultdict
-from django.views.decorators.csrf import csrf_exempt
+from calendar import monthrange
 from django.views.decorators.http import require_POST
 from django.core.paginator import Paginator
 from django.db import transaction, IntegrityError
@@ -19,7 +19,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 
 from .service import PART_FORECAST_VALUES, compute_material_total
 from .models import Customer, TEPCode, Material, MaterialList, MaterialStock, MaterialForecast
-from .models import Customer, TEPCode, Material, MaterialList, MaterialStock, MaterialAllocation, ForecastRun, ForecastLine, DailyMaterialAllocation, MaterialForecast, CustomerPartSchedule
+from .models import Customer, TEPCode, Material, MaterialList, MaterialStock, MaterialAllocation, ForecastRun, ForecastLine, DailyMaterialAllocation, MaterialForecast, CustomerPartSchedule, MaterialReservation
 from .forms import EmployeeCreateForm
 
 from .models import ForecastRun, ForecastLine
@@ -332,7 +332,10 @@ def build_customer_table(q: str):
 def update_material_stock(request):
     material_id = (request.POST.get("material_id") or "").strip()
     on_hand_qty_raw = (request.POST.get("on_hand_qty") or "").strip()
-    sq = (request.GET.get("sq") or request.POST.get("sq") or "").strip()
+
+    # keep filters/pagination
+    sq = (request.POST.get("sq") or "").strip()
+    spage = (request.POST.get("spage") or "").strip()
 
     if not material_id:
         messages.error(request, "Missing material_id.")
@@ -344,13 +347,15 @@ def update_material_stock(request):
             on_hand_qty = 0
     except Exception:
         messages.error(request, "On hand qty must be a whole number.")
-        return redirect(reverse("app:admin_dashboard") + "?tab=stocks")
-        print("POST:", request.POST)
+        url = reverse("app:admin_dashboard") + "?tab=stocks"
+        if sq:
+            url += f"&sq={sq}"
+        if spage:
+            url += f"&spage={spage}"
+        return redirect(url)
+
     mat = get_object_or_404(MaterialList, id=material_id)
 
-    # IMPORTANT:
-    # This assumes your MaterialStock.material points to MaterialList
-    # and your related_name is "stock" (as you used in template: m.stock.on_hand_qty)
     try:
         MaterialStock.objects.update_or_create(
             material=mat,
@@ -363,10 +368,32 @@ def update_material_stock(request):
     except Exception as e:
         messages.error(request, f"Failed to save stock: {e}")
 
-    # keep your search text (sq) if you have it
     url = reverse("app:admin_dashboard") + "?tab=stocks"
     if sq:
         url += f"&sq={sq}"
+    if spage:
+        url += f"&spage={spage}"
+    return redirect(url)
+
+    mat = get_object_or_404(MaterialList, id=material_id)
+
+    try:
+        MaterialStock.objects.update_or_create(
+            material=mat,
+            defaults={
+                "on_hand_qty": on_hand_qty,
+                "last_updated_by": request.user,
+            }
+        )
+        messages.success(request, f"Saved stock: {mat.mat_partcode} = {on_hand_qty}")
+    except Exception as e:
+        messages.error(request, f"Failed to save stock: {e}")
+
+    url = reverse("app:admin_dashboard") + "?tab=stocks"
+    if sq:
+        url += f"&sq={sq}"
+    if spage:
+        url += f"&spage={spage}"
     return redirect(url)
 
 
@@ -1254,12 +1281,6 @@ def logout_view(request):
 
 
 # --- Static forecast mapping for prototype ---
-PART_FORECAST_VALUES = {
-    "LT3436-001 REV.D": 5000,
-    "LT3435-001 REV.C": 10000,
-}
-
-
 def material_forecast_view(request):
     part_code = request.GET.get('part_code', '').strip()
     materials = []
@@ -1365,35 +1386,65 @@ def run_prototype_forecast(request):
 
     messages.success(request, f"Forecast for {forecast_month:%B %Y} generated successfully.")
     return redirect(request.META.get('HTTP_REFERER', '/'))
+@require_POST
+@login_required
+@user_passes_test(is_admin)
 
 
+@require_POST
+@login_required
+@user_passes_test(is_admin)
+def reserve_material(request):
+    """UI endpoint: reserve stock from the Stocks tab.
 
-from django.views.decorators.csrf import csrf_exempt
+    Reuses create_material_allocation(), which creates a MaterialAllocation
+    record (status='reserved') after checking availability.
+    """
+    return create_material_allocation(request)
 
 
-@csrf_exempt
-def register_allocation(request):
-    if request.method == "POST":
-        customer_id = request.POST.get("customer_id")
-        part_code = request.POST.get("part_code")
-        quantity = request.POST.get("quantity")
-        month = request.POST.get("month")
+@require_POST
+@login_required
+@user_passes_test(is_admin)
+def release_reservation(request):
+    """UI endpoint: release a reserved allocation (set status to 'released')."""
+    allocation_id = (request.POST.get("allocation_id") or "").strip()
+    sq = (request.POST.get("sq") or "").strip()
+    spage = (request.POST.get("spage") or "").strip()
 
-        # Save to database (adjust model fields accordingly)
-        DailyMaterialAllocation.objects.create(
-            customer_id=customer_id,
-            part_code=part_code,
-            quantity=quantity,
-            month=month
-        )
-
-        messages.success(request, "Material registered successfully!")
-        return redirect("app:dashboard")  # or wherever you want to go
+    if not allocation_id:
+        messages.error(request, "Missing allocation_id.")
     else:
-        messages.error(request, "Invalid request method.")
-        return redirect("app:dashboard")
-    
-  
+        try:
+            a = MaterialAllocation.objects.get(id=allocation_id)
+            a.status = "released"
+            a.save(update_fields=["status"])
+            messages.success(request, "Reservation released.")
+        except MaterialAllocation.DoesNotExist:
+            messages.error(request, "Reservation not found.")
+
+    url = reverse("app:admin_dashboard") + "?tab=stocks"
+    if sq:
+        url += f"&sq={sq}"
+    if spage:
+        url += f"&spage={spage}"
+    return redirect(url)
+
+def register_allocation(request):
+    """Backward-compatible handler.
+
+    If your frontend still posts:
+      - month=...
+    we remap it to:
+      - schedule_month=...
+    and forward to register_customer_part_schedule().
+    """
+    mutable = request.POST.copy()
+    if "month" in mutable and "schedule_month" not in mutable:
+        mutable["schedule_month"] = mutable.get("month")
+    request.POST = mutable
+
+    return register_customer_part_schedule(request)
 
 @require_POST
 @login_required
