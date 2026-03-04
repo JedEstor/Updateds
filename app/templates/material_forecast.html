@@ -1,0 +1,84 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Material Forecast</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 font-sans p-6">
+    <div class="max-w-5xl mx-auto bg-white p-6 rounded shadow">
+        <h1 class="text-2xl font-bold mb-4">Material Forecast</h1>
+
+        <!-- Part Code Selector -->
+        <form method="GET" class="mb-6">
+            <label for="part_code" class="font-medium mr-2">Select Part Code:</label>
+            <select name="part_code" id="part_code"
+                    class="border rounded px-2 py-1 mr-2">
+                {% for code in part_codes %}
+                    <option value="{{ code }}" {% if code == selected_part_code %}selected{% endif %}>
+                        {{ code }}
+                    </option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="px-4 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition">Load</button>
+        </form>
+
+        <form method="POST" class="space-y-4">
+            {% csrf_token %}
+            <table class="min-w-full border border-gray-300">
+                <thead class="bg-gray-200">
+                    <tr>
+                        <th class="border px-4 py-2 text-left">Material Name</th>
+                        <th class="border px-4 py-2">Quantity</th>
+                        <th class="border px-4 py-2">Unit Price</th>
+                        <th class="border px-4 py-2">Forecast</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for mat in materials %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="border px-4 py-2">{{ mat.name }}</td>
+                        <td class="border px-4 py-2">
+                            <input type="number" name="quantity_{{ mat.id }}" value="{{ mat.quantity|default:0 }}"
+                                class="input-qty border rounded px-2 py-1 w-full">
+                        </td>
+                        <td class="border px-4 py-2">
+                            <input type="number" name="unit_price_{{ mat.id }}" value="{{ mat.unit_price|default:0 }}"
+                                class="input-price border rounded px-2 py-1 w-full">
+                        </td>
+                        <td class="border px-4 py-2 text-right">
+                            <span id="forecast_{{ mat.id }}">0</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <button type="submit" class="mt-4 px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition">Save Forecast</button>
+        </form>
+    </div>
+
+    <script>
+        const forecastMultiplier = {{ forecast_multiplier }};
+
+        function updateForecast(id) {
+            const qty = parseFloat(document.querySelector(`[name="quantity_${id}"]`).value) || 0;
+            const price = parseFloat(document.querySelector(`[name="unit_price_${id}"]`).value) || 0;
+            const forecast = qty * price * forecastMultiplier;
+            document.getElementById(`forecast_${id}`).innerText = forecast.toFixed(2);
+        }
+
+        document.querySelectorAll(".input-qty, .input-price").forEach(input => {
+            input.addEventListener("input", () => {
+                const id = input.name.split("_")[1];
+                updateForecast(id);
+            });
+        });
+
+        {% for mat in materials %}
+            updateForecast({{ mat.id }});
+        {% endfor %}
+    </script>
+</body>
+</html>
