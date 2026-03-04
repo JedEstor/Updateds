@@ -25,9 +25,12 @@ urlpatterns = [
 
     path("material-stock/update/", views.update_material_stock, name="update_material_stock"),
     path("register-allocation/", views.register_allocation, name="register_allocation"),
+    path("forecast/register-schedule/", views.register_customer_tep_schedule, name="register_customer_tep_schedule"),
 
     path("panel/stocks/reserve/", views.reserve_material, name="reserve_material"),
     path("panel/stocks/release/", views.release_reservation, name="release_reservation"),
+    path("panel/api/customer-teps/", views.api_customer_teps, name="api_customer_teps"),
+    
 
     path("material-forecast/", views.material_forecast_view, name="material_forecast"),
     path("material-allocation/create/", views.create_material_allocation, name="create_material_allocation"),

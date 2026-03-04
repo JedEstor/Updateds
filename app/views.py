@@ -3,6 +3,8 @@ from django.views.decorators.cache import never_cache
 
 import json, csv, io, re
 from collections import defaultdict
+from django.http import JsonResponse
+from decimal import Decimal
 from calendar import monthrange
 from django.views.decorators.http import require_POST
 from django.core.paginator import Paginator
@@ -16,6 +18,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.views.decorators.http import require_GET
 
 from .service import PART_FORECAST_VALUES, compute_material_total
 from .models import Customer, TEPCode, Material, MaterialList, MaterialStock, MaterialForecast
@@ -849,10 +852,19 @@ def admin_dashboard(request):
     # Keep this separate from `customers = build_customer_table(q)` which is for the Customers tab UI.
     customers_dropdown = Customer.objects.all().order_by("customer_name")
     part_codes = MaterialList.objects.all().order_by("mat_partcode")
-
     # Build next 12 months as real `date` objects (1st day of each month)
+    # If URL has ?month=YYYY-MM, use it. Otherwise default to current month.
     today = date.today()
-    selected_month = today.replace(day=1)
+    month_str = (request.GET.get("month") or "").strip()  # "YYYY-MM"
+
+    if month_str:
+        try:
+            yy, mm = map(int, month_str.split("-"))
+            selected_month = date(yy, mm, 1)
+        except Exception:
+            selected_month = today.replace(day=1)
+    else:
+        selected_month = today.replace(day=1)
 
     months_list = []
     y, mo = selected_month.year, selected_month.month
@@ -862,6 +874,14 @@ def admin_dashboard(request):
         if mo == 13:
             mo = 1
             y += 1
+
+    # Registered Customer TEP schedules for the selected month (for Forecast table)
+    schedules = (
+        CustomerTEPSchedule.objects
+        .filter(schedule_month=selected_month)
+        .select_related("customer", "tep")
+        .order_by("customer__customer_name", "tep__tep_code")
+    )
 
 
     
@@ -876,7 +896,9 @@ def admin_dashboard(request):
         "months_list": months_list,
         "selected_month": selected_month,
 
-        "customers_count": Customer.objects.count(),
+        
+        "schedules": schedules,
+"customers_count": Customer.objects.count(),
         "tep_count": TEPCode.objects.count(),
         "materials_count": Material.objects.count(),
         "users_count": User.objects.count(),
@@ -1500,3 +1522,125 @@ def register_customer_part_schedule(request):
 
     messages.success(request, "Saved schedule.")
     return redirect(reverse("app:admin_dashboard") + "?tab=forecast")
+
+@login_required
+@require_GET
+def api_customer_teps(request):
+    customer_id = request.GET.get("customer_id")
+    if not customer_id:
+        return JsonResponse({"items": []})
+
+    teps = (
+        TEPCode.objects
+        .filter(customer_id=customer_id)
+        .order_by("tep_code")
+        .values("id", "tep_code")
+    )
+    return JsonResponse({"items": list(teps)})
+
+@login_required
+@require_POST
+def register_customer_tep_schedule(request):
+    customer_id = request.POST.get("customer_id")
+    tep_id = request.POST.get("tep_id")
+    month = request.POST.get("schedule_month")   # YYYY-MM
+    quantity = request.POST.get("quantity", "0")
+
+    # Basic validation
+    if not customer_id or not tep_id or not month:
+        messages.error(request, "Customer, TEP Code, and Month are required.")
+        return redirect("/panel/dashboard/?tab=forecast")
+
+    try:
+        qty = Decimal(quantity)
+    except Exception:
+        messages.error(request, "Quantity must be a valid number.")
+        return redirect("/panel/dashboard/?tab=forecast")
+
+    # Convert month → date
+    schedule_month = f"{month}-01"
+
+    try:
+        customer = Customer.objects.get(id=customer_id)
+        tep = TEPCode.objects.get(id=tep_id, customer=customer)
+    except Exception:
+        messages.error(request, "Invalid Customer or TEP Code.")
+        return redirect("/panel/dashboard/?tab=forecast")
+
+    # Save schedule
+    CustomerPartSchedule.objects.update_or_create(
+        customer=customer,
+        tep=tep,
+        schedule_month=schedule_month,
+        defaults={
+            "quantity": qty,
+            "created_by": request.user,
+        }
+    )
+
+    messages.success(request, "Schedule registered successfully.")
+    return redirect("/panel/dashboard/?tab=forecast")
+
+
+# =========================
+# UPDATED FORECAST SCHEDULE LOGIC
+# (Overrides earlier duplicate definitions)
+# =========================
+
+from decimal import Decimal
+from datetime import date
+from django.views.decorators.http import require_POST
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import get_object_or_404, redirect
+from django.contrib import messages
+from django.urls import reverse
+
+from .models import Customer, TEPCode, CustomerTEPSchedule
+
+
+@login_required
+@require_POST
+def register_customer_tep_schedule(request):
+    """Save Customer + TEP + Month + Quantity from Forecast modal"""
+
+    customer_id = (request.POST.get("customer_id") or "").strip()
+    tep_id = (request.POST.get("tep_id") or "").strip()
+    month_str = (request.POST.get("schedule_month") or "").strip()  # YYYY-MM
+    qty_raw = (request.POST.get("quantity") or "0").strip()
+
+    if not (customer_id and tep_id and month_str):
+        messages.error(request, "Please fill in Customer, TEP Code, and Month.")
+        return redirect(reverse("app:admin_dashboard") + "?tab=forecast")
+
+    # Convert YYYY-MM → date(YYYY,MM,1)
+    try:
+        y, m = map(int, month_str.split("-"))
+        schedule_month = date(y, m, 1)
+    except Exception:
+        messages.error(request, "Invalid month format.")
+        return redirect(reverse("app:admin_dashboard") + "?tab=forecast")
+
+    try:
+        qty = Decimal(qty_raw or "0")
+        if qty < 0:
+            qty = Decimal("0")
+    except Exception:
+        messages.error(request, "Quantity must be a valid number.")
+        return redirect(reverse("app:admin_dashboard") + "?tab=forecast")
+
+    customer = get_object_or_404(Customer, id=customer_id)
+
+    # Ensure TEP belongs to the selected customer
+    tep = get_object_or_404(TEPCode, id=tep_id, customer=customer)
+
+    CustomerTEPSchedule.objects.update_or_create(
+        customer=customer,
+        tep=tep,
+        schedule_month=schedule_month,
+        defaults={
+            "quantity": qty,
+        },
+    )
+
+    messages.success(request, "Schedule saved.")
+    return redirect(reverse("app:admin_dashboard") + f"?tab=forecast&month={month_str}")

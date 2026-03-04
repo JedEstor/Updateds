@@ -222,15 +222,15 @@
           </div>
         </a>
 
-        <a href="?tab=forecast&fq={{ fq|urlencode }}"
+        <a href="?tab=tep_schedule&fq={{ fq|urlencode }}"
           class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition
-                  {% if tab == 'forecast' %}bg-white/10{% endif %}">
+                  {% if tab == 'tep_schedule' %}bg-white/10{% endif %}">
           <span class="inline-flex h-9 w-9 rounded-lg bg-white/5 items-center justify-center border border-white/10">
             <!-- icon -->
           </span>
           <div class="nav-text">
-            <div class="font-medium">Forecast</div>
-            <div class="text-xs text-slate-200/80">Prototype output</div>
+            <div class="font-medium">TEP Code Scheduling</div>
+            <div class="text-xs text-slate-200/80">Register TEP code schedules</div>
           </div>
         </a>
         <div class="pt-2 border-t border-white/10"></div>
@@ -331,108 +331,167 @@
 
         {% if tab == "customers" %}
 
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+<div class="w-full">
 
-          <div class="lg:col-span-8">
-            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+  <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
 
-              <div class="px-5 py-4 border-b border-slate-200 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <h2 class="text-lg font-semibold text-slate-900">Customer Records</h2>
-                </div>
+    <!-- Header -->
+    <div class="px-5 py-4 border-b border-slate-200 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      
+      <div>
+        <h2 class="text-lg font-semibold text-slate-900">Customer Records</h2>
+      </div>
 
-                <form method="get" class="flex gap-2">
-                  <input type="hidden" name="tab" value="customers">
-                  <input
-                    type="text"
-                    name="q"
-                    value="{{ q|default:'' }}"
-                    placeholder="Search customer / tep_code / part_code / materials..."
-                    class="w-80 max-w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900
-                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                  <button class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white" type="submit">
-                    Search
-                  </button>
-                   <button type="button"
-                  onclick="openCustomerModal()"
-                  class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white transition">
-            Add Customer
-          </button>
-                </form>
-              </div>
+      <form method="get" class="flex gap-2 flex-wrap">
+        <input type="hidden" name="tab" value="customers">
 
-              <div>
-                <table class="w-full text-sm">
-                  <thead class="bg-slate-50 text-slate-700">
-                    <tr>
-                      <th class="px-4 py-3 text-left">Customer</th>
-                      <th class="px-4 py-3 text-left">Part Code</th>
-                      <th class="px-4 py-3 text-left">TEP Code</th>
-                      <th class="px-4 py-3 text-left">Materials</th>
-                      <th class="px-4 py-3 text-right">Action</th>
-                    </tr>
-                  </thead>
+        <input
+          type="text"
+          name="q"
+          value="{{ q|default:'' }}"
+          placeholder="Search customer / tep_code / part_code / materials..."
+          class="w-80 max-w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900
+                 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        />
 
-                  <tbody>
-                  {% for c in customers %}
-                    <tr class="border-t border-slate-200 hover:bg-slate-50">
-                      <td class="px-4 py-3 font-medium">{{ c.customer_name }}</td>
+        <button
+          class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white"
+          type="submit">
+          Search
+        </button>
 
-                      <td class="px-4 py-3">
-                        <select class="part-code-dropdown ui-select"
-                                data-row="{{ forloop.counter0 }}">
-                          {% for pc in c.part_code_options %}
-                            <option value="{{ pc }}" {% if pc == c.default_part_code %}selected{% endif %}>{{ pc }}</option>
-                          {% endfor %}
-                        </select>
-                      </td>
+        <button
+          type="button"
+          onclick="openCustomerModal()"
+          class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white transition">
+          Add Customer
+        </button>
 
-                      <td class="px-4 py-3">
-                        <select class="tep-code-dropdown ui-select"
-                                data-row="{{ forloop.counter0 }}"
-                                id="tep-dd-{{ forloop.counter0 }}">
-                          {% for t in c.default_tep_options %}
-                            <option value="{{ t.tep_id }}" {% if t.tep_id == c.default_tep_id %}selected{% endif %}>
-                              {{ t.tep_code }}
-                            </option>
-                          {% endfor %}
-                        </select>
-                      </td>
+      </form>
+    </div>
 
-                      <td class="px-4 py-3" id="mat-{{ forloop.counter0 }}">
-                        {{ c.default_materials_count|default:0 }}
-                      </td>
+    <!-- Table -->
+    <div class="overflow-x-auto">
 
-                      <td class="px-4 py-3 text-right">
-                        {% if c.default_tep_id %}
-                          <a href="#"
-                             class="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white view-link inline-flex"
-                             id="view-{{ forloop.counter0 }}"
-                             data-tep-id="{{ c.default_tep_id }}"
-                             data-part-code="{{ c.default_part_code|escapejs }}">
-                            View
-                          </a>
-                        {% else %}
-                          <span class="px-3 py-2 rounded-xl bg-slate-200 text-slate-600 inline-block">No TEP</span>
-                          <a href="#" class="hidden view-link" id="view-{{ forloop.counter0 }}">View</a>
-                        {% endif %}
-                      </td>
-                    </tr>
-                  {% empty %}
-                    <tr>
-                      <td colspan="5" class="px-4 py-10 text-center text-slate-500">
-                        No customers found.
-                      </td>
-                    </tr>
-                  {% endfor %}
-                  </tbody>
+      <table class="w-full table-auto text-sm">
 
-                </table>
-              </div>
+        <thead class="bg-slate-50 text-slate-700 sticky top-0 z-10">
+          <tr>
+            <th class="px-4 py-3 text-left font-semibold">Customer</th>
+            <th class="px-4 py-3 text-left font-semibold">Part Code</th>
+            <th class="px-4 py-3 text-left font-semibold">TEP Code</th>
+            <th class="px-4 py-3 text-left font-semibold">Materials</th>
+            <th class="px-4 py-3 text-right font-semibold">Action</th>
+          </tr>
+        </thead>
 
-            </div>
-          </div>
+        <tbody>
+
+        {% for c in customers %}
+          <tr class="border-t border-slate-200 hover:bg-slate-50 transition">
+
+            <!-- Customer -->
+            <td class="px-4 py-3 font-medium text-slate-900">
+              {{ c.customer_name }}
+            </td>
+
+            <!-- Part Code -->
+            <td class="px-4 py-3">
+              <select
+                class="part-code-dropdown ui-select w-full"
+                data-row="{{ forloop.counter0 }}"
+              >
+                {% for pc in c.part_code_options %}
+                  <option value="{{ pc }}"
+                    {% if pc == c.default_part_code %}selected{% endif %}
+                  >
+                    {{ pc }}
+                  </option>
+                {% endfor %}
+              </select>
+            </td>
+
+            <!-- TEP Code -->
+            <td class="px-4 py-3">
+              <select
+                class="tep-code-dropdown ui-select w-full"
+                data-row="{{ forloop.counter0 }}"
+                id="tep-dd-{{ forloop.counter0 }}"
+              >
+                {% for t in c.default_tep_options %}
+                  <option
+                    value="{{ t.tep_id }}"
+                    {% if t.tep_id == c.default_tep_id %}selected{% endif %}
+                  >
+                    {{ t.tep_code }}
+                  </option>
+                {% endfor %}
+              </select>
+            </td>
+
+            <!-- Materials -->
+            <td
+              class="px-4 py-3 text-slate-700"
+              id="mat-{{ forloop.counter0 }}"
+            >
+              {{ c.default_materials_count|default:0 }}
+            </td>
+
+            <!-- Action -->
+            <td class="px-4 py-3 text-right">
+
+              {% if c.default_tep_id %}
+
+                <a
+                  href="#"
+                  class="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white view-link inline-flex items-center"
+                  id="view-{{ forloop.counter0 }}"
+                  data-tep-id="{{ c.default_tep_id }}"
+                  data-part-code="{{ c.default_part_code|escapejs }}"
+                >
+                  View
+                </a>
+
+              {% else %}
+
+                <span class="px-3 py-2 rounded-xl bg-slate-200 text-slate-600 inline-block">
+                  No TEP
+                </span>
+
+                <a
+                  href="#"
+                  class="hidden view-link"
+                  id="view-{{ forloop.counter0 }}"
+                >
+                  View
+                </a>
+
+              {% endif %}
+
+            </td>
+
+          </tr>
+
+        {% empty %}
+
+          <tr>
+            <td colspan="5" class="px-4 py-10 text-center text-slate-500">
+              No customers found.
+            </td>
+          </tr>
+
+        {% endfor %}
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+  </div>
+
+</div>
+
 
           
 <!-- ADD CUSTOMER MODAL -->
@@ -814,166 +873,226 @@ function closeMaterialModal(){
 
         </div>
         {% endif %}
-
-{% if tab == "forecast" %}
+{% if tab == "tep_schedule" %}
 
 <!-- HEADER -->
 <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between gap-3 flex-wrap">
-  <div class="flex items-center gap-2">
-    <label class="text-sm text-slate-500 font-medium">Filter by Month:</label>
-    <select id="month-filter"
-            class="h-10 px-3 rounded-xl border border-slate-300">
-      {% for m in months_list %}
-        <option value="{{ m|date:'Y-m' }}"
-          {% if selected_month == m %}selected{% endif %}>
-          {{ m|date:"F Y" }}
-        </option>
-      {% endfor %}
-    </select>
+
+  <!-- Filter: Year + Month (searchable) -->
+  <div class="flex items-center gap-3 flex-wrap">
+    <div class="flex items-center gap-2">
+      <label class="text-sm text-slate-500 font-medium">Year:</label>
+
+      <input id="year-filter"
+             list="year-options"
+             class="h-10 w-28 px-3 rounded-xl border border-slate-300 bg-white"
+             value="{{ selected_year }}"
+             placeholder="YYYY" />
+
+      <datalist id="year-options">
+        {% for y in years_list %}
+          <option value="{{ y }}"></option>
+        {% endfor %}
+      </datalist>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <label class="text-sm text-slate-500 font-medium">Month:</label>
+
+      <input id="month-filter"
+             list="month-options"
+             class="h-10 w-40 px-3 rounded-xl border border-slate-300 bg-white"
+             value="{{ selected_month_num }}"
+             placeholder="MM" />
+
+      <datalist id="month-options">
+        <option value="01">January</option>
+        <option value="02">February</option>
+        <option value="03">March</option>
+        <option value="04">April</option>
+        <option value="05">May</option>
+        <option value="06">June</option>
+        <option value="07">July</option>
+        <option value="08">August</option>
+        <option value="09">September</option>
+        <option value="10">October</option>
+        <option value="11">November</option>
+        <option value="12">December</option>
+      </datalist>
+    </div>
+
+    <button type="button"
+            id="btnApplyMonthFilter"
+            class="h-10 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white">
+      Apply
+    </button>
+
+    <div class="text-sm text-slate-500">
+      Showing:
+      <span class="font-medium text-slate-700">{{ selected_month|date:"F Y" }}</span>
+    </div>
   </div>
 
+  <!-- Open Modal -->
   <button
     type="button"
-    onclick="openForecastModal()"
+    id="btnOpenScheduleModal"
     class="h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white"
   >
-    Register Customer Part Code
+    Register Customer TEP Schedule
   </button>
 
-  <!-- MODAL (hidden by default) -->
-  <div id="forecastModal"
-       class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
-    <!-- backdrop -->
-    <div class="absolute inset-0" onclick="closeForecastModal()"></div>
+</div>
 
-    <!-- panel -->
-    <div class="relative bg-white rounded-2xl shadow-lg w-full max-w-lg p-6" onclick="event.stopPropagation()">
-      <h2 class="text-lg font-semibold text-slate-900 mb-4">Register Part Code to Month</h2>
 
-      <div class="mb-3">
-        <label class="text-sm text-slate-700">Customer</label>
-        <select id="fm_customer" class="w-full h-10 px-3 rounded-xl border border-slate-300">
-          <option value="">Select Customer</option>
-          {% for c in customers %}
-            <option value="{{ c.id }}">{{ c.customer_name }}</option>
-          {% endfor %}
-        </select>
+<!-- MODAL -->
+<div id="scheduleModal"
+     class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
+
+  <!-- backdrop -->
+  <div class="absolute inset-0" data-close-schedule></div>
+
+  <!-- panel -->
+  <div class="relative bg-white rounded-2xl shadow-lg w-full max-w-lg p-6"
+       onclick="event.stopPropagation()">
+
+    <div class="flex items-start justify-between gap-3 mb-4">
+      <h2 class="text-lg font-semibold text-slate-900">
+        Register Monthly TEP Schedule
+      </h2>
+
+      <button type="button"
+              data-close-schedule
+              class="h-9 w-9 inline-flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-700">
+        ✕
+      </button>
+    </div>
+
+    <!-- CUSTOMER -->
+    <div class="mb-3">
+      <label class="text-sm text-slate-700">Customer</label>
+
+      <select id="sm_customer"
+              class="w-full h-10 px-3 rounded-xl border border-slate-300">
+        <option value="">Select Customer</option>
+        {% for c in customers_dropdown %}
+          <option value="{{ c.id }}">{{ c.customer_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- TEP -->
+    <div class="mb-3">
+      <label class="text-sm text-slate-700">TEP Code</label>
+
+      <select id="sm_tep"
+              class="w-full h-10 px-3 rounded-xl border border-slate-300"
+              disabled>
+        <option value="">Select Customer first</option>
+      </select>
+    </div>
+
+    <!-- YEAR + MONTH (inside modal, searchable) -->
+    <div class="grid grid-cols-2 gap-3 mb-3">
+      <div>
+        <label class="text-sm text-slate-700">Year</label>
+        <input id="sm_year"
+               list="year-options"
+               class="w-full h-10 px-3 rounded-xl border border-slate-300"
+               value="{{ selected_year }}"
+               placeholder="YYYY" />
       </div>
 
-      <div class="mb-3">
-        <label class="text-sm text-slate-700">Part Code</label>
-        <select id="fm_part" class="w-full h-10 px-3 rounded-xl border border-slate-300">
-          <option value="">Select Part Code</option>
-          {% for p in part_codes %}
-            <option value="{{ p.mat_partcode }}">{{ p.mat_partcode }} • {{ p.mat_partname }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="mb-3">
-        <label class="text-sm text-slate-700">Month</label>
-        <select id="fm_month" class="w-full h-10 px-3 rounded-xl border border-slate-300">
-          {% for m in months_list %}
-            <option value="{{ m|date:'Y-m' }}" {% if selected_month == m %}selected{% endif %}>
-              {{ m|date:"F Y" }}
-            </option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="mb-3">
-        <label class="text-sm text-slate-700">Quantity</label>
-        <input type="number" id="fm_qty" min="0" value="0"
-               class="w-full h-10 px-3 rounded-xl border border-slate-300" />
-        <div class="text-sm text-slate-500 mt-1">
-          Effective Total: <span id="fm_total">0</span>
-        </div>
-      </div>
-
-      <!-- Hidden Django form -->
-      <form id="fm_form" method="post" action="{% url 'app:register_allocation' %}" class="hidden">
-        {% csrf_token %}
-        <input type="hidden" name="customer_id" id="fm_h_customer">
-        <input type="hidden" name="part_code" id="fm_h_part">
-        <input type="hidden" name="quantity" id="fm_h_qty">
-        <input type="hidden" name="month" id="fm_h_month">
-      </form>
-
-      <div class="flex justify-end gap-2 mt-4">
-        <button type="button"
-                onclick="closeForecastModal()"
-                class="h-10 px-4 rounded-xl bg-slate-300 hover:bg-slate-400 text-slate-900">
-          Cancel
-        </button>
-        <button type="button"
-                onclick="saveForecastModal()"
-                class="h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white">
-          Save
-        </button>
+      <div>
+        <label class="text-sm text-slate-700">Month (MM)</label>
+        <input id="sm_month"
+               list="month-options"
+               class="w-full h-10 px-3 rounded-xl border border-slate-300"
+               value="{{ selected_month_num }}"
+               placeholder="MM" />
       </div>
     </div>
+
+    <!-- QUANTITY -->
+    <div class="mb-3">
+      <label class="text-sm text-slate-700">Quantity</label>
+
+      <input type="number"
+             id="sm_qty"
+             min="0"
+             step="1"
+             value="0"
+             class="w-full h-10 px-3 rounded-xl border border-slate-300">
+    </div>
+
+    <!-- HIDDEN FORM -->
+    <form id="sm_form"
+          method="post"
+          action="{% url 'app:register_customer_tep_schedule' %}"
+          class="hidden">
+      {% csrf_token %}
+      <input type="hidden" name="customer_id" id="sm_h_customer">
+      <input type="hidden" name="tep_id" id="sm_h_tep">
+      <input type="hidden" name="schedule_month" id="sm_h_month">  <!-- YYYY-MM -->
+      <input type="hidden" name="quantity" id="sm_h_qty">
+    </form>
+
+    <!-- BUTTONS -->
+    <div class="flex justify-end gap-2 mt-4">
+      <button type="button"
+              data-close-schedule
+              class="h-10 px-4 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-900">
+        Cancel
+      </button>
+
+      <button type="button"
+              id="btnSaveScheduleModal"
+              class="h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white">
+        Save
+      </button>
+    </div>
+
   </div>
 </div>
 
-<!-- TABLE WRAPPER -->
+
+<!-- TABLE -->
 <div class="mt-4 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
 
-  <!-- Table Header -->
   <div class="px-5 py-4 border-b border-slate-200">
     <h2 class="text-lg font-semibold text-slate-900">
-      Registered Customer Part Codes
+      Registered Customer TEP Schedules
     </h2>
     <p class="text-sm text-slate-500">
-      Showing month:
-      <span class="font-medium">
-        {{ selected_month|date:"F Y" }}
-      </span>
+      Showing:
+      <span class="font-medium">{{ selected_month|date:"F Y" }}</span>
     </p>
   </div>
 
-  <!-- Table -->
   <div class="overflow-x-auto">
-    <table class="w-full min-w-[1000px] table-fixed text-sm">
+    <table class="w-full min-w-[900px] table-fixed text-sm">
       <thead class="bg-slate-50 text-slate-700">
         <tr>
           <th class="px-4 py-3 text-left font-semibold">Customer</th>
-          <th class="px-4 py-3 text-left font-semibold">Part Code</th>
-          <th class="px-4 py-3 text-left font-semibold">Part Name</th>
+          <th class="px-4 py-3 text-left font-semibold">TEP Code</th>
           <th class="px-4 py-3 text-right font-semibold">Quantity</th>
           <th class="px-4 py-3 text-left font-semibold">Updated</th>
         </tr>
       </thead>
 
       <tbody class="divide-y divide-slate-200">
-        {% for r in forecast_rows %}
+        {% for r in schedules %}
           <tr class="hover:bg-slate-50">
+            <td class="px-4 py-3">{{ r.customer.customer_name }}</td>
+            <td class="px-4 py-3 font-semibold">{{ r.tep.tep_code }}</td>
+            <td class="px-4 py-3 text-right font-semibold">{{ r.quantity }}</td>
             <td class="px-4 py-3">
-              {{ r.customer.customer_name }}
-            </td>
-
-            <td class="px-4 py-3 font-semibold">
-              {{ r.part_code }}
-            </td>
-
-            <td class="px-4 py-3">
-              {{ r.part_name|default:"—" }}
-            </td>
-
-            <td class="px-4 py-3 text-right font-semibold">
-              {{ r.quantity|default:0 }}
-            </td>
-
-            <td class="px-4 py-3">
-              {% if r.updated_at %}
-                {{ r.updated_at|date:"Y-m-d H:i" }}
-              {% else %}
-                —
-              {% endif %}
+              {% if r.created_at %}{{ r.created_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}
             </td>
           </tr>
         {% empty %}
           <tr>
-            <td colspan="5" class="px-4 py-10 text-center text-slate-500">
+            <td colspan="4" class="px-4 py-10 text-center text-slate-500">
               No registrations found for this month.
             </td>
           </tr>
@@ -981,7 +1100,137 @@ function closeMaterialModal(){
       </tbody>
     </table>
   </div>
+
 </div>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+
+  const CUSTOMER_TEPS_API = "{% url 'app:api_customer_teps' %}";
+
+  // Filter controls
+  const yearFilter = document.getElementById("year-filter");
+  const monthFilter = document.getElementById("month-filter");
+  const applyBtn = document.getElementById("btnApplyMonthFilter");
+
+  function applyFilter() {
+    const y = (yearFilter.value || "").trim();
+    const m = (monthFilter.value || "").trim().padStart(2, "0");
+
+    if (!/^\d{4}$/.test(y) || !/^\d{2}$/.test(m) || Number(m) < 1 || Number(m) > 12) {
+      alert("Please enter a valid Year (YYYY) and Month (01-12).");
+      return;
+    }
+
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", "tep_schedule");
+    url.searchParams.set("year", y);
+    url.searchParams.set("month", m);
+    window.location.href = url.toString();
+  }
+
+  applyBtn?.addEventListener("click", applyFilter);
+  monthFilter?.addEventListener("keydown", (e) => { if (e.key === "Enter") applyFilter(); });
+  yearFilter?.addEventListener("keydown", (e) => { if (e.key === "Enter") applyFilter(); });
+
+  // Modal
+  const modal = document.getElementById("scheduleModal");
+  const openBtn = document.getElementById("btnOpenScheduleModal");
+  const saveBtn = document.getElementById("btnSaveScheduleModal");
+
+  function openModal() { modal.classList.remove("hidden"); modal.classList.add("flex"); }
+  function closeModal() { modal.classList.add("hidden"); modal.classList.remove("flex"); }
+
+  openBtn?.addEventListener("click", openModal);
+
+  document.querySelectorAll("[data-close-schedule]").forEach(el => {
+    el.addEventListener("click", closeModal);
+  });
+
+  modal?.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !modal.classList.contains("hidden")) closeModal();
+  });
+
+  // Modal fields
+  const customerSel = document.getElementById("sm_customer");
+  const tepSel = document.getElementById("sm_tep");
+  const yearSel = document.getElementById("sm_year");
+  const monthSel = document.getElementById("sm_month");
+  const qtyInp = document.getElementById("sm_qty");
+
+  const hCustomer = document.getElementById("sm_h_customer");
+  const hTep = document.getElementById("sm_h_tep");
+  const hMonth = document.getElementById("sm_h_month");
+  const hQty = document.getElementById("sm_h_qty");
+  const form = document.getElementById("sm_form");
+
+  // Load TEPs
+  customerSel?.addEventListener("change", async function () {
+    tepSel.disabled = true;
+    tepSel.innerHTML = `<option value="">Loading...</option>`;
+
+    if (!this.value) {
+      tepSel.innerHTML = `<option value="">Select Customer first</option>`;
+      return;
+    }
+
+    try {
+      const res = await fetch(`${CUSTOMER_TEPS_API}?customer_id=${encodeURIComponent(this.value)}`);
+      const data = await res.json();
+
+      const items = Array.isArray(data.items) ? data.items : [];
+      tepSel.innerHTML = `<option value="">Select TEP Code</option>`;
+
+      if (items.length === 0) {
+        tepSel.innerHTML = `<option value="">No TEP codes found</option>`;
+        return;
+      }
+
+      items.forEach(item => {
+        const opt = document.createElement("option");
+        opt.value = item.id;
+        opt.textContent = item.tep_code;
+        tepSel.appendChild(opt);
+      });
+
+      tepSel.disabled = false;
+    } catch (err) {
+      console.error(err);
+      tepSel.innerHTML = `<option value="">Failed to load TEP codes</option>`;
+    }
+  });
+
+  // Save
+  saveBtn?.addEventListener("click", () => {
+    const customer = customerSel.value;
+    const tep = tepSel.value;
+
+    const y = (yearSel.value || "").trim();
+    const m = (monthSel.value || "").trim().padStart(2, "0");
+    const qty = qtyInp.value;
+
+    if (!customer || !tep) {
+      alert("Please select Customer and TEP Code.");
+      return;
+    }
+    if (!/^\d{4}$/.test(y) || !/^\d{2}$/.test(m) || Number(m) < 1 || Number(m) > 12) {
+      alert("Please enter a valid Year (YYYY) and Month (01-12).");
+      return;
+    }
+
+    // send YYYY-MM
+    hCustomer.value = customer;
+    hTep.value = tep;
+    hMonth.value = `${y}-${m}`;
+    hQty.value = qty;
+
+    form.submit();
+  });
+
+});
+</script>
 
 {% endif %}
 {% if tab == "stocks" %}
@@ -1090,86 +1339,128 @@ function closeMaterialModal(){
                     </td>
 
 
-                    <td class="px-4 py-3 text-right whitespace-nowrap">
-                      <div class="inline-flex items-center justify-end gap-2">
+    <td class="px-4 py-3 text-right whitespace-nowrap">
+  <div class="inline-flex items-center justify-end gap-2">
 
-                        <!-- Save On-Hand -->
-                        <form
-                          id="stock-form-{{ m.id }}"
-                          method="post"
-                          action="{% url 'app:update_material_stock' %}"
-                          class="inline-flex items-center justify-end gap-2"
-                        >
-                          {% csrf_token %}
-                          <input type="hidden" name="material_id" value="{{ m.id }}">
-                          <input type="hidden" name="sq" value="{{ sq|default:'' }}">
-                          <input type="hidden" name="spage" value="{{ stock_page_obj.number|default:'' }}">
-<!-- here -->
-                         <button
-                          type="submit"
-                          class="h-9 px-4 rounded-lg button-gradient"
-                        >
-                          Save
-                        </button>
+    <!-- =========================
+         SAVE ON-HAND (ONLY)
+         ========================= -->
+    <form
+      id="stock-form-{{ m.id }}"
+      method="post"
+      action="{% url 'app:update_material_stock' %}"
+      class="inline-flex items-center justify-end"
+    >
+      {% csrf_token %}
+      <input type="hidden" name="material_id" value="{{ m.id }}">
+      <input type="hidden" name="tab" value="stocks">
+      <input type="hidden" name="sq" value="{{ sq|default:'' }}">
+      <input type="hidden" name="spage" value="{{ stock_page_obj.number|default:'' }}">
 
-                        <!-- Reserve Button -->
-                        <div x-data="{ open:false }" class="inline-block">
-                          <button
-                            type="button"
-                            onclick="this.nextElementSibling.classList.remove('hidden')"
-                            class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white"
-                          >
-                            Reserve
-                          </button>
+      <button type="submit" class="h-9 px-4 rounded-lg button-gradient">
+        Save
+      </button>
+    </form>
+    <!-- ✅ IMPORTANT: Save form ends here -->
 
-                          <!-- Reserve Modal -->
-                          <div class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-                            <div class="bg-white w-full max-w-md rounded-2xl shadow-xl p-6 relative">
-                              <h3 class="text-lg font-semibold mb-4">Reserve Allocation</h3>
+    <!-- =========================
+         RESERVE BUTTON + MODAL
+         ========================= -->
+    <div class="inline-block">
 
-                              <form method="post" action="{% url 'app:reserve_material' %}" class="space-y-3">
-                                {% csrf_token %}
-                                <input type="hidden" name="material_id" value="{{ m.id }}">
-                                <input type="hidden" name="tab" value="stocks">
-                                <input type="hidden" name="sq" value="{{ sq|default:'' }}">
-                                <input type="hidden" name="spage" value="{{ stock_page_obj.number|default:'' }}">
+      <!-- Open modal -->
+      <button
+        type="button"
+        onclick="this.nextElementSibling.classList.remove('hidden')"
+        class="h-9 px-4 rounded-lg bg-blue-600 hover:bg-blue-500 text-white"
+      >
+        Reserve
+      </button>
 
-                                <div>
-                                  <label class="text-sm font-medium text-slate-700">Customer</label>
-                                  <select name="customer_id" required
-                                          class="mt-1 w-full h-10 px-3 rounded-xl border border-slate-300">
-                                    <option value="">Select customer</option>
-                                    {% for c in customers %}
-                                      <option value="{{ c.id }}">{{ c.customer_name }}</option>
-                                    {% endfor %}
-                                  </select>
-                                </div>
+      <!-- Modal backdrop -->
+      <div class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
 
-                                <div>
-                                  <label class="text-sm font-medium text-slate-700">Quantity</label>
-                                  <input type="number" name="qty_allocated" min="1" required
-                                         class="mt-1 w-full h-10 px-3 rounded-xl border border-slate-300">
-                                </div>
+        <!-- Modal panel -->
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-xl p-6 relative">
+          <div class="flex items-start justify-between gap-3 mb-4">
+            <h3 class="text-lg font-semibold text-slate-900">Reserve Allocation</h3>
 
-                                <div class="flex justify-end gap-2 pt-3">
-                                  <button type="button"
-                                          onclick="this.closest('.fixed').classList.add('hidden')"
-                                          class="px-4 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50">
-                                    Cancel
-                                  </button>
-                                  <button type="submit"
-                                          class="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800">
-                                    Confirm
-                                  </button>
-                                </div>
-                              </form>
-                            </div>
-                          </div>
-                        </div>
+            <!-- X Close -->
+            <button
+              type="button"
+              onclick="this.closest('.fixed').classList.add('hidden')"
+              class="h-9 w-9 rounded-xl hover:bg-slate-100 grid place-items-center text-slate-500"
+              aria-label="Close"
+            >
+              ✕
+            </button>
+          </div>
 
-                      </div>
-                    </td>
+          <!-- Reserve form (separate from Save) -->
+          <form method="post" action="{% url 'app:reserve_material' %}" class="space-y-4">
+            {% csrf_token %}
+            <input type="hidden" name="material_id" value="{{ m.id }}">
+            <input type="hidden" name="tab" value="stocks">
+            <input type="hidden" name="sq" value="{{ sq|default:'' }}">
+            <input type="hidden" name="spage" value="{{ stock_page_obj.number|default:'' }}">
 
+            <!-- Customer row (flex-safe, no overflow) -->
+            <div class="flex items-center gap-3">
+              <label class="w-24 text-sm font-medium text-slate-700">Customer</label>
+              <div class="flex-1 min-w-0">
+                <select
+                  name="customer_id"
+                  required
+                  class="w-full h-10 px-3 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Select customer</option>
+                  {% for c in customers %}
+                    <option value="{{ c.id }}">{{ c.customer_name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+
+            <!-- Quantity row (flex-safe, no overflow) -->
+            <div class="flex items-center gap-3">
+              <label class="w-24 text-sm font-medium text-slate-700">Quantity</label>
+              <div class="flex-1 min-w-0">
+                <input
+                  type="number"
+                  name="qty_allocated"
+                  min="1"
+                  required
+                  placeholder="Enter quantity"
+                  class="w-full h-10 px-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onclick="this.closest('.fixed').classList.add('hidden')"
+                class="h-10 px-4 rounded-xl border border-slate-300 bg-white hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                class="h-10 px-5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white"
+              >
+                Reserve
+              </button>
+            </div>
+
+          </form>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</td>
                   </tr>
                   {% empty %}
                   <tr>
