@@ -32,13 +32,19 @@
       </div>
 
       <div class="flex items-start gap-2">
-        <button
-          type="button"
-          id="openAddMaterial"
-          class="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800"
-        >
-          + Add Material
-        </button>
+        {% if tep_obj.is_active %}
+          <button
+            type="button"
+            id="openAddMaterial"
+            class="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800"
+          >
+            + Add Material
+          </button>
+        {% else %}
+          <div class="px-4 py-2 rounded-xl bg-slate-200 text-slate-600 cursor-not-allowed">
+            Obsolete TEP (cannot add materials)
+          </div>
+        {% endif %}
       </div>
     </div>
   </div>
@@ -119,7 +125,7 @@
         </button>
       </div>
 
-      <form method="post" action="{% url 'app:add_material_to_tep' %}" class="p-5 space-y-4">
+      <form method="post" action="{% url 'app:add_material_to_tep_staff' tep_id %}" class="p-5 space-y-4">
         {% csrf_token %}
         <input type="hidden" name="tep_id" value="{{ tep_id }}">
 
@@ -130,16 +136,19 @@
           <div>
             <label class="text-sm font-semibold">Material Code</label>
             <input
+              id="mat_partcode"
               name="mat_partcode"
               required
               class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400"
               placeholder="e.g. 0-292215-3"
             />
+            <p id="mat_lookup_msg" class="text-xs mt-1 text-slate-500"></p>
           </div>
 
           <div>
             <label class="text-sm font-semibold">Material Name</label>
             <input
+              id="mat_partname"
               name="mat_partname"
               required
               class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400"
@@ -151,6 +160,7 @@
         <div>
           <label class="text-sm font-semibold">Maker</label>
           <input
+          id="mat_maker"
             name="mat_maker"
             required
             class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400"
@@ -162,6 +172,7 @@
           <div>
             <label class="text-sm font-semibold">Unit</label>
             <select
+            id="unit"
               name="unit"
               required
               class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400"
@@ -211,24 +222,108 @@
   </div>
 
   <script>
-    // ✅ Modal open/close
-    const matModal = document.getElementById("addMaterialModal");
-    const openMatBtn = document.getElementById("openAddMaterial");
-    const closeMatBtn = document.getElementById("closeAddMaterial");
-    const cancelMatBtn = document.getElementById("cancelAddMaterial");
-    const matOverlay = document.getElementById("addMaterialOverlay");
+  const matModal = document.getElementById("addMaterialModal");
+  const openMatBtn = document.getElementById("openAddMaterial");
+  const closeMatBtn = document.getElementById("closeAddMaterial");
+  const cancelMatBtn = document.getElementById("cancelAddMaterial");
+  const matOverlay = document.getElementById("addMaterialOverlay");
 
-    function openMatModal() { matModal.classList.remove("hidden"); }
-    function closeMatModal() { matModal.classList.add("hidden"); }
+  function openMatModal() { matModal.classList.remove("hidden"); }
+  function closeMatModal() { matModal.classList.add("hidden"); }
 
-    openMatBtn?.addEventListener("click", openMatModal);
-    closeMatBtn?.addEventListener("click", closeMatModal);
-    cancelMatBtn?.addEventListener("click", closeMatModal);
-    matOverlay?.addEventListener("click", closeMatModal);
+  openMatBtn?.addEventListener("click", openMatModal);
+  closeMatBtn?.addEventListener("click", closeMatModal);
+  cancelMatBtn?.addEventListener("click", closeMatModal);
+  matOverlay?.addEventListener("click", closeMatModal);
 
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") closeMatModal();
-    });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeMatModal();
+  });
+
+  const partEl = document.getElementById("mat_partcode");
+  const nameEl = document.getElementById("mat_partname");
+  const makerEl = document.getElementById("mat_maker");
+  const unitEl = document.getElementById("unit");
+  const msgEl = document.getElementById("mat_lookup_msg");
+
+  const lookupUrl = "{% url 'app:material_lookup' %}";
+  let timer = null;
+  let lastQuery = "";
+
+  function setMsg(text, kind = "muted") {
+    if (!msgEl) return;
+    msgEl.textContent = text || "";
+    msgEl.className =
+      "text-xs mt-1 " +
+      (kind === "ok" ? "text-green-700"
+      : kind === "err" ? "text-red-600"
+      : "text-slate-500");
+  }
+
+  function clearAutoFields() {
+    if (nameEl) nameEl.value = "";
+    if (makerEl) makerEl.value = "";
+    if (unitEl) unitEl.value = "pc";
+  }
+
+  async function doLookup(partcode) {
+    const normalized = (partcode || "").trim();
+    if (!normalized) {
+      clearAutoFields();
+      setMsg("");
+      return;
+    }
+
+    if (normalized === lastQuery) return;
+    lastQuery = normalized;
+
+    setMsg("Looking up…");
+
+    try {
+      const url = lookupUrl + "?mat_partcode=" + encodeURIComponent(normalized);
+      const res = await fetch(url, { headers: { "X-Requested-With": "XMLHttpRequest" } });
+
+      if (!res.ok) {
+        clearAutoFields();
+        setMsg("Material code not found in master list.", "err");
+        return;
+      }
+
+      const data = await res.json();
+      if (!data.ok || !data.material) {
+        clearAutoFields();
+        setMsg(data.error || "Not found.", "err");
+        return;
+      }
+
+      const m = data.material;
+
+      if (nameEl) nameEl.value = m.mat_partname || "";
+      if (makerEl) makerEl.value = m.mat_maker || "";
+      if (unitEl && m.unit) unitEl.value = m.unit;
+
+      setMsg("Material found ✓", "ok");
+    } catch (err) {
+      console.error(err);
+      clearAutoFields();
+      setMsg("Lookup error (check console).", "err");
+    }
+  }
+
+  partEl?.addEventListener("input", () => {
+    const val = (partEl.value || "").trim();
+    clearTimeout(timer);
+
+    if (val.length < 2) { 
+      clearAutoFields();
+      setMsg("");
+      return;
+    }
+
+    timer = setTimeout(() => doLookup(val), 300);
+  });
+
+  partEl?.addEventListener("blur", () => doLookup(partEl.value));
   </script>
 
 {% endblock %}

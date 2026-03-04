@@ -8,8 +8,12 @@ from django.db.models import Prefetch
 from typing import List
 import csv, io, re
 from .models import Customer, TEPCode, Material, CustomerCSV, MaterialList
+<<<<<<< HEAD
 #new, naglagay nung MaterialList sa itaas na import
 from .schemas import (CustomerIn, CustomerOut, CustomerFullOut, TEPCodeIn, TEPCodeOut, MaterialIn, MaterialOut, MaterialListIn, ForecastRequest, ForecastResponse)
+=======
+from .schemas import (CustomerIn, CustomerOut, CustomerFullOut, TEPCodeIn, TEPCodeOut, MaterialIn, MaterialOut, MaterialListIn)
+>>>>>>> 5d1e8361f29318f50b44900faec9d226a0a532fe
 
 
 api = NinjaAPI(title="Sales API")
@@ -284,8 +288,6 @@ def create_tep_code_by_part_code(request, part_code: str, payload: TEPCodeIn):
     )
 
     return tep
-
-
 
 @api.delete("/tep-codes/{tep_code}", tags=["TEP"])
 def delete_tep_code_by_code(request, tep_code: str):
@@ -639,9 +641,7 @@ def upload_csv(request, file: UploadedFile = File(...)):
 
     except Exception as e:
         return jresponse({"error": str(e)}, status=500)
-
-
-#new code for the output    
+  
 @api.get("/output-format", tags=["GET DETAILS"])
 def output_format(request):
     customers = Customer.objects.prefetch_related(

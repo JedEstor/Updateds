@@ -1,0 +1,401 @@
+{% extends "base.html" %}
+{% block title %}Materials Master{% endblock %}
+
+{% block content %}
+  <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-900">Materials Master</h1>
+      <p class="text-slate-600">Search materials by code, name, maker, or unit.</p>
+    </div>
+
+    <div class="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-end">
+      <div class="flex gap-2">
+        <button
+          type="button"
+          id="openAddMat"
+          class="px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-500"
+        >
+          + Add Material
+        </button>
+
+        <button
+          type="button"
+          id="openCsvUpload"
+          class="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800"
+        >
+          Upload CSV
+        </button>
+      </div>
+
+      <form method="get" action="{% url 'app:staff_materials' %}" class="flex gap-2">
+        <input
+          type="text"
+          name="mq"
+          value="{{ mq|default:'' }}"
+          placeholder="Search..."
+          class="w-72 px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400"
+        />
+        <button
+          class="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800"
+          type="submit"
+        >
+          Search
+        </button>
+      </form>
+    </div>
+  </div>
+
+  {% if messages %}
+    <div class="mb-4 space-y-2">
+      {% for message in messages %}
+        <div class="p-3 rounded-xl border
+          {% if message.tags == 'success' %} bg-green-50 border-green-200 text-green-700
+          {% elif message.tags == 'error' %} bg-red-50 border-red-200 text-red-700
+          {% else %} bg-slate-50 border-slate-200 text-slate-700 {% endif %}">
+          {{ message }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+    <div class="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+      <span class="font-semibold">Materials</span>
+      <span class="text-sm text-slate-500">Showing {{ materials|length }} on this page</span>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-100 text-slate-700">
+          <tr>
+            <th class="px-4 py-3 text-left">Material Code</th>
+            <th class="px-4 py-3 text-left">Material Name</th>
+            <th class="px-4 py-3 text-left">Maker</th>
+            <th class="px-4 py-3 text-left">Unit</th>
+            <th class="px-4 py-3 text-right">Action</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {% for m in materials %}
+            <tr class="border-t border-slate-200 hover:bg-slate-50">
+              <td class="px-4 py-3 font-medium">{{ m.mat_partcode }}</td>
+              <td class="px-4 py-3">{{ m.mat_partname }}</td>
+              <td class="px-4 py-3">{{ m.mat_maker }}</td>
+              <td class="px-4 py-3">
+                <span class="px-2 py-1 rounded bg-slate-100 border">{{ m.unit }}</span>
+              </td>
+
+              <td class="px-4 py-3 text-right whitespace-nowrap">
+                <button
+                  type="button"
+                  class="px-3 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800"
+                  onclick="openEditMat(
+                    '{{ m.id }}',
+                    '{{ m.mat_partcode|escapejs }}',
+                    '{{ m.mat_partname|escapejs }}',
+                    '{{ m.mat_maker|escapejs }}',
+                    '{{ m.unit|escapejs }}'
+                  )"
+                >
+                  Edit
+                </button>
+
+                <form method="post" action="{% url 'app:staff_material_delete' %}" class="inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="mat_id" value="{{ m.id }}">
+                  <button
+                    type="submit"
+                    onclick="return confirm('Delete {{ m.mat_partcode|escapejs }}?')"
+                    class="ml-2 px-3 py-2 rounded-xl bg-red-600 text-white hover:bg-red-500"
+                  >
+                    Delete
+                  </button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="5" class="px-4 py-8 text-center text-slate-500">
+                No materials found.
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if page_obj and page_obj.paginator.num_pages > 1 %}
+      <div class="px-4 py-3 border-t border-slate-200 flex items-center justify-between text-sm">
+        <span class="text-slate-600">
+          Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+        </span>
+
+        <div class="flex gap-2">
+          {% if page_obj.has_previous %}
+            <a
+              class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200"
+              href="?mq={{ mq|urlencode }}&page={{ page_obj.previous_page_number }}"
+            >
+              Prev
+            </a>
+          {% endif %}
+          {% if page_obj.has_next %}
+            <a
+              class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200"
+              href="?mq={{ mq|urlencode }}&page={{ page_obj.next_page_number }}"
+            >
+              Next
+            </a>
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  {# ===================== ADD MATERIAL MODAL ===================== #}
+  <div id="addMatModal" class="fixed inset-0 hidden z-50">
+    <div class="absolute inset-0 bg-black/40" id="addMatOverlay"></div>
+
+    <div class="relative max-w-2xl mx-auto mt-16 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+      <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-bold">Add Material</h2>
+          <p class="text-sm text-slate-500">Add a new material to the master list.</p>
+        </div>
+        <button type="button" id="closeAddMat" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200">✕</button>
+      </div>
+
+      <form method="post" action="{% url 'app:staff_material_add' %}" class="p-5 space-y-4">
+        {% csrf_token %}
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="text-sm font-semibold">Material Code</label>
+            <input
+              name="mat_partcode"
+              required
+              class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400"
+              placeholder="e.g. 0-292215-3"
+            />
+          </div>
+
+          <div>
+            <label class="text-sm font-semibold">Unit</label>
+            <select
+              name="unit"
+              class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400"
+            >
+              <option value="pc">pc</option>
+              <option value="pcs">pcs</option>
+              <option value="m">m</option>
+              <option value="g">g</option>
+              <option value="kg">kg</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="text-sm font-semibold">Material Name</label>
+          <input
+            name="mat_partname"
+            class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400"
+            placeholder="e.g. Wire AVSS 2"
+          />
+        </div>
+
+        <div>
+          <label class="text-sm font-semibold">Maker</label>
+          <input
+            name="mat_maker"
+            class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400"
+            placeholder="e.g. XINYA"
+          />
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" id="cancelAddMat" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200">
+            Cancel
+          </button>
+          <button class="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800">
+            Save
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# ===================== EDIT MATERIAL MODAL ===================== #}
+  <div id="editMatModal" class="fixed inset-0 hidden z-50">
+    <div class="absolute inset-0 bg-black/40" id="editMatOverlay"></div>
+
+    <div class="relative max-w-2xl mx-auto mt-16 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+      <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-bold">Edit Material</h2>
+          <p class="text-sm text-slate-500">Update this material in the master list.</p>
+        </div>
+        <button type="button" id="closeEditMat" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200">✕</button>
+      </div>
+
+      <form method="post" action="{% url 'app:staff_material_update' %}" class="p-5 space-y-4">
+        {% csrf_token %}
+        <input type="hidden" name="mat_id" id="edit_mat_id">
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="text-sm font-semibold">Material Code</label>
+            <input
+              name="mat_partcode"
+              id="edit_mat_partcode"
+              required
+              class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400"
+            />
+          </div>
+
+          <div>
+            <label class="text-sm font-semibold">Unit</label>
+            <select
+              name="unit"
+              id="edit_unit"
+              class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400"
+            >
+              <option value="pc">pc</option>
+              <option value="pcs">pcs</option>
+              <option value="m">m</option>
+              <option value="g">g</option>
+              <option value="kg">kg</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="text-sm font-semibold">Material Name</label>
+          <input
+            name="mat_partname"
+            id="edit_mat_partname"
+            class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400"
+          />
+        </div>
+
+        <div>
+          <label class="text-sm font-semibold">Maker</label>
+          <input
+            name="mat_maker"
+            id="edit_mat_maker"
+            class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400"
+          />
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" id="cancelEditMat" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200">
+            Cancel
+          </button>
+          <button class="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800">
+            Save Changes
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# ===================== CSV UPLOAD MODAL ===================== #}
+  <div id="csvModal" class="fixed inset-0 hidden z-50">
+    <div class="absolute inset-0 bg-black/40" id="csvOverlay"></div>
+
+    <div class="relative max-w-xl mx-auto mt-20 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+      <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-bold">Upload Materials CSV</h2>
+          <p class="text-sm text-slate-500">Insert/update master materials in bulk.</p>
+        </div>
+        <button type="button" id="closeCsv" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200">✕</button>
+      </div>
+
+      <form method="post" enctype="multipart/form-data" action="{% url 'app:staff_materials_csv_upload' %}" class="p-5 space-y-4">
+        {% csrf_token %}
+
+        <div>
+          <label class="text-sm font-semibold">CSV File</label>
+          <input
+            type="file"
+            name="csv_file"
+            accept=".csv"
+            required
+            class="mt-2 block w-full text-sm"
+          />
+          <p class="text-xs text-slate-500 mt-2">
+            Columns supported: <span class="font-mono">mat_partcode, mat_partname, mat_maker, unit</span>
+          </p>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" id="cancelCsv" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200">
+            Cancel
+          </button>
+          <button class="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800">
+            Upload
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const addMatModal = document.getElementById("addMatModal");
+    const openAddMatBtn = document.getElementById("openAddMat");
+    const closeAddMatBtn = document.getElementById("closeAddMat");
+    const cancelAddMatBtn = document.getElementById("cancelAddMat");
+    const addMatOverlay = document.getElementById("addMatOverlay");
+
+    function openAddMat() { addMatModal?.classList.remove("hidden"); }
+    function closeAddMat() { addMatModal?.classList.add("hidden"); }
+
+    openAddMatBtn?.addEventListener("click", openAddMat);
+    closeAddMatBtn?.addEventListener("click", closeAddMat);
+    cancelAddMatBtn?.addEventListener("click", closeAddMat);
+    addMatOverlay?.addEventListener("click", closeAddMat);
+
+    const csvModal = document.getElementById("csvModal");
+    const openCsvBtn = document.getElementById("openCsvUpload");
+    const closeCsvBtn = document.getElementById("closeCsv");
+    const cancelCsvBtn = document.getElementById("cancelCsv");
+    const csvOverlay = document.getElementById("csvOverlay");
+
+    function openCsv() { csvModal?.classList.remove("hidden"); }
+    function closeCsv() { csvModal?.classList.add("hidden"); }
+
+    openCsvBtn?.addEventListener("click", openCsv);
+    closeCsvBtn?.addEventListener("click", closeCsv);
+    cancelCsvBtn?.addEventListener("click", closeCsv);
+    csvOverlay?.addEventListener("click", closeCsv);
+
+    const editMatModal = document.getElementById("editMatModal");
+    const closeEditMatBtn = document.getElementById("closeEditMat");
+    const cancelEditMatBtn = document.getElementById("cancelEditMat");
+    const editMatOverlay = document.getElementById("editMatOverlay");
+
+    function openEditMat(id, code, name, maker, unit) {
+      document.getElementById("edit_mat_id").value = id;
+      document.getElementById("edit_mat_partcode").value = code;
+      document.getElementById("edit_mat_partname").value = name;
+      document.getElementById("edit_mat_maker").value = maker;
+      document.getElementById("edit_unit").value = unit;
+      editMatModal?.classList.remove("hidden");
+    }
+    window.openEditMat = openEditMat;
+
+    function closeEditMat() { editMatModal?.classList.add("hidden"); }
+    closeEditMatBtn?.addEventListener("click", closeEditMat);
+    cancelEditMatBtn?.addEventListener("click", closeEditMat);
+    editMatOverlay?.addEventListener("click", closeEditMat);
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        closeAddMat();
+        closeCsv();
+        closeEditMat();
+      }
+    });
+  </script>
+{% endblock %}

@@ -9,7 +9,7 @@ from django.views.decorators.http import require_POST
 from django.core.paginator import Paginator
 from django.db import transaction, IntegrityError
 from django.db.models import Q, Sum
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
@@ -17,6 +17,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.views.decorators.http import require_GET
 from django.utils import timezone
 from .models import (
     Customer,
@@ -1120,6 +1121,25 @@ def toggle_user_active(request, user_id):
     messages.success(request, f"Updated user: {user_obj.username} (active={user_obj.is_active})")
     return redirect(reverse("app:admin_dashboard") + "?tab=users")
 
+@require_GET
+@login_required
+def material_lookup(request):
+    partcode = (request.GET.get("mat_partcode") or "").strip()
+    if not partcode:
+        return JsonResponse({"ok": False, "error": "Missing mat_partcode."}, status=400)
+
+    mat = (
+        MaterialList.objects
+        .filter(mat_partcode__iexact=partcode)
+        .values("mat_partcode", "mat_partname", "mat_maker", "unit")
+        .first()
+    )
+
+    if not mat:
+        return JsonResponse({"ok": False, "error": "Not found."}, status=404)
+
+    return JsonResponse({"ok": True, "material": mat})
+
 
 @login_required
 @user_passes_test(is_admin)
@@ -1228,31 +1248,45 @@ def admin_csv_upload(request):
 
     return redirect(next_url)
 
-
+@never_cache
 @login_required
 def customer_list(request):
     q = (request.GET.get("q") or "").strip()
     customers = build_customer_table(q)
-    return render(request, "customer_list.html", {"customers": customers, "q": q})
 
+    staff_full_name = None
+    try:
+        staff_full_name = request.user.employeeprofile.full_name
+    except Exception:
+        pass
+
+    return render(request, "customer_list.html", {
+        "customers": customers,
+        "q": q,
+        "staff_full_name": staff_full_name,
+    })
 
 @never_cache
 @login_required
 def customer_detail(request, tep_id: int):
-    tep = get_object_or_404(
-        TEPCode.objects.select_related("customer", "superseded_by"),
-        id=tep_id
-    )
+    tep = get_object_or_404(TEPCode.objects.select_related("customer", "superseded_by"), id=tep_id)
 
-    materials = (
-        Material.objects
-        .filter(tep_code=tep)
-        .order_by("mat_partname")
-    )
+    materials = Material.objects.filter(tep_code=tep).order_by("mat_partname")
+    mq = (request.GET.get("mq") or "").strip()
+    master_qs = MaterialList.objects.all().order_by("mat_partcode")
+    if mq:
+        master_qs = master_qs.filter(
+            Q(mat_partcode__icontains=mq) |
+            Q(mat_partname__icontains=mq) |
+            Q(mat_maker__icontains=mq) |
+            Q(unit__icontains=mq)
+        )
+
+    master_paginator = Paginator(master_qs, 10)
+    master_page = master_paginator.get_page(request.GET.get("mpage"))
 
     selected_part = (tep.part_code or "").strip()
     selected_part_name = ""
-
     for p in (tep.customer.parts or []):
         if isinstance(p, dict) and str(p.get("Partcode", "")).strip() == selected_part:
             selected_part_name = str(p.get("Partname", "")).strip()
@@ -1266,14 +1300,14 @@ def customer_detail(request, tep_id: int):
         "selected_part_name": selected_part_name,
         "tep_id": tep.id,
         "tep_obj": tep,
+        "mq": mq,
+        "master_materials": master_page,
     })
 
 
 @login_required
 @user_passes_test(is_admin)
 def add_material_to_tep(request):
-    if request.method != "POST":
-        return redirect("app:admin_dashboard")
 
     tep_id = (request.POST.get("tep_id") or "").strip()
     mat_partcode = _normalize_space(request.POST.get("mat_partcode"))
@@ -1350,6 +1384,308 @@ def add_material_to_tep(request):
 
     return redirect(reverse("app:admin_dashboard") + f"?tab=customers&open_panel=1&tep_id={tep_id}")
 
+@require_POST
+@login_required
+@user_passes_test(can_edit)
+def add_material_to_tep_staff(request):
+    tep_id = (request.POST.get("tep_id") or "").strip()
+    if not tep_id:
+        messages.error(request, "Missing TEP id.")
+        return redirect("app:customer_list")
+
+    tep = get_object_or_404(TEPCode, id=tep_id)
+
+    if not getattr(tep, "is_active", True):
+        messages.error(request, f"{tep.tep_code} is obsolete and cannot be edited.")
+        return redirect("app:customer_detail", tep_id=tep.id)
+
+    mat_partcode = _normalize_space(request.POST.get("mat_partcode"))
+    dim_qty_raw = (request.POST.get("dim_qty") or "").strip()
+    loss_raw = (request.POST.get("loss_percent") or "").strip()
+
+    if not mat_partcode:
+        messages.error(request, "Material Part Code is required.")
+        return redirect("app:customer_detail", tep_id=tep.id)
+
+    if not dim_qty_raw:
+        messages.error(request, "Dim/Qty is required.")
+        return redirect("app:customer_detail", tep_id=tep.id)
+
+    try:
+        dim_qty = float(dim_qty_raw)
+    except Exception:
+        messages.error(request, "Dim/Qty must be a number.")
+        return redirect("app:customer_detail", tep_id=tep.id)
+
+    loss_percent = 10.0
+    if loss_raw != "":
+        try:
+            loss_percent = float(loss_raw)
+        except Exception:
+            messages.error(request, "Loss % must be a number.")
+            return redirect("app:customer_detail", tep_id=tep.id)
+
+    master = MaterialList.objects.filter(mat_partcode__iexact=mat_partcode).first()
+    if not master:
+        messages.error(request, f"Material code not found in master list: {mat_partcode}")
+        return redirect("app:customer_detail", tep_id=tep.id)
+
+    total = round(float(dim_qty) * (1 + (float(loss_percent) / 100.0)), 4)
+
+    try:
+        with transaction.atomic():
+            final_name = _allocate_material_name(
+                tep=tep,
+                base_name=master.mat_partname,
+                exclude_partcode=mat_partcode
+            )
+
+            material, created = Material.objects.get_or_create(
+                tep_code=tep,
+                mat_partcode=mat_partcode,
+                defaults={
+                    "mat_partname": final_name,
+                    "mat_maker": master.mat_maker,
+                    "unit": master.unit,
+                    "dim_qty": dim_qty,
+                    "loss_percent": loss_percent,
+                    "total": total,
+                }
+            )
+
+            if not created:
+                messages.error(request, f"Material already exists for this TEP + {mat_partcode}.")
+            else:
+                messages.success(request, f"Added material: {mat_partcode}")
+
+    except Exception as e:
+        messages.error(request, f"Failed to add material: {e}")
+
+    return redirect("app:customer_detail", tep_id=tep.id)
+
+@never_cache
+@login_required
+@user_passes_test(can_edit)  
+def staff_materials(request):
+    mq = (request.GET.get("mq") or "").strip()
+
+    qs = MaterialList.objects.all().order_by("mat_partcode")
+    if mq:
+        qs = qs.filter(
+            Q(mat_partcode__icontains=mq) |
+            Q(mat_partname__icontains=mq) |
+            Q(mat_maker__icontains=mq) |
+            Q(unit__icontains=mq)
+        )
+
+    paginator = Paginator(qs, 12)
+    page = paginator.get_page(request.GET.get("page"))
+
+    return render(request, "materials_list.html", {
+        "mq": mq,
+        "page_obj": page,
+        "materials": page,  
+    })
+
+from django.views.decorators.http import require_POST
+from django.views.decorators.cache import never_cache
+from django.db.models import Q
+from django.core.paginator import Paginator
+
+@never_cache
+@login_required
+@user_passes_test(can_edit)
+def staff_materials(request):
+    mq = (request.GET.get("mq") or "").strip()
+
+    qs = MaterialList.objects.all().order_by("mat_partcode")
+    if mq:
+        qs = qs.filter(
+            Q(mat_partcode__icontains=mq) |
+            Q(mat_partname__icontains=mq) |
+            Q(mat_maker__icontains=mq) |
+            Q(unit__icontains=mq)
+        )
+
+    paginator = Paginator(qs, 12)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    return render(request, "materials_list.html", {
+        "mq": mq,
+        "materials": page_obj,
+        "page_obj": page_obj,
+    })
+
+
+@require_POST
+@login_required
+@user_passes_test(can_edit)
+def staff_material_add(request):
+    mat_partcode = (request.POST.get("mat_partcode") or "").strip()
+    mat_partname = (request.POST.get("mat_partname") or "").strip()
+    mat_maker = (request.POST.get("mat_maker") or "").strip()
+    unit = (request.POST.get("unit") or "").strip().lower()
+
+    allowed_units = {"pc", "pcs", "m", "g", "kg"}
+    if unit not in allowed_units:
+        unit = "pc"
+
+    if not mat_partcode:
+        messages.error(request, "Material Code is required.")
+        return redirect("app:staff_materials")
+
+    if MaterialList.objects.filter(mat_partcode__iexact=mat_partcode).exists():
+        messages.error(request, f"Material Code already exists: {mat_partcode}")
+        return redirect("app:staff_materials")
+
+    MaterialList.objects.create(
+        mat_partcode=mat_partcode,
+        mat_partname=mat_partname or mat_partcode,
+        mat_maker=mat_maker or "Unknown",
+        unit=unit
+    )
+    messages.success(request, f"Added material: {mat_partcode}")
+    return redirect("app:staff_materials")
+
+
+@require_POST
+@login_required
+@user_passes_test(can_edit)
+def staff_material_update(request):
+    mat_id = (request.POST.get("mat_id") or "").strip()
+    mat_partcode = (request.POST.get("mat_partcode") or "").strip()
+    mat_partname = (request.POST.get("mat_partname") or "").strip()
+    mat_maker = (request.POST.get("mat_maker") or "").strip()
+    unit = (request.POST.get("unit") or "").strip().lower()
+
+    allowed_units = {"pc", "pcs", "m", "g", "kg"}
+    if unit not in allowed_units:
+        unit = "pc"
+
+    if not mat_id:
+        messages.error(request, "Missing material id.")
+        return redirect("app:staff_materials")
+
+    obj = get_object_or_404(MaterialList, id=mat_id)
+
+    if not mat_partcode:
+        messages.error(request, "Material Code is required.")
+        return redirect("app:staff_materials")
+
+    if MaterialList.objects.filter(mat_partcode__iexact=mat_partcode).exclude(id=obj.id).exists():
+        messages.error(request, f"Material Code already exists: {mat_partcode}")
+        return redirect("app:staff_materials")
+
+    obj.mat_partcode = mat_partcode
+    obj.mat_partname = mat_partname or mat_partcode
+    obj.mat_maker = mat_maker or "Unknown"
+    obj.unit = unit
+    obj.save()
+
+    messages.success(request, f"Updated: {obj.mat_partcode}")
+    return redirect("app:staff_materials")
+
+
+@require_POST
+@login_required
+@user_passes_test(can_edit)
+def staff_material_delete(request):
+    mat_id = (request.POST.get("mat_id") or "").strip()
+    if not mat_id:
+        messages.error(request, "Missing material id.")
+        return redirect("app:staff_materials")
+
+    obj = get_object_or_404(MaterialList, id=mat_id)
+    code = obj.mat_partcode
+    obj.delete()
+
+    messages.success(request, f"Deleted: {code}")
+    return redirect("app:staff_materials")
+
+
+@require_POST
+@login_required
+@user_passes_test(can_edit)
+def staff_materials_csv_upload(request):
+    if not request.FILES.get("csv_file"):
+        messages.error(request, "Please choose a CSV file.")
+        return redirect("app:staff_materials")
+
+    f = request.FILES["csv_file"]
+    raw = f.read()
+
+    content = None
+    for enc in ("utf-8-sig", "utf-16", "cp1252", "latin-1"):
+        try:
+            content = raw.decode(enc)
+            break
+        except UnicodeDecodeError:
+            continue
+
+    if content is None:
+        messages.error(request, "Could not read file encoding. Save as CSV UTF-8 and upload again.")
+        return redirect("app:staff_materials")
+
+    csv_file = io.StringIO(content)
+    reader = csv.DictReader(csv_file)
+    reader.fieldnames = [h.strip().lstrip("\ufeff") for h in (reader.fieldnames or [])]
+
+    inserted = 0
+    updated = 0
+    ALLOWED_UNITS = {"pc", "pcs", "m", "g", "kg"}
+
+    def sget(row, *keys, default=""):
+        for k in keys:
+            v = row.get(k)
+            if v is not None and str(v).strip() != "":
+                return str(v).strip()
+        return default
+
+    try:
+        with transaction.atomic():
+            for row in reader:
+                mat_partcode = sget(row, "mat_partcode", "material_part_code")
+                mat_partname = sget(row, "mat_partname", "material_name")
+                mat_maker = sget(row, "mat_maker", "maker")
+                unit = sget(row, "unit", default="pc").lower()
+
+                if unit not in ALLOWED_UNITS:
+                    unit = "pc"
+                if not mat_partcode:
+                    continue
+
+                obj, created = MaterialList.objects.get_or_create(
+                    mat_partcode=mat_partcode,
+                    defaults={
+                        "mat_partname": mat_partname or mat_partcode,
+                        "mat_maker": mat_maker or "Unknown",
+                        "unit": unit,
+                    }
+                )
+
+                if created:
+                    inserted += 1
+                else:
+                    changed = False
+                    if mat_partname and obj.mat_partname != mat_partname:
+                        obj.mat_partname = mat_partname
+                        changed = True
+                    if mat_maker and obj.mat_maker != mat_maker:
+                        obj.mat_maker = mat_maker
+                        changed = True
+                    if unit and obj.unit != unit:
+                        obj.unit = unit
+                        changed = True
+                    if changed:
+                        obj.save()
+                        updated += 1
+
+        messages.success(request, f"CSV uploaded: inserted={inserted}, updated={updated}")
+    except Exception as e:
+        messages.error(request, f"Upload failed: {e}")
+
+    return redirect("app:staff_materials")
+
 
 @require_POST
 def customer_create(request):
@@ -1399,10 +1735,13 @@ def customer_create(request):
         return redirect("app:customer_list")
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 # --- Existing functions remain unchanged ---
 =======
 
 >>>>>>> 8dd526731a7b741e3a29fb0885cc246ed942e6c7
+=======
+>>>>>>> 5d1e8361f29318f50b44900faec9d226a0a532fe
 @require_POST
 @login_required
 @user_passes_test(is_admin)
@@ -1476,6 +1815,7 @@ def create_material_allocation(request):
 
 def logout_view(request):
     logout(request)
+<<<<<<< HEAD
     return redirect(reverse("app:login"))
 
 
@@ -1675,3 +2015,11 @@ def register_customer_part_schedule(request):
 
     messages.success(request, "Saved schedule.")
     return redirect(reverse("app:admin_dashboard") + "?tab=forecast")
+=======
+    response = redirect(reverse("app:login"))
+
+    response["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response["Pragma"] = "no-cache"
+    response["Expires"] = "0"
+    return response
+>>>>>>> 5d1e8361f29318f50b44900faec9d226a0a532fe

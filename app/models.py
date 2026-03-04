@@ -13,9 +13,6 @@ class Customer(models.Model):
         return self.customer_name
 
     def clean(self):
-        """
-        Optional validation to keep parts JSON clean.
-        """
         if self.parts in (None, ""):
             self.parts = []
 
@@ -57,7 +54,6 @@ class TEPCode(models.Model):
     )
 
     revised_at = models.DateTimeField(null=True, blank=True)
-
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
 
     class Meta:
@@ -161,13 +157,13 @@ class MaterialList(models.Model):
     def __str__(self):
         return f"{self.mat_partname} ({self.mat_partcode})"
 
-
 class CustomerCSV(models.Model):
     csv_file = models.FileField(upload_to="customer_csvs/")
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"CustomerCSV {self.id}"
+
 
 
 class EmployeeProfile(models.Model):

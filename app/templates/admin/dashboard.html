@@ -805,6 +805,7 @@ function closeMaterialModal(){
         </select>
       </div>
 
+<<<<<<< HEAD
       <div class="mb-3">
         <label class="text-sm text-slate-700">Part Code</label>
         <select id="fm_part" class="w-full h-10 px-3 rounded-xl border border-slate-300">
@@ -814,6 +815,18 @@ function closeMaterialModal(){
           {% endfor %}
         </select>
       </div>
+=======
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="run_prototype_forecast">
+                <button type="submit"
+                        class="h-10 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white">
+                  Run Prototype
+                </button>
+              </form>
+            </div>
+          </div>
+>>>>>>> 5d1e8361f29318f50b44900faec9d226a0a532fe
 
       <div class="mb-3">
         <label class="text-sm text-slate-700">Month</label>
