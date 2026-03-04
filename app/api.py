@@ -635,6 +635,7 @@ def upload_csv(request, file: UploadedFile = File(...)):
 
     except Exception as e:
         return jresponse({"error": str(e)}, status=500)
+
   
 @api.get("/output-format", tags=["GET DETAILS"])
 def output_format(request):
