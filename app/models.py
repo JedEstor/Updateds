@@ -201,7 +201,6 @@ class MaterialStock(models.Model):
     def __str__(self):
         return f"{self.material} - On hand: {self.on_hand_qty}"
 
-<<<<<<< HEAD
 
 
 
@@ -219,8 +218,6 @@ class MaterialForecast(models.Model):
         return f"{self.part_code} → {self.forecast}"
 
     
-=======
->>>>>>> 8dd526731a7b741e3a29fb0885cc246ed942e6c7
 
 class MaterialAllocation(models.Model):
     """

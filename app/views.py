@@ -1,15 +1,16 @@
+# views.py
 from django.views.decorators.cache import never_cache
+
 import json, csv, io, re
 from collections import defaultdict
-<<<<<<< HEAD
-from django.views.decorators.csrf import csrf_exempt
-=======
->>>>>>> 8dd526731a7b741e3a29fb0885cc246ed942e6c7
+from django.http import JsonResponse
+from decimal import Decimal
+from calendar import monthrange
 from django.views.decorators.http import require_POST
 from django.core.paginator import Paginator
 from django.db import transaction, IntegrityError
 from django.db.models import Q, Sum
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
@@ -18,21 +19,8 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_GET
-from django.utils import timezone
-from .models import (
-    Customer,
-    TEPCode,
-    Material,
-    MaterialList,
-    MaterialStock,
-    MaterialAllocation,
-    ForecastRun,
-    ForecastLine,
-)
 
-<<<<<<< HEAD
 from .service import PART_FORECAST_VALUES, compute_material_total
-from .models import Customer, TEPCode, Material, MaterialList, MaterialStock, MaterialForecast
 from .models import Customer, TEPCode, Material, MaterialList, MaterialStock, MaterialAllocation, ForecastRun, ForecastLine, DailyMaterialAllocation, MaterialForecast, CustomerPartSchedule
 from .forms import EmployeeCreateForm
 
@@ -40,11 +28,6 @@ from .models import ForecastRun, ForecastLine
 from .service import prototype_static_run
 from datetime import date
 from django.utils import timezone
-=======
-from .forms import EmployeeCreateForm
-from .service import prototype_static_run, reserve_from_latest_forecast_run
-
->>>>>>> 8dd526731a7b741e3a29fb0885cc246ed942e6c7
 
 def is_admin(user):
     return user.is_authenticated and user.is_superuser
@@ -56,6 +39,7 @@ def can_edit(user):
 
 def home(request):
     return HttpResponse("Welcome to the Home Page!")
+
 
 
 def login_view(request):
@@ -260,49 +244,6 @@ def _allocate_material_name(tep, base_name: str, exclude_partcode: str = "") -> 
     return f"{base} {max(numbers) + 1}"
 
 
-def _next_tep_code(existing_tep_code: str) -> str:
-    """
-    "same prefix, increment last number"
-    Examples:
-      TEP00-01 -> TEP00-02
-      TEP00-09 -> TEP00-10
-      ABC      -> ABC-01
-    Keeps zero-padding based on existing last number width.
-    """
-    s = (existing_tep_code or "").strip()
-    if not s:
-        return "TEP-01"
-
-    m = re.match(r"^(.*?)(\d+)$", s)
-    if not m:
-        return f"{s}-01"
-
-    prefix = m.group(1)
-    num_str = m.group(2)
-    width = len(num_str)
-
-    try:
-        n = int(num_str)
-    except Exception:
-        return f"{s}-01"
-
-    return f"{prefix}{str(n + 1).zfill(width)}"
-
-
-def _generate_unique_next_tep_code(base_tep_code: str) -> str:
-    """
-    Keep incrementing until tep_code is unique in DB.
-    """
-    candidate = _next_tep_code(base_tep_code)
-    guard = 0
-    while TEPCode.objects.filter(tep_code=candidate).exists():
-        candidate = _next_tep_code(candidate)
-        guard += 1
-        if guard > 500:
-            raise ValueError("Could not generate unique tep_code after many attempts.")
-    return candidate
-
-
 def build_customer_table(q: str):
     qs = (
         Customer.objects
@@ -349,15 +290,13 @@ def build_customer_table(q: str):
         part_code_map = {}
 
         for pc in part_code_options:
-            tep_objs = teps_by_part.get(pc, [])
-            tep_objs = sorted(tep_objs, key=lambda t: (not bool(getattr(t, "is_active", True)), t.tep_code))
+            tep_objs = sorted(teps_by_part.get(pc, []), key=lambda t: t.tep_code)
 
             teps = [
                 {
                     "tep_id": t.id,
                     "tep_code": t.tep_code,
                     "materials_count": t.materials.count(),
-                    "is_active": getattr(t, "is_active", True),
                 }
                 for t in tep_objs
             ]
@@ -389,14 +328,16 @@ def build_customer_table(q: str):
 
     return customers
 
-
 @require_POST
 @login_required
 @user_passes_test(is_admin)
 def update_material_stock(request):
     material_id = (request.POST.get("material_id") or "").strip()
     on_hand_qty_raw = (request.POST.get("on_hand_qty") or "").strip()
-    sq = (request.GET.get("sq") or request.POST.get("sq") or "").strip()
+
+    # keep filters/pagination
+    sq = (request.POST.get("sq") or "").strip()
+    spage = (request.POST.get("spage") or "").strip()
 
     if not material_id:
         messages.error(request, "Missing material_id.")
@@ -408,7 +349,12 @@ def update_material_stock(request):
             on_hand_qty = 0
     except Exception:
         messages.error(request, "On hand qty must be a whole number.")
-        return redirect(reverse("app:admin_dashboard") + "?tab=stocks")
+        url = reverse("app:admin_dashboard") + "?tab=stocks"
+        if sq:
+            url += f"&sq={sq}"
+        if spage:
+            url += f"&spage={spage}"
+        return redirect(url)
 
     mat = get_object_or_404(MaterialList, id=material_id)
 
@@ -427,6 +373,29 @@ def update_material_stock(request):
     url = reverse("app:admin_dashboard") + "?tab=stocks"
     if sq:
         url += f"&sq={sq}"
+    if spage:
+        url += f"&spage={spage}"
+    return redirect(url)
+
+    mat = get_object_or_404(MaterialList, id=material_id)
+
+    try:
+        MaterialStock.objects.update_or_create(
+            material=mat,
+            defaults={
+                "on_hand_qty": on_hand_qty,
+                "last_updated_by": request.user,
+            }
+        )
+        messages.success(request, f"Saved stock: {mat.mat_partcode} = {on_hand_qty}")
+    except Exception as e:
+        messages.error(request, f"Failed to save stock: {e}")
+
+    url = reverse("app:admin_dashboard") + "?tab=stocks"
+    if sq:
+        url += f"&sq={sq}"
+    if spage:
+        url += f"&spage={spage}"
     return redirect(url)
 
 
@@ -435,179 +404,17 @@ def update_material_stock(request):
 @user_passes_test(is_admin)
 def admin_dashboard(request):
     tab = (request.GET.get("tab") or "customers").strip().lower()
-    action = ""  
+    action = ""  # ✅ prevents UnboundLocalError on GET
 
+    # ---------------- POST ACTIONS ----------------
     if request.method == "POST":
         action = (request.POST.get("action") or "").strip()
 
+        # ✅ run prototype forecast MUST be inside POST
         if action == "run_prototype_forecast":
             prototype_static_run(created_by=request.user)
             messages.success(request, "Prototype forecast run created (5000 / 10000).")
             return redirect(reverse("app:admin_dashboard") + "?tab=forecast")
-
-        if action == "reserve_from_latest_run":
-            allow_partial = (request.POST.get("allow_partial") == "1")
-            result = reserve_from_latest_forecast_run(created_by=request.user, allow_partial=allow_partial)
-
-            if not result.get("ok"):
-                messages.error(request, result.get("message") or "Reserve failed.")
-                return redirect(reverse("app:admin_dashboard") + "?tab=forecast")
-
-            messages.success(
-                request,
-                f"{result.get('message')} Created={result.get('created')} Skipped={result.get('skipped')}"
-            )
-            for note in (result.get("notes") or []):
-                messages.info(request, note)
-
-            return redirect(reverse("app:admin_dashboard") + "?tab=stocks")
-
-        if action == "allocate_from_run":
-            run_id = (request.POST.get("run_id") or "").strip()
-            forecast_ref = (request.POST.get("forecast_ref") or "").strip()
-
-            if not run_id:
-                messages.error(request, "Missing run_id.")
-                return redirect(reverse("app:admin_dashboard") + "?tab=forecast")
-
-            run = get_object_or_404(ForecastRun, id=run_id)
-            if not forecast_ref:
-                forecast_ref = f"RUN-{run.id}"
-
-            req_rows = (
-                ForecastLine.objects
-                .filter(run=run)
-                .exclude(mat_partcode="(NO TEP FOUND)")
-                .values("mat_partcode")
-                .annotate(total_required=Sum("required_qty"))
-                .order_by("mat_partcode")
-            )
-
-            created = 0
-            skipped = 0
-
-            pool_customer, _ = Customer.objects.get_or_create(customer_name="FORECAST_POOL")
-
-            for row in req_rows:
-                mat_partcode = (row.get("mat_partcode") or "").strip()
-                if not mat_partcode:
-                    skipped += 1
-                    continue
-
-                mat = MaterialList.objects.filter(mat_partcode=mat_partcode).first()
-                if not mat:
-                    skipped += 1
-                    continue
-
-                total_required = row.get("total_required") or 0
-                try:
-                    needed = int(__import__("math").ceil(float(total_required)))
-                except Exception:
-                    needed = 0
-
-                if needed <= 0:
-                    skipped += 1
-                    continue
-
-                try:
-                    on_hand = int(mat.stock.on_hand_qty or 0)
-                except Exception:
-                    on_hand = 0
-
-                reserved = (
-                    MaterialAllocation.objects
-                    .filter(material=mat, status="reserved")
-                    .aggregate(total=Sum("qty_allocated"))
-                    .get("total") or 0
-                )
-                reserved = int(reserved or 0)
-                available = max(on_hand - reserved, 0)
-
-                if available <= 0:
-                    skipped += 1
-                    continue
-
-                reserve_qty = min(available, needed)
-
-                try:
-                    MaterialAllocation.objects.create(
-                        material=mat,
-                        customer=pool_customer,
-                        tep_code=None,
-                        qty_allocated=reserve_qty,
-                        forecast_ref=forecast_ref,
-                        status="reserved",
-                        created_by=request.user,
-                    )
-                    created += 1
-                except Exception:
-                    skipped += 1
-
-            messages.success(request, f"Allocated/Reserved for {forecast_ref}. Created={created} Skipped={skipped}")
-            return redirect(reverse("app:admin_dashboard") + "?tab=stocks")
-
-        if action == "release_allocations_ref":
-            forecast_ref = (request.POST.get("forecast_ref") or "").strip()
-            if not forecast_ref:
-                messages.error(request, "Missing forecast_ref.")
-                return redirect(reverse("app:admin_dashboard") + "?tab=forecast")
-
-            updated = (
-                MaterialAllocation.objects
-                .filter(forecast_ref=forecast_ref, status="reserved")
-                .update(status="released")
-            )
-            messages.success(request, f"Released {updated} reserved allocations for ref={forecast_ref}.")
-            return redirect(reverse("app:admin_dashboard") + "?tab=stocks")
-
-        if action == "fulfill_allocations_ref":
-            forecast_ref = (request.POST.get("forecast_ref") or "").strip()
-            if not forecast_ref:
-                messages.error(request, "Missing forecast_ref.")
-                return redirect(reverse("app:admin_dashboard") + "?tab=forecast")
-
-            updated = (
-                MaterialAllocation.objects
-                .filter(forecast_ref=forecast_ref, status="reserved")
-                .update(status="fulfilled")
-            )
-            messages.success(request, f"Fulfilled {updated} reserved allocations for ref={forecast_ref}.")
-            return redirect(reverse("app:admin_dashboard") + "?tab=stocks")
-
-        if action == "revise_tep":
-            tep_id = (request.POST.get("tep_id") or "").strip()
-            if not tep_id:
-                messages.error(request, "Missing tep_id.")
-                return redirect(reverse("app:admin_dashboard") + "?tab=customers")
-
-            old_tep = get_object_or_404(TEPCode.objects.select_related("customer"), id=tep_id)
-
-            if not getattr(old_tep, "is_active", True):
-                messages.error(request, f"{old_tep.tep_code} is already obsolete.")
-                return redirect(reverse("app:admin_dashboard") + f"?tab=customers&open_panel=1&tep_id={old_tep.id}")
-
-            try:
-                with transaction.atomic():
-                    new_code = _generate_unique_next_tep_code(old_tep.tep_code)
-
-                    new_tep = TEPCode.objects.create(
-                        customer=old_tep.customer,
-                        part_code=old_tep.part_code,
-                        tep_code=new_code,
-                        is_active=True,
-                    )
-
-                    old_tep.is_active = False
-                    old_tep.superseded_by = new_tep
-                    old_tep.revised_at = timezone.now()
-                    old_tep.save(update_fields=["is_active", "superseded_by", "revised_at"])
-
-                messages.success(request, f"Revised: {old_tep.tep_code} → {new_tep.tep_code} (new TEP is empty)")
-                return redirect(reverse("app:admin_dashboard") + f"?tab=customers&open_panel=1&tep_id={new_tep.id}")
-
-            except Exception as e:
-                messages.error(request, f"Failed to revise TEP: {e}")
-                return redirect(reverse("app:admin_dashboard") + f"?tab=customers&open_panel=1&tep_id={old_tep.id}")
 
         if action == "add_customer_full":
             customer_name = _normalize_space(request.POST.get("customer_name"))
@@ -637,7 +444,6 @@ def admin_dashboard(request):
                         customer=customer,
                         part_code=part_code,
                         tep_code=tep_code,
-                        is_active=True,
                     )
 
                 messages.success(request, f"Saved customer record: {customer_name} | {part_code} | {tep_code}")
@@ -907,6 +713,7 @@ def admin_dashboard(request):
 
             return redirect(reverse("app:admin_dashboard") + "?tab=users")
 
+    # ---------------- NORMAL GET DATA BUILD ----------------
     q = (request.GET.get("q") or "").strip()
     customers = build_customer_table(q)
 
@@ -950,6 +757,7 @@ def admin_dashboard(request):
     users_page = users_paginator.get_page(upage)
     user_total = users_qs.count()
 
+    # ----- Stocks tab -----
     sq = (request.GET.get("sq") or "").strip()
     materials_master_qs = MaterialList.objects.all().order_by("mat_partcode")
     if sq:
@@ -984,7 +792,7 @@ def admin_dashboard(request):
             m.on_hand_qty = s.on_hand_qty
             m.last_updated_at = s.last_updated_at
             m.last_updated_by = s.last_updated_by
-        except Exception:
+        except MaterialStock.DoesNotExist:
             m.on_hand_qty = 0
             m.last_updated_at = None
             m.last_updated_by = None
@@ -992,11 +800,12 @@ def admin_dashboard(request):
         m.reserved_qty = int(reserved_map.get(m.id, 0) or 0)
         m.available_qty = max(int(m.on_hand_qty or 0) - int(m.reserved_qty or 0), 0)
 
+    # ----- Customer panel AJAX -----
     tep_id = request.GET.get("tep_id")
     is_ajax = request.headers.get("x-requested-with") == "XMLHttpRequest"
 
     if tep_id and is_ajax:
-        tep = get_object_or_404(TEPCode.objects.select_related("customer", "superseded_by"), id=tep_id)
+        tep = get_object_or_404(TEPCode.objects.select_related("customer"), id=tep_id)
         materials = Material.objects.filter(tep_code=tep).order_by("mat_partname")
 
         selected_part = (tep.part_code or "").strip()
@@ -1013,9 +822,9 @@ def admin_dashboard(request):
             "selected_part": selected_part,
             "selected_part_name": selected_part_name,
             "tep_id": tep.id,
-            "tep_obj": tep,
         })
 
+    # ----- Forecast tab -----
     fq = (request.GET.get("fq") or "").strip()
     forecast_latest = ForecastRun.objects.order_by("-id").first()
 
@@ -1042,10 +851,19 @@ def admin_dashboard(request):
     # Keep this separate from `customers = build_customer_table(q)` which is for the Customers tab UI.
     customers_dropdown = Customer.objects.all().order_by("customer_name")
     part_codes = MaterialList.objects.all().order_by("mat_partcode")
-
     # Build next 12 months as real `date` objects (1st day of each month)
+    # If URL has ?month=YYYY-MM, use it. Otherwise default to current month.
     today = date.today()
-    selected_month = today.replace(day=1)
+    month_str = (request.GET.get("month") or "").strip()  # "YYYY-MM"
+
+    if month_str:
+        try:
+            yy, mm = map(int, month_str.split("-"))
+            selected_month = date(yy, mm, 1)
+        except Exception:
+            selected_month = today.replace(day=1)
+    else:
+        selected_month = today.replace(day=1)
 
     months_list = []
     y, mo = selected_month.year, selected_month.month
@@ -1055,6 +873,14 @@ def admin_dashboard(request):
         if mo == 13:
             mo = 1
             y += 1
+
+    # Registered Customer TEP schedules for the selected month (for Forecast table)
+    schedules = (
+        CustomerTEPSchedule.objects
+        .filter(schedule_month=selected_month)
+        .select_related("customer", "tep")
+        .order_by("customer__customer_name", "tep__tep_code")
+    )
 
 
     
@@ -1069,7 +895,9 @@ def admin_dashboard(request):
         "months_list": months_list,
         "selected_month": selected_month,
 
-        "customers_count": Customer.objects.count(),
+        
+        "schedules": schedules,
+"customers_count": Customer.objects.count(),
         "tep_count": TEPCode.objects.count(),
         "materials_count": Material.objects.count(),
         "users_count": User.objects.count(),
@@ -1120,25 +948,6 @@ def toggle_user_active(request, user_id):
 
     messages.success(request, f"Updated user: {user_obj.username} (active={user_obj.is_active})")
     return redirect(reverse("app:admin_dashboard") + "?tab=users")
-
-@require_GET
-@login_required
-def material_lookup(request):
-    partcode = (request.GET.get("mat_partcode") or "").strip()
-    if not partcode:
-        return JsonResponse({"ok": False, "error": "Missing mat_partcode."}, status=400)
-
-    mat = (
-        MaterialList.objects
-        .filter(mat_partcode__iexact=partcode)
-        .values("mat_partcode", "mat_partname", "mat_maker", "unit")
-        .first()
-    )
-
-    if not mat:
-        return JsonResponse({"ok": False, "error": "Not found."}, status=404)
-
-    return JsonResponse({"ok": True, "material": mat})
 
 
 @login_required
@@ -1248,45 +1057,31 @@ def admin_csv_upload(request):
 
     return redirect(next_url)
 
-@never_cache
+
 @login_required
 def customer_list(request):
     q = (request.GET.get("q") or "").strip()
     customers = build_customer_table(q)
+    return render(request, "customer_list.html", {"customers": customers, "q": q})
 
-    staff_full_name = None
-    try:
-        staff_full_name = request.user.employeeprofile.full_name
-    except Exception:
-        pass
-
-    return render(request, "customer_list.html", {
-        "customers": customers,
-        "q": q,
-        "staff_full_name": staff_full_name,
-    })
 
 @never_cache
 @login_required
 def customer_detail(request, tep_id: int):
-    tep = get_object_or_404(TEPCode.objects.select_related("customer", "superseded_by"), id=tep_id)
+    tep = get_object_or_404(
+        TEPCode.objects.select_related("customer"),
+        id=tep_id
+    )
 
-    materials = Material.objects.filter(tep_code=tep).order_by("mat_partname")
-    mq = (request.GET.get("mq") or "").strip()
-    master_qs = MaterialList.objects.all().order_by("mat_partcode")
-    if mq:
-        master_qs = master_qs.filter(
-            Q(mat_partcode__icontains=mq) |
-            Q(mat_partname__icontains=mq) |
-            Q(mat_maker__icontains=mq) |
-            Q(unit__icontains=mq)
-        )
-
-    master_paginator = Paginator(master_qs, 10)
-    master_page = master_paginator.get_page(request.GET.get("mpage"))
+    materials = (
+        Material.objects
+        .filter(tep_code=tep)
+        .order_by("mat_partname")
+    )
 
     selected_part = (tep.part_code or "").strip()
     selected_part_name = ""
+
     for p in (tep.customer.parts or []):
         if isinstance(p, dict) and str(p.get("Partcode", "")).strip() == selected_part:
             selected_part_name = str(p.get("Partname", "")).strip()
@@ -1299,15 +1094,14 @@ def customer_detail(request, tep_id: int):
         "selected_part": selected_part,
         "selected_part_name": selected_part_name,
         "tep_id": tep.id,
-        "tep_obj": tep,
-        "mq": mq,
-        "master_materials": master_page,
     })
 
 
 @login_required
 @user_passes_test(is_admin)
 def add_material_to_tep(request):
+    if request.method != "POST":
+        return redirect("app:admin_dashboard")
 
     tep_id = (request.POST.get("tep_id") or "").strip()
     mat_partcode = _normalize_space(request.POST.get("mat_partcode"))
@@ -1342,14 +1136,10 @@ def add_material_to_tep(request):
 
     tep = get_object_or_404(TEPCode, id=tep_id)
 
-    if not getattr(tep, "is_active", True):
-        messages.error(request, f"{tep.tep_code} is obsolete and cannot be edited. Please revise or select the active TEP.")
-        return redirect(reverse("app:admin_dashboard") + f"?tab=customers&open_panel=1&tep_id={tep_id}")
-
     master = MaterialList.objects.filter(mat_partcode=mat_partcode).first()
     if not master:
         messages.error(request, f"mat_partcode not found in master list: {mat_partcode}")
-        return redirect(reverse("app:admin_dashboard") + f"?tab=customers&open_panel=1&tep_id={tep_id}")
+        return redirect("app:admin_dashboard")
 
     total = round(float(dim_qty) * (1 + (float(loss_percent) / 100.0)), 4)
 
@@ -1382,309 +1172,7 @@ def add_material_to_tep(request):
     except Exception as e:
         messages.error(request, f"Failed to add material: {e}")
 
-    return redirect(reverse("app:admin_dashboard") + f"?tab=customers&open_panel=1&tep_id={tep_id}")
-
-@require_POST
-@login_required
-@user_passes_test(can_edit)
-def add_material_to_tep_staff(request):
-    tep_id = (request.POST.get("tep_id") or "").strip()
-    if not tep_id:
-        messages.error(request, "Missing TEP id.")
-        return redirect("app:customer_list")
-
-    tep = get_object_or_404(TEPCode, id=tep_id)
-
-    if not getattr(tep, "is_active", True):
-        messages.error(request, f"{tep.tep_code} is obsolete and cannot be edited.")
-        return redirect("app:customer_detail", tep_id=tep.id)
-
-    mat_partcode = _normalize_space(request.POST.get("mat_partcode"))
-    dim_qty_raw = (request.POST.get("dim_qty") or "").strip()
-    loss_raw = (request.POST.get("loss_percent") or "").strip()
-
-    if not mat_partcode:
-        messages.error(request, "Material Part Code is required.")
-        return redirect("app:customer_detail", tep_id=tep.id)
-
-    if not dim_qty_raw:
-        messages.error(request, "Dim/Qty is required.")
-        return redirect("app:customer_detail", tep_id=tep.id)
-
-    try:
-        dim_qty = float(dim_qty_raw)
-    except Exception:
-        messages.error(request, "Dim/Qty must be a number.")
-        return redirect("app:customer_detail", tep_id=tep.id)
-
-    loss_percent = 10.0
-    if loss_raw != "":
-        try:
-            loss_percent = float(loss_raw)
-        except Exception:
-            messages.error(request, "Loss % must be a number.")
-            return redirect("app:customer_detail", tep_id=tep.id)
-
-    master = MaterialList.objects.filter(mat_partcode__iexact=mat_partcode).first()
-    if not master:
-        messages.error(request, f"Material code not found in master list: {mat_partcode}")
-        return redirect("app:customer_detail", tep_id=tep.id)
-
-    total = round(float(dim_qty) * (1 + (float(loss_percent) / 100.0)), 4)
-
-    try:
-        with transaction.atomic():
-            final_name = _allocate_material_name(
-                tep=tep,
-                base_name=master.mat_partname,
-                exclude_partcode=mat_partcode
-            )
-
-            material, created = Material.objects.get_or_create(
-                tep_code=tep,
-                mat_partcode=mat_partcode,
-                defaults={
-                    "mat_partname": final_name,
-                    "mat_maker": master.mat_maker,
-                    "unit": master.unit,
-                    "dim_qty": dim_qty,
-                    "loss_percent": loss_percent,
-                    "total": total,
-                }
-            )
-
-            if not created:
-                messages.error(request, f"Material already exists for this TEP + {mat_partcode}.")
-            else:
-                messages.success(request, f"Added material: {mat_partcode}")
-
-    except Exception as e:
-        messages.error(request, f"Failed to add material: {e}")
-
-    return redirect("app:customer_detail", tep_id=tep.id)
-
-@never_cache
-@login_required
-@user_passes_test(can_edit)  
-def staff_materials(request):
-    mq = (request.GET.get("mq") or "").strip()
-
-    qs = MaterialList.objects.all().order_by("mat_partcode")
-    if mq:
-        qs = qs.filter(
-            Q(mat_partcode__icontains=mq) |
-            Q(mat_partname__icontains=mq) |
-            Q(mat_maker__icontains=mq) |
-            Q(unit__icontains=mq)
-        )
-
-    paginator = Paginator(qs, 12)
-    page = paginator.get_page(request.GET.get("page"))
-
-    return render(request, "materials_list.html", {
-        "mq": mq,
-        "page_obj": page,
-        "materials": page,  
-    })
-
-from django.views.decorators.http import require_POST
-from django.views.decorators.cache import never_cache
-from django.db.models import Q
-from django.core.paginator import Paginator
-
-@never_cache
-@login_required
-@user_passes_test(can_edit)
-def staff_materials(request):
-    mq = (request.GET.get("mq") or "").strip()
-
-    qs = MaterialList.objects.all().order_by("mat_partcode")
-    if mq:
-        qs = qs.filter(
-            Q(mat_partcode__icontains=mq) |
-            Q(mat_partname__icontains=mq) |
-            Q(mat_maker__icontains=mq) |
-            Q(unit__icontains=mq)
-        )
-
-    paginator = Paginator(qs, 12)
-    page_obj = paginator.get_page(request.GET.get("page"))
-
-    return render(request, "materials_list.html", {
-        "mq": mq,
-        "materials": page_obj,
-        "page_obj": page_obj,
-    })
-
-
-@require_POST
-@login_required
-@user_passes_test(can_edit)
-def staff_material_add(request):
-    mat_partcode = (request.POST.get("mat_partcode") or "").strip()
-    mat_partname = (request.POST.get("mat_partname") or "").strip()
-    mat_maker = (request.POST.get("mat_maker") or "").strip()
-    unit = (request.POST.get("unit") or "").strip().lower()
-
-    allowed_units = {"pc", "pcs", "m", "g", "kg"}
-    if unit not in allowed_units:
-        unit = "pc"
-
-    if not mat_partcode:
-        messages.error(request, "Material Code is required.")
-        return redirect("app:staff_materials")
-
-    if MaterialList.objects.filter(mat_partcode__iexact=mat_partcode).exists():
-        messages.error(request, f"Material Code already exists: {mat_partcode}")
-        return redirect("app:staff_materials")
-
-    MaterialList.objects.create(
-        mat_partcode=mat_partcode,
-        mat_partname=mat_partname or mat_partcode,
-        mat_maker=mat_maker or "Unknown",
-        unit=unit
-    )
-    messages.success(request, f"Added material: {mat_partcode}")
-    return redirect("app:staff_materials")
-
-
-@require_POST
-@login_required
-@user_passes_test(can_edit)
-def staff_material_update(request):
-    mat_id = (request.POST.get("mat_id") or "").strip()
-    mat_partcode = (request.POST.get("mat_partcode") or "").strip()
-    mat_partname = (request.POST.get("mat_partname") or "").strip()
-    mat_maker = (request.POST.get("mat_maker") or "").strip()
-    unit = (request.POST.get("unit") or "").strip().lower()
-
-    allowed_units = {"pc", "pcs", "m", "g", "kg"}
-    if unit not in allowed_units:
-        unit = "pc"
-
-    if not mat_id:
-        messages.error(request, "Missing material id.")
-        return redirect("app:staff_materials")
-
-    obj = get_object_or_404(MaterialList, id=mat_id)
-
-    if not mat_partcode:
-        messages.error(request, "Material Code is required.")
-        return redirect("app:staff_materials")
-
-    if MaterialList.objects.filter(mat_partcode__iexact=mat_partcode).exclude(id=obj.id).exists():
-        messages.error(request, f"Material Code already exists: {mat_partcode}")
-        return redirect("app:staff_materials")
-
-    obj.mat_partcode = mat_partcode
-    obj.mat_partname = mat_partname or mat_partcode
-    obj.mat_maker = mat_maker or "Unknown"
-    obj.unit = unit
-    obj.save()
-
-    messages.success(request, f"Updated: {obj.mat_partcode}")
-    return redirect("app:staff_materials")
-
-
-@require_POST
-@login_required
-@user_passes_test(can_edit)
-def staff_material_delete(request):
-    mat_id = (request.POST.get("mat_id") or "").strip()
-    if not mat_id:
-        messages.error(request, "Missing material id.")
-        return redirect("app:staff_materials")
-
-    obj = get_object_or_404(MaterialList, id=mat_id)
-    code = obj.mat_partcode
-    obj.delete()
-
-    messages.success(request, f"Deleted: {code}")
-    return redirect("app:staff_materials")
-
-
-@require_POST
-@login_required
-@user_passes_test(can_edit)
-def staff_materials_csv_upload(request):
-    if not request.FILES.get("csv_file"):
-        messages.error(request, "Please choose a CSV file.")
-        return redirect("app:staff_materials")
-
-    f = request.FILES["csv_file"]
-    raw = f.read()
-
-    content = None
-    for enc in ("utf-8-sig", "utf-16", "cp1252", "latin-1"):
-        try:
-            content = raw.decode(enc)
-            break
-        except UnicodeDecodeError:
-            continue
-
-    if content is None:
-        messages.error(request, "Could not read file encoding. Save as CSV UTF-8 and upload again.")
-        return redirect("app:staff_materials")
-
-    csv_file = io.StringIO(content)
-    reader = csv.DictReader(csv_file)
-    reader.fieldnames = [h.strip().lstrip("\ufeff") for h in (reader.fieldnames or [])]
-
-    inserted = 0
-    updated = 0
-    ALLOWED_UNITS = {"pc", "pcs", "m", "g", "kg"}
-
-    def sget(row, *keys, default=""):
-        for k in keys:
-            v = row.get(k)
-            if v is not None and str(v).strip() != "":
-                return str(v).strip()
-        return default
-
-    try:
-        with transaction.atomic():
-            for row in reader:
-                mat_partcode = sget(row, "mat_partcode", "material_part_code")
-                mat_partname = sget(row, "mat_partname", "material_name")
-                mat_maker = sget(row, "mat_maker", "maker")
-                unit = sget(row, "unit", default="pc").lower()
-
-                if unit not in ALLOWED_UNITS:
-                    unit = "pc"
-                if not mat_partcode:
-                    continue
-
-                obj, created = MaterialList.objects.get_or_create(
-                    mat_partcode=mat_partcode,
-                    defaults={
-                        "mat_partname": mat_partname or mat_partcode,
-                        "mat_maker": mat_maker or "Unknown",
-                        "unit": unit,
-                    }
-                )
-
-                if created:
-                    inserted += 1
-                else:
-                    changed = False
-                    if mat_partname and obj.mat_partname != mat_partname:
-                        obj.mat_partname = mat_partname
-                        changed = True
-                    if mat_maker and obj.mat_maker != mat_maker:
-                        obj.mat_maker = mat_maker
-                        changed = True
-                    if unit and obj.unit != unit:
-                        obj.unit = unit
-                        changed = True
-                    if changed:
-                        obj.save()
-                        updated += 1
-
-        messages.success(request, f"CSV uploaded: inserted={inserted}, updated={updated}")
-    except Exception as e:
-        messages.error(request, f"Upload failed: {e}")
-
-    return redirect("app:staff_materials")
+    return redirect(reverse("app:admin_dashboard")+ f"?tab=customers&open_panel=1&tep_id={tep_id}")
 
 
 @require_POST
@@ -1712,7 +1200,7 @@ def customer_create(request):
             customer.full_clean()
             customer.save()
 
-            tep = TEPCode(customer=customer, part_code=part_code, tep_code=tep_code, is_active=True)
+            tep = TEPCode(customer=customer, part_code=part_code, tep_code=tep_code)
             tep.full_clean()
             tep.save()
 
@@ -1734,14 +1222,7 @@ def customer_create(request):
         messages.error(request, "Failed to save customer record.")
         return redirect("app:customer_list")
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 # --- Existing functions remain unchanged ---
-=======
-
->>>>>>> 8dd526731a7b741e3a29fb0885cc246ed942e6c7
-=======
->>>>>>> 5d1e8361f29318f50b44900faec9d226a0a532fe
 @require_POST
 @login_required
 @user_passes_test(is_admin)
@@ -1777,8 +1258,10 @@ def create_material_allocation(request):
         except TEPCode.DoesNotExist:
             tep = None
 
+    # Compute available = on_hand - reserved
+    on_hand = 0
     try:
-        on_hand = int(mat.stock.on_hand_qty or 0)
+        on_hand = mat.stock.on_hand_qty
     except Exception:
         on_hand = 0
 
@@ -1787,7 +1270,6 @@ def create_material_allocation(request):
         .aggregate(total=Sum("qty_allocated"))
         .get("total") or 0
     )
-    reserved = int(reserved or 0)
 
     available = max(on_hand - reserved, 0)
 
@@ -1805,6 +1287,7 @@ def create_material_allocation(request):
         )
         messages.success(request, f"Allocated {qty} of {mat.mat_partcode} to {cust.customer_name}.")
 
+    # Redirect back to stocks, keeping filters/pagination
     url = reverse("app:admin_dashboard") + "?tab=stocks"
     if sq:
         url += f"&sq={sq}"
@@ -1815,17 +1298,10 @@ def create_material_allocation(request):
 
 def logout_view(request):
     logout(request)
-<<<<<<< HEAD
     return redirect(reverse("app:login"))
 
 
 # --- Static forecast mapping for prototype ---
-PART_FORECAST_VALUES = {
-    "LT3436-001 REV.D": 5000,
-    "LT3435-001 REV.C": 10000,
-}
-
-
 def material_forecast_view(request):
     part_code = request.GET.get('part_code', '').strip()
     materials = []
@@ -1931,35 +1407,65 @@ def run_prototype_forecast(request):
 
     messages.success(request, f"Forecast for {forecast_month:%B %Y} generated successfully.")
     return redirect(request.META.get('HTTP_REFERER', '/'))
+@require_POST
+@login_required
+@user_passes_test(is_admin)
 
 
+@require_POST
+@login_required
+@user_passes_test(is_admin)
+def reserve_material(request):
+    """UI endpoint: reserve stock from the Stocks tab.
 
-from django.views.decorators.csrf import csrf_exempt
+    Reuses create_material_allocation(), which creates a MaterialAllocation
+    record (status='reserved') after checking availability.
+    """
+    return create_material_allocation(request)
 
 
-@csrf_exempt
-def register_allocation(request):
-    if request.method == "POST":
-        customer_id = request.POST.get("customer_id")
-        part_code = request.POST.get("part_code")
-        quantity = request.POST.get("quantity")
-        month = request.POST.get("month")
+@require_POST
+@login_required
+@user_passes_test(is_admin)
+def release_reservation(request):
+    """UI endpoint: release a reserved allocation (set status to 'released')."""
+    allocation_id = (request.POST.get("allocation_id") or "").strip()
+    sq = (request.POST.get("sq") or "").strip()
+    spage = (request.POST.get("spage") or "").strip()
 
-        # Save to database (adjust model fields accordingly)
-        DailyMaterialAllocation.objects.create(
-            customer_id=customer_id,
-            part_code=part_code,
-            quantity=quantity,
-            month=month
-        )
-
-        messages.success(request, "Material registered successfully!")
-        return redirect("app:dashboard")  # or wherever you want to go
+    if not allocation_id:
+        messages.error(request, "Missing allocation_id.")
     else:
-        messages.error(request, "Invalid request method.")
-        return redirect("app:dashboard")
-    
-  
+        try:
+            a = MaterialAllocation.objects.get(id=allocation_id)
+            a.status = "released"
+            a.save(update_fields=["status"])
+            messages.success(request, "Reservation released.")
+        except MaterialAllocation.DoesNotExist:
+            messages.error(request, "Reservation not found.")
+
+    url = reverse("app:admin_dashboard") + "?tab=stocks"
+    if sq:
+        url += f"&sq={sq}"
+    if spage:
+        url += f"&spage={spage}"
+    return redirect(url)
+
+def register_allocation(request):
+    """Backward-compatible handler.
+
+    If your frontend still posts:
+      - month=...
+    we remap it to:
+      - schedule_month=...
+    and forward to register_customer_part_schedule().
+    """
+    mutable = request.POST.copy()
+    if "month" in mutable and "schedule_month" not in mutable:
+        mutable["schedule_month"] = mutable.get("month")
+    request.POST = mutable
+
+    return register_customer_part_schedule(request)
 
 @require_POST
 @login_required
@@ -2015,11 +1521,117 @@ def register_customer_part_schedule(request):
 
     messages.success(request, "Saved schedule.")
     return redirect(reverse("app:admin_dashboard") + "?tab=forecast")
-=======
-    response = redirect(reverse("app:login"))
 
-    response["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-    response["Pragma"] = "no-cache"
-    response["Expires"] = "0"
-    return response
->>>>>>> 5d1e8361f29318f50b44900faec9d226a0a532fe
+@login_required
+@require_GET
+def api_customer_teps(request):
+    customer_id = request.GET.get("customer_id")
+    if not customer_id:
+        return JsonResponse({"items": []})
+
+    teps = (
+        TEPCode.objects
+        .filter(customer_id=customer_id)
+        .order_by("tep_code")
+        .values("id", "tep_code")
+    )
+    return JsonResponse({"items": list(teps)})
+
+@login_required
+@require_POST
+def register_customer_tep_schedule(request):
+    customer_id = request.POST.get("customer_id")
+    tep_id = request.POST.get("tep_id")
+    month = request.POST.get("schedule_month")   # YYYY-MM
+    quantity = request.POST.get("quantity", "0")
+
+    # Basic validation
+    if not customer_id or not tep_id or not month:
+        messages.error(request, "Customer, TEP Code, and Month are required.")
+        return redirect("/panel/dashboard/?tab=forecast")
+
+    try:
+        qty = Decimal(quantity)
+    except Exception:
+        messages.error(request, "Quantity must be a valid number.")
+        return redirect("/panel/dashboard/?tab=forecast")
+
+    # Convert month → date
+    schedule_month = f"{month}-01"
+
+    try:
+        customer = Customer.objects.get(id=customer_id)
+        tep = TEPCode.objects.get(id=tep_id, customer=customer)
+    except Exception:
+        messages.error(request, "Invalid Customer or TEP Code.")
+        return redirect("/panel/dashboard/?tab=forecast")
+
+    # Save schedule
+    CustomerPartSchedule.objects.update_or_create(
+        customer=customer,
+        tep=tep,
+        schedule_month=schedule_month,
+        defaults={
+            "quantity": qty,
+            "created_by": request.user,
+        }
+    )
+
+    messages.success(request, "Schedule registered successfully.")
+    return redirect("/panel/dashboard/?tab=forecast")
+
+
+# =========================
+# UPDATED FORECAST SCHEDULE LOGIC
+# (Overrides earlier duplicate definitions)
+# =========================
+
+
+
+
+@login_required
+@require_POST
+def register_customer_tep_schedule(request):
+    """Save Customer + TEP + Month + Quantity from Forecast modal"""
+
+    customer_id = (request.POST.get("customer_id") or "").strip()
+    tep_id = (request.POST.get("tep_id") or "").strip()
+    month_str = (request.POST.get("schedule_month") or "").strip()  # YYYY-MM
+    qty_raw = (request.POST.get("quantity") or "0").strip()
+
+    if not (customer_id and tep_id and month_str):
+        messages.error(request, "Please fill in Customer, TEP Code, and Month.")
+        return redirect(reverse("app:admin_dashboard") + "?tab=forecast")
+
+    # Convert YYYY-MM → date(YYYY,MM,1)
+    try:
+        y, m = map(int, month_str.split("-"))
+        schedule_month = date(y, m, 1)
+    except Exception:
+        messages.error(request, "Invalid month format.")
+        return redirect(reverse("app:admin_dashboard") + "?tab=forecast")
+
+    try:
+        qty = Decimal(qty_raw or "0")
+        if qty < 0:
+            qty = Decimal("0")
+    except Exception:
+        messages.error(request, "Quantity must be a valid number.")
+        return redirect(reverse("app:admin_dashboard") + "?tab=forecast")
+
+    customer = get_object_or_404(Customer, id=customer_id)
+
+    # Ensure TEP belongs to the selected customer
+    tep = get_object_or_404(TEPCode, id=tep_id, customer=customer)
+
+    CustomerTEPSchedule.objects.update_or_create(
+        customer=customer,
+        tep=tep,
+        schedule_month=schedule_month,
+        defaults={
+            "quantity": qty,
+        },
+    )
+
+    messages.success(request, "Schedule saved.")
+    return redirect(reverse("app:admin_dashboard") + f"?tab=forecast&month={month_str}")

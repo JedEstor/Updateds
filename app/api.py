@@ -8,12 +8,8 @@ from django.db.models import Prefetch
 from typing import List
 import csv, io, re
 from .models import Customer, TEPCode, Material, CustomerCSV, MaterialList
-<<<<<<< HEAD
 #new, naglagay nung MaterialList sa itaas na import
 from .schemas import (CustomerIn, CustomerOut, CustomerFullOut, TEPCodeIn, TEPCodeOut, MaterialIn, MaterialOut, MaterialListIn, ForecastRequest, ForecastResponse)
-=======
-from .schemas import (CustomerIn, CustomerOut, CustomerFullOut, TEPCodeIn, TEPCodeOut, MaterialIn, MaterialOut, MaterialListIn)
->>>>>>> 5d1e8361f29318f50b44900faec9d226a0a532fe
 
 
 api = NinjaAPI(title="Sales API")

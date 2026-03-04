@@ -269,7 +269,6 @@ class MaterialStockAdmin(admin.ModelAdmin):
 
     autocomplete_fields = ("material",)
 
-<<<<<<< HEAD
     # ✅ optional: edit qty directly in list (super convenient)
     list_editable = ("on_hand_qty",)
 
@@ -280,6 +279,3 @@ class MaterialForecastAdmin(admin.ModelAdmin):
     list_display = ('part_code', 'forecast', 'created_at')
     list_filter = ('created_at',)
     search_fields = ('part_code',)
-=======
-    list_editable = ("on_hand_qty",)
->>>>>>> 5d1e8361f29318f50b44900faec9d226a0a532fe
