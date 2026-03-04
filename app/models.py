@@ -112,7 +112,7 @@ class Material(models.Model):
         related_name="materials",
     )
 
-    mat_partcode = models.CharField(max_length=80)
+    mat_partcode = models.CharField(max_length=80)    
     mat_partname = models.CharField(max_length=160)
     mat_maker = models.CharField(max_length=120)
 
@@ -339,10 +339,23 @@ class ForecastLine(models.Model):
     def __str__(self):
         return f"{self.part_code} -> {self.mat_partcode} req={self.required_qty}"
     
+# models.py
+
 class CustomerPartSchedule(models.Model):
-    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="part_schedules")
-    part_code = models.CharField(max_length=60)
-    part_name = models.CharField(max_length=160, blank=True, default="")
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.CASCADE,
+        related_name="part_schedules"
+    )
+
+    tep = models.ForeignKey(
+        TEPCode,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="month_schedules"
+    )
+
     schedule_month = models.DateField(help_text="Use first day of the month")
     quantity = models.DecimalField(max_digits=18, decimal_places=4, default=0)
 
@@ -355,11 +368,11 @@ class CustomerPartSchedule(models.Model):
     )
 
     class Meta:
-        unique_together = ("customer", "part_code", "schedule_month")
-        ordering = ["-schedule_month", "customer__customer_name", "part_code"]
+        unique_together = ("customer", "tep", "schedule_month")
+        ordering = ["-schedule_month", "customer__customer_name", "tep__tep_code"]
 
     def __str__(self):
-        return f"{self.customer.customer_name} | {self.part_code} | {self.schedule_month:%Y-%m} | {self.quantity}"
+        return f"{self.customer.customer_name} | {self.tep.tep_code} | {self.schedule_month:%Y-%m} | {self.quantity}"
 class DailyMaterialAllocation(models.Model):
     """
     Stores the daily allocation of a material from a forecast run.
@@ -376,5 +389,44 @@ class DailyMaterialAllocation(models.Model):
 
     def __str__(self):
         return f"{self.material.mat_partcode} → {self.quantity} on {self.allocation_date}"
+
+class MaterialReservation(models.Model):
+    material = models.ForeignKey(
+        "MaterialStock",  # or your stock/master model name
+        on_delete=models.CASCADE,
+        related_name="reservations",
+    )
+    qty = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    reference = models.CharField(max_length=120, blank=True, default="")
+    remarks = models.CharField(max_length=255, blank=True, default="")
+    is_active = models.BooleanField(default=True)
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
     
+
+
+class CustomerTEPSchedule(models.Model):
+    customer = models.ForeignKey("Customer", on_delete=models.CASCADE)
+    tep = models.ForeignKey("TEPCode", on_delete=models.CASCADE)
+
+    # store first day of month (e.g., 2026-03-01)
+    schedule_month = models.DateField()
+
+    quantity = models.DecimalField(max_digits=18, decimal_places=4, default=0)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("customer", "tep", "schedule_month")
+        ordering = ["-schedule_month", "customer__customer_name", "tep__tep_code"]
+
+    def __str__(self):
+        return f"{self.customer} | {self.tep} | {self.schedule_month:%Y-%m}"
     

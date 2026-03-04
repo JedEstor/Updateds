@@ -22,6 +22,8 @@ from django.views.decorators.http import require_GET
 
 from .service import PART_FORECAST_VALUES, compute_material_total
 from .models import Customer, TEPCode, Material, MaterialList, MaterialStock, MaterialAllocation, ForecastRun, ForecastLine, DailyMaterialAllocation, MaterialForecast, CustomerPartSchedule
+from .models import Customer, TEPCode, Material, MaterialList, MaterialStock, MaterialForecast
+from .models import Customer, TEPCode, Material, MaterialList, MaterialStock, MaterialAllocation, ForecastRun, ForecastLine, DailyMaterialAllocation, MaterialForecast, CustomerPartSchedule, MaterialReservation
 from .forms import EmployeeCreateForm
 
 from .models import ForecastRun, ForecastLine
@@ -1586,7 +1588,19 @@ def register_customer_tep_schedule(request):
 # (Overrides earlier duplicate definitions)
 # =========================
 
+<<<<<<< HEAD
 
+=======
+from decimal import Decimal
+from datetime import date
+from django.views.decorators.http import require_POST
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import get_object_or_404, redirect
+from django.contrib import messages
+from django.urls import reverse
+
+from .models import Customer, TEPCode, CustomerTEPSchedule
+>>>>>>> recovered-work
 
 
 @login_required
