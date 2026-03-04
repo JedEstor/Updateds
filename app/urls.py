@@ -28,4 +28,14 @@ urlpatterns = [
     path("material-stock/update/", views.update_material_stock, name="update_material_stock"),
     path("material-allocation/create/", views.create_material_allocation, name="create_material_allocation"),
     
+    #new addition
+    path("api/material-lookup/", views.material_lookup, name="material_lookup"),
+    path("customers/tep/<int:tep_id>/add-material/", views.add_material_to_tep_staff, name="add_material_to_tep_staff"),
+    path("materials/", views.staff_materials, name="staff_materials"),
+
+    path("materials/", views.staff_materials, name="staff_materials"),
+    path("materials/add/", views.staff_material_add, name="staff_material_add"),
+    path("materials/update/", views.staff_material_update, name="staff_material_update"),
+    path("materials/delete/", views.staff_material_delete, name="staff_material_delete"),
+    path("materials/upload-csv/", views.staff_materials_csv_upload, name="staff_materials_csv_upload"),
 ]

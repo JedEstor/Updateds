@@ -43,7 +43,7 @@
         + Add Customer
       </button>
 
-      <form method="get" class="flex gap-2">
+      <form method="get" action="{% url 'app:customer_list' %}" class="flex gap-2">
         <input
           type="text"
           name="q"
@@ -88,7 +88,7 @@
             <td class="px-4 py-3 font-medium">{{ c.customer_name }}</td>
 
             <td class="px-4 py-3">
-              <select class="part-code-dropdown px-2 py-1 rounded border" data-row="{{ forloop.counter0 }}">
+              <select class="part-code-dropdown w-48 px-2 py-1 rounded border border-slate-300 bg-white" data-row="{{ forloop.counter0 }}">
                 {% for pc in c.part_code_options %}
                   <option value="{{ pc }}" {% if pc == c.default_part_code %}selected{% endif %}>{{ pc }}</option>
                 {% endfor %}

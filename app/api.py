@@ -284,8 +284,6 @@ def create_tep_code_by_part_code(request, part_code: str, payload: TEPCodeIn):
 
     return tep
 
-
-
 @api.delete("/tep-codes/{tep_code}", tags=["TEP"])
 def delete_tep_code_by_code(request, tep_code: str):
     tep_code = (tep_code or "").strip()
