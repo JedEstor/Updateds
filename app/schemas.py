@@ -70,4 +70,15 @@ class MaterialListOut(Schema):
     mat_maker: str
     unit: str
 
+# Request Schema
+class ForecastRequest(Schema):
+    part_codes: List[str]
+
+# Response Schema
+class ForecastResponse(Schema):
+    id: int
+    part_code: str
+    forecast: int
+    created_at: str
+
 

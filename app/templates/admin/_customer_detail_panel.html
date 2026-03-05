@@ -11,12 +11,57 @@
     <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
       <div class="bg-slate-100 rounded-xl p-3">
         <div class="text-xs text-slate-500">Part Code</div>
-        <div class="font-medium">{{ selected_part }}</div>
+        <div class="font-medium">{{ selected_part|default:"—" }}</div>
         <div class="text-xs text-slate-500 mt-1">Part Name</div>
         <div>{{ selected_part_name|default:"—" }}</div>
       </div>
 
       <div class="bg-slate-100 rounded-xl p-3">
+<<<<<<< HEAD
+        <div class="text-xs text-slate-500">TEP Code</div>
+        <div class="font-medium">
+          {% if selected_tep %}
+            {{ selected_tep }}
+          {% else %}
+            —
+          {% endif %}
+        </div>
+
+        <div class="text-xs text-slate-500 mt-1">Materials</div>
+        <div>
+          {% if tep_id %}
+            {{ materials|length }}
+          {% else %}
+            —
+          {% endif %}
+        </div>
+
+        {% if tep_id %}
+          <!-- REVISION BUTTON -->
+          <div class="mt-3">
+            <form method="post" action="{% url 'app:admin_dashboard' %}">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="revise_tep">
+              <input type="hidden" name="tep_id" value="{{ tep_id }}">
+              <button
+                type="submit"
+                class="w-full px-3 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-500"
+              >
+                Create Revision
+              </button>
+            </form>
+
+            <div class="text-[11px] text-slate-500 mt-1">
+              Creates new revision (ex: 03 → 04). Old revision is preserved as history.
+            </div>
+          </div>
+        {% else %}
+          <div class="mt-3 text-[11px] text-slate-500">
+            No TEP registered for this Part Code yet.
+          </div>
+        {% endif %}
+
+=======
         <div class="flex items-center justify-between gap-2">
           <div>
             <div class="text-xs text-slate-500">TEP Code</div>
@@ -53,11 +98,114 @@
             This TEP is <span class="font-semibold">obsolete</span>.
           </div>
         {% endif %}
+>>>>>>> 8dd526731a7b741e3a29fb0885cc246ed942e6c7
       </div>
     </div>
 
   </div>
 
+<<<<<<< HEAD
+  {% if tep_id %}
+    <!-- ADD MATERIAL (only if TEP exists) -->
+    <div class="bg-white border border-slate-200 rounded-2xl p-4">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <h3 class="font-semibold">Add Material</h3>
+        </div>
+      </div>
+
+      <form method="post" action="{% url 'app:add_material_to_tep' %}" class="mt-3 grid grid-cols-1 md:grid-cols-12 gap-3">
+        {% csrf_token %}
+
+        <input type="hidden" name="tep_id" value="{{ tep_id }}"/>
+
+        <div class="md:col-span-4">
+          <label class="block text-xs text-slate-600 mb-1">Material Part Code</label>
+          <input
+            name="mat_partcode"
+            required
+            placeholder="e.g. AVSS 2"
+            class="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400"
+          />
+        </div>
+
+        <div class="md:col-span-3">
+          <label class="block text-xs text-slate-600 mb-1">Dim / Qty</label>
+          <input
+            name="dim_qty"
+            required
+            inputmode="decimal"
+            placeholder="e.g. 0.865"
+            class="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400"
+          />
+        </div>
+
+        <div class="md:col-span-3">
+          <label class="block text-xs text-slate-600 mb-1">Loss % (optional)</label>
+          <input
+            name="loss_percent"
+            inputmode="decimal"
+            placeholder="default 10"
+            class="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400"
+          />
+        </div>
+
+        <div class="md:col-span-2 flex items-end">
+          <button
+            type="submit"
+            class="w-full px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800"
+          >
+            Add
+          </button>
+        </div>
+      </form>
+
+      <div class="mt-3 text-xs text-slate-500">
+        <span class="font-semibold">Computed:</span>
+        Total = Dim/Qty × (1 + Loss%/100).
+      </div>
+    </div>
+
+    <!-- MATERIALS TABLE -->
+    <div>
+      <h3 class="font-semibold mb-2">Materials</h3>
+
+      <div class="border border-slate-300 rounded-xl overflow-x-auto">
+        <table class="w-full text-sm min-w-[720px]">
+          <thead class="bg-slate-200 sticky top-0">
+            <tr>
+              <th class="p-3 text-left">Part Code</th>
+              <th class="p-3 text-left">Name</th>
+              <th class="p-3 text-left">Maker</th>
+              <th class="p-3 text-left">Dim/Qty</th>
+              <th class="p-3 text-left">Unit</th>
+              <th class="p-3 text-left">Loss %</th>
+              <th class="p-3 text-right">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for m in materials %}
+            <tr class="border-t">
+              <td class="p-3">{{ m.mat_partcode }}</td>
+              <td class="p-3">{{ m.mat_partname }}</td>
+              <td class="p-3">{{ m.mat_maker|default:"—" }}</td>
+              <td class="p-3">{{ m.dim_qty }}</td>
+              <td class="p-3">{{ m.unit|default:"—" }}</td>
+              <td class="p-3">{{ m.loss_percent }}</td>
+              <td class="p-3 text-right">{{ m.total }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="7" class="p-6 text-center text-slate-500">
+                No materials found.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+=======
   <div class="bg-white border border-slate-200 rounded-2xl p-4">
     <div class="flex items-start justify-between gap-3">
       <div>
@@ -167,44 +315,20 @@
       </div>
     {% endif %}
   </div>
+>>>>>>> 8dd526731a7b741e3a29fb0885cc246ed942e6c7
 
-  <div>
-    <h3 class="font-semibold mb-2">Materials</h3>
-
-    <div class="border border-slate-300 rounded-xl overflow-x-auto">
-      <table class="w-full text-sm min-w-[720px]">
-        <thead class="bg-slate-200 sticky top-0">
-          <tr>
-            <th class="p-3 text-left">Part Code</th>
-            <th class="p-3 text-left">Name</th>
-            <th class="p-3 text-left">Maker</th>
-            <th class="p-3 text-left">Dim/Qty</th>
-            <th class="p-3 text-left">Unit</th>
-            <th class="p-3 text-left">Loss %</th>
-            <th class="p-3 text-right">Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for m in materials %}
-          <tr class="border-t">
-            <td class="p-3">{{ m.mat_partcode }}</td>
-            <td class="p-3">{{ m.mat_partname }}</td>
-            <td class="p-3">{{ m.mat_maker|default:"—" }}</td>
-            <td class="p-3">{{ m.dim_qty }}</td>
-            <td class="p-3">{{ m.unit|default:"—" }}</td>
-            <td class="p-3">{{ m.loss_percent }}</td>
-            <td class="p-3 text-right">{{ m.total }}</td>
-          </tr>
-          {% empty %}
-          <tr>
-            <td colspan="7" class="p-6 text-center text-slate-500">
-              No materials found.
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+  {% else %}
+    <!-- NO TEP STATE -->
+    <div class="p-5 rounded-2xl border border-slate-200 bg-white text-slate-600">
+      <div class="font-semibold">No TEP found for this Part Code</div>
+      <div class="text-sm text-slate-500 mt-1">
+        Create/register a TEP first before adding materials or making revisions.
+      </div>
     </div>
+<<<<<<< HEAD
+  {% endif %}
+
+=======
 
     {% if tep_obj and not tep_obj.is_active and tep_obj.superseded_by %}
       <div class="mt-3 text-xs text-slate-600">
@@ -238,4 +362,5 @@
     <div class="text-sm text-slate-500">No revision data.</div>
   {% endif %}
 </div> 
+>>>>>>> 8dd526731a7b741e3a29fb0885cc246ed942e6c7
 </div>
