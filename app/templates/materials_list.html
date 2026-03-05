@@ -342,6 +342,7 @@
   </div>
 
   <script>
+    // ========== Add modal ==========
     const addMatModal = document.getElementById("addMatModal");
     const openAddMatBtn = document.getElementById("openAddMat");
     const closeAddMatBtn = document.getElementById("closeAddMat");
@@ -356,6 +357,7 @@
     cancelAddMatBtn?.addEventListener("click", closeAddMat);
     addMatOverlay?.addEventListener("click", closeAddMat);
 
+    // ========== CSV modal ==========
     const csvModal = document.getElementById("csvModal");
     const openCsvBtn = document.getElementById("openCsvUpload");
     const closeCsvBtn = document.getElementById("closeCsv");
@@ -370,6 +372,7 @@
     cancelCsvBtn?.addEventListener("click", closeCsv);
     csvOverlay?.addEventListener("click", closeCsv);
 
+    // ========== Edit modal ==========
     const editMatModal = document.getElementById("editMatModal");
     const closeEditMatBtn = document.getElementById("closeEditMat");
     const cancelEditMatBtn = document.getElementById("cancelEditMat");
@@ -390,6 +393,7 @@
     cancelEditMatBtn?.addEventListener("click", closeEditMat);
     editMatOverlay?.addEventListener("click", closeEditMat);
 
+    // ESC closes all modals
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
         closeAddMat();

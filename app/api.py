@@ -5,11 +5,10 @@ from django.db import IntegrityError, transaction
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from django.db.models import Prefetch
-from typing import List
 import csv, io, re
 from .models import Customer, TEPCode, Material, CustomerCSV, MaterialList
 #new, naglagay nung MaterialList sa itaas na import
-from .schemas import (CustomerIn, CustomerOut, CustomerFullOut, TEPCodeIn, TEPCodeOut, MaterialIn, MaterialOut, MaterialListIn, ForecastRequest, ForecastResponse)
+from .schemas import (CustomerIn, CustomerOut, CustomerFullOut, TEPCodeIn, TEPCodeOut, MaterialIn, MaterialOut, MaterialListIn)
 
 
 api = NinjaAPI(title="Sales API")
@@ -638,7 +637,8 @@ def upload_csv(request, file: UploadedFile = File(...)):
     except Exception as e:
         return jresponse({"error": str(e)}, status=500)
 
-  
+
+#new code for the output    
 @api.get("/output-format", tags=["GET DETAILS"])
 def output_format(request):
     customers = Customer.objects.prefetch_related(
@@ -725,10 +725,3 @@ def create_master_material(request, payload: MaterialListIn):
         status=201
     )
 
-@api.post("/material-forecast", response=List[ForecastResponse])
-def material_forecast(request, data: ForecastRequest):
-    """
-    Generate material forecasts for a list of part codes using static mapping.
-    """
-    forecasts = batch_forecast(data.part_codes)
-    return forecasts

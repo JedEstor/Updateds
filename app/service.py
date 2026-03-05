@@ -1,72 +1,3 @@
-# app/service_materiallist.py
-from .models import MaterialList
-
-# Static forecast mapping for testing (optional)
-PART_FORECAST_VALUES = {
-    "LT3436-001 REV.D": 5000,
-    "LT3435-001 REV.C": 10000,
-}
-
-def compute_material_total(quantity, unit_price):
-    return quantity * unit_price
-
-def forecast_materials_manual(part_code):
-    """
-    Pull materials for a part code, let user input unit price, compute totals.
-    """
-    try:
-        materials = MaterialList.objects.filter(mat_partcode=part_code)
-    except MaterialList.DoesNotExist:
-        print(f"No materials found for part code {part_code}")
-        return []
-
-    results = []
-
-    print(f"\nMaterials for Part Code: {part_code}\n")
-
-    for mat in materials:
-        print(f"Material: {mat.mat_partname} | Unit: {mat.unit}")
-
-        # Ask user to input unit price
-        while True:
-            try:
-                unit_price = float(input(f"Enter unit price for {mat.mat_partname}: "))
-                break
-            except ValueError:
-                print("Invalid input. Please enter a number.")
-
-        # For simplicity, ask user total quantity as well (you could pull this from somewhere else)
-        while True:
-            try:
-                quantity = float(input(f"Enter total quantity for {mat.mat_partname}: "))
-                break
-            except ValueError:
-                print("Invalid input. Please enter a number.")
-
-        total = compute_material_total(quantity, unit_price)
-        print(f"-> Material Total for {mat.mat_partname}: {total}\n")
-
-        results.append({
-            "material_name": mat.mat_partname,
-            "unit": mat.unit,
-            "quantity": quantity,
-            "unit_price": unit_price,
-            "total": total
-        })
-
-    # Optional: apply forecast multiplier
-    base_forecast = PART_FORECAST_VALUES.get(part_code, 1)
-    print(f"\nApplying forecast multiplier: {base_forecast}\n")
-    for r in results:
-        forecasted_value = r["total"] * base_forecast
-        print(f"{r['material_name']} | Forecasted Value: {forecasted_value}")
-
-    return results
-
-# Example test
-if __name__ == "__main__":
-    part_code_input = input("Enter Part Code to compute materials for: ")
-    forecast_materials_manual(part_code_input)
 from dataclasses import dataclass
 from typing import List, Dict, Any, Tuple
 
@@ -89,6 +20,7 @@ from .models import (
 class ForecastInput:
     part_code: str
     forecast_qty: int
+    schedule_month: str = ""
 
 
 def _normalize_partcode(s: str) -> str:
@@ -147,14 +79,51 @@ def compute_material_requirements_for_partcode(part_code: str, forecast_qty: int
 
 
 @transaction.atomic
-def run_forecast_and_save(inputs: List[ForecastInput], created_by=None, note: str = "") -> ForecastRun:
+def run_forecast_and_save(
+    inputs: List[ForecastInput],
+    created_by=None,
+    note: str = "",
+) -> ForecastRun:
     """
     Creates ForecastRun header + ForecastLine rows (output of computation).
+
+    UPDATED BEHAVIOR (service-only):
+    - If schedule_month is provided (and consistent across inputs),
+      reuse the latest ForecastRun for that month instead of creating a new one.
+    - This lets the dashboard "latest run" contain multiple customers at once.
     """
-    run = ForecastRun.objects.create(
-        note=note or "Prototype forecast run",
-        created_by=created_by,
-    )
+    # If all inputs share the same schedule_month use it on the header,
+    # otherwise leave it blank.
+    schedule_month = ""
+    if inputs:
+        months = {(item.schedule_month or "").strip() for item in inputs}
+        months.discard("")
+        if len(months) == 1:
+            schedule_month = months.pop()
+
+    month_key = schedule_month[:7]  # 'YYYY-MM'
+
+    # ✅ REUSE RUN (so old customers don't "disappear" from the table)
+    run = None
+    if month_key:
+        run = (
+            ForecastRun.objects
+            .filter(schedule_month=month_key)
+            .order_by("-id")
+            .first()
+        )
+
+    # If no existing run for that month, create one (original behavior)
+    if run is None:
+        run = ForecastRun.objects.create(
+            note=note or "Prototype forecast run",
+            created_by=created_by,
+            schedule_month=month_key,
+        )
+    else:
+        # Keep existing run; don't change views.
+        # (Optional) You could update the note, but leaving it alone is safest.
+        pass
 
     for item in inputs:
         tep, rows = compute_material_requirements_for_partcode(item.part_code, item.forecast_qty)
@@ -180,7 +149,7 @@ def run_forecast_and_save(inputs: List[ForecastInput], created_by=None, note: st
                 run=run,
                 part_code=item.part_code,
                 forecast_qty=item.forecast_qty,
-                mat_partcode=r["mat_partc3ode"],
+                mat_partcode=r["mat_partcode"],
                 mat_partname=r["mat_partname"],
                 mat_maker=r["mat_maker"],
                 unit=r["unit"],
@@ -192,15 +161,136 @@ def run_forecast_and_save(inputs: List[ForecastInput], created_by=None, note: st
 
     return run
 
+@transaction.atomic
+def reserve_from_latest_forecast_run(created_by=None, allow_partial: bool = False) -> Dict[str, Any]:
+    """
+    Creates MaterialAllocation rows (status='reserved') from the latest ForecastRun.
 
-def prototype_static_run(created_by=None) -> ForecastRun:
+    Rules:
+    - Uses latest ForecastRun (by id).
+    - Groups by material code across the run (SUM required_qty) so you don't reserve duplicates per line.
+    - qty_allocated is integer => CEIL(total_required_qty).
+    - available = on_hand - already_reserved
+    - allow_partial:
+        False -> skip if available < needed
+        True  -> reserve min(available, needed) if available > 0
+    - Customer is taken from ForecastLine.customer_name; must exist in Customer table.
+    - TEP is optional; from ForecastLine.tep_code if found in TEPCode.
+    - Material must exist in MaterialList.
+
+    Returns dict like:
+      {"ok": True/False, "message": str, "created": int, "skipped": int, "notes": [str]}
     """
-    Your requested prototype:
-      - L73436-001 REV.D -> 5000
-      - LT3435-001 REV.C -> 10000
-    """
-    inputs = [
-        ForecastInput(part_code="L73436-001 REV.D", forecast_qty=5000),
-        ForecastInput(part_code="LT3435-001 REV.C", forecast_qty=10000),
-    ]
-    return run_forecast_and_save(inputs, created_by=created_by, note="STATIC prototype run (5000/10000)")
+    latest = ForecastRun.objects.order_by("-id").first()
+    if not latest:
+        return {"ok": False, "message": "No forecast run found.", "created": 0, "skipped": 0, "notes": []}
+
+    try:
+        base_qs = latest.lines.all()
+    except Exception:
+        base_qs = ForecastLine.objects.filter(run=latest)
+
+    if not base_qs.exists():
+        return {"ok": False, "message": "Latest forecast run has no lines.", "created": 0, "skipped": 0, "notes": []}
+
+    forecast_ref = f"RUN:{latest.id}"
+    created = 0
+    skipped = 0
+    notes: List[str] = []
+
+    base_qs = base_qs.exclude(mat_partcode__startswith="(").exclude(mat_partcode__isnull=True).exclude(mat_partcode="")
+
+    grouped = (
+        base_qs.values("mat_partcode", "customer_name", "tep_code")
+        .annotate(total_required=Sum("required_qty"))
+        .order_by("mat_partcode")
+    )
+
+    for g in grouped:
+        mat_code = (g.get("mat_partcode") or "").strip()
+        cname = (g.get("customer_name") or "").strip()
+        tcode = (g.get("tep_code") or "").strip()
+        total_required = g.get("total_required") or 0
+
+        if not mat_code:
+            skipped += 1
+            continue
+        if not cname or cname == "—":
+            skipped += 1
+            notes.append(f"Skipped {mat_code}: customer_name missing.")
+            continue
+
+        master = MaterialList.objects.filter(mat_partcode=mat_code).first()
+        if not master:
+            skipped += 1
+            notes.append(f"Skipped {mat_code}: not found in MaterialList.")
+            continue
+
+        cust = Customer.objects.filter(customer_name=cname).first()
+        if not cust:
+            skipped += 1
+            notes.append(f"Skipped {mat_code}: customer not found ({cname}).")
+            continue
+
+        tep = None
+        if tcode and tcode != "—":
+            tep = TEPCode.objects.filter(tep_code=tcode).first()
+
+        needed = _ceil_int(total_required)
+        if needed <= 0:
+            skipped += 1
+            continue
+
+        try:
+            on_hand = int(master.stock.on_hand_qty or 0)
+        except Exception:
+            on_hand = 0
+
+        reserved = (
+            MaterialAllocation.objects
+            .filter(material=master, status="reserved")
+            .aggregate(total=Sum("qty_allocated"))
+            .get("total") or 0
+        )
+        reserved = int(reserved or 0)
+
+        available = max(on_hand - reserved, 0)
+
+        if allow_partial:
+            take = min(available, needed)
+            if take <= 0:
+                skipped += 1
+                continue
+        else:
+            if available < needed:
+                skipped += 1
+                continue
+            take = needed
+
+        MaterialAllocation.objects.create(
+            material=master,
+            customer=cust,
+            tep_code=tep,
+            qty_allocated=take,
+            forecast_ref=forecast_ref,
+            status="reserved",
+            created_by=created_by,
+        )
+        created += 1
+
+    if created <= 0:
+        return {
+            "ok": False,
+            "message": f"No allocations created from latest forecast ({forecast_ref}). Check stocks / master list / customers.",
+            "created": created,
+            "skipped": skipped,
+            "notes": notes,
+        }
+
+    return {
+        "ok": True,
+        "message": f"Reserved allocations created from latest forecast ({forecast_ref}).",
+        "created": created,
+        "skipped": skipped,
+        "notes": notes,
+    }

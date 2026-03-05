@@ -222,6 +222,7 @@
   </div>
 
   <script>
+  // ✅ Modal open/close (your existing code)
   const matModal = document.getElementById("addMaterialModal");
   const openMatBtn = document.getElementById("openAddMaterial");
   const closeMatBtn = document.getElementById("closeAddMaterial");
@@ -240,6 +241,7 @@
     if (e.key === "Escape") closeMatModal();
   });
 
+  // ✅ Auto-fill by calling your Option A API
   const partEl = document.getElementById("mat_partcode");
   const nameEl = document.getElementById("mat_partname");
   const makerEl = document.getElementById("mat_maker");
@@ -274,6 +276,7 @@
       return;
     }
 
+    // avoid repeated calls for same text
     if (normalized === lastQuery) return;
     lastQuery = normalized;
 
@@ -310,11 +313,12 @@
     }
   }
 
+  // Debounced typing lookup
   partEl?.addEventListener("input", () => {
     const val = (partEl.value || "").trim();
     clearTimeout(timer);
 
-    if (val.length < 2) { 
+    if (val.length < 2) { // adjust if you want
       clearAutoFields();
       setMsg("");
       return;
@@ -323,6 +327,7 @@
     timer = setTimeout(() => doLookup(val), 300);
   });
 
+  // Lookup on blur too (useful if they paste)
   partEl?.addEventListener("blur", () => doLookup(partEl.value));
   </script>
 

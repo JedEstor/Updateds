@@ -93,11 +93,7 @@
       box-shadow: 4px 0 18px rgba(0,0,0,0.35);
     }
 
-<<<<<<< HEAD
         .button-gradient {
-=======
-    .button-gradient {
->>>>>>> d3319d1faa278dbb0e42ebb1a9860ed58da80d95
   background:
     linear-gradient(
       180deg,
@@ -195,7 +191,6 @@
           </div>
         </a>
 
-        <!-- ✅ Material Stocks tab -->
         <a href="?tab=stocks&sq={{ sq|urlencode }}"
            class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition
                   {% if tab == 'stocks' %}bg-white/10{% endif %}">
@@ -226,22 +221,18 @@
           </div>
         </a>
 
-        <a href="?tab=tep_schedule&fq={{ fq|urlencode }}"
+        <a href="?tab=forecast&fq={{ fq|urlencode }}&fmonth={{ fmonth|urlencode }}"
           class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition
-                  {% if tab == 'tep_schedule' %}bg-white/10{% endif %}">
+                  {% if tab == 'forecast' %}bg-white/10{% endif %}">
           <span class="inline-flex h-9 w-9 rounded-lg bg-white/5 items-center justify-center border border-white/10">
-            <!-- icon -->
           </span>
           <div class="nav-text">
-            <div class="font-medium">TEP Code Scheduling</div>
-            <div class="text-xs text-slate-200/80">Register TEP code schedules</div>
+            <div class="font-medium">Forecast</div>
+            <div class="text-xs text-slate-200/80">Prototype output</div>
           </div>
         </a>
+
         <div class="pt-2 border-t border-white/10"></div>
-
-          <a href="?tab=tep_schedule&fq={{ fq|urlencode }}"
-
-        
 
         <a href="{% url 'app:customer_list' %}"
            class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition">
@@ -251,8 +242,6 @@
                     d="M8 7V3h8v4M6 7h12M6 7v14h12V7" />
             </svg>
           </span>
-
-          
 
           <div class="nav-text">
             <div class="font-medium">Customers Page</div>
@@ -881,231 +870,137 @@ function closeMaterialModal(){
 
         </div>
         {% endif %}
-{% if tab == "tep_schedule" %}
 
-<!-- HEADER -->
-<div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between gap-3 flex-wrap">
+       {% if tab == "forecast" %}
 
-  <!-- Filter: Year + Month (searchable) -->
-  <div class="flex items-center gap-3 flex-wrap">
-    <div class="flex items-center gap-2">
-      <label class="text-sm text-slate-500 font-medium">Year:</label>
+<div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
 
-      <input id="year-filter"
-             list="year-options"
-             class="h-10 w-28 px-3 rounded-xl border border-slate-300 bg-white"
-             value="{{ selected_year }}"
-             placeholder="YYYY" />
-
-      <datalist id="year-options">
-        {% for y in years_list %}
-          <option value="{{ y }}"></option>
-        {% endfor %}
-      </datalist>
-    </div>
-
-    <div class="flex items-center gap-2">
-      <label class="text-sm text-slate-500 font-medium">Month:</label>
-
-      <input id="month-filter"
-             list="month-options"
-             class="h-10 w-40 px-3 rounded-xl border border-slate-300 bg-white"
-             value="{{ selected_month_num }}"
-             placeholder="MM" />
-
-      <datalist id="month-options">
-        <option value="01">January</option>
-        <option value="02">February</option>
-        <option value="03">March</option>
-        <option value="04">April</option>
-        <option value="05">May</option>
-        <option value="06">June</option>
-        <option value="07">July</option>
-        <option value="08">August</option>
-        <option value="09">September</option>
-        <option value="10">October</option>
-        <option value="11">November</option>
-        <option value="12">December</option>
-      </datalist>
-    </div>
-
-    <button type="button"
-            id="btnApplyMonthFilter"
-            class="h-10 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white">
-      Apply
-    </button>
-
-    <div class="text-sm text-slate-500">
-      Showing:
-      <span class="font-medium text-slate-700">{{ selected_month|date:"F Y" }}</span>
-    </div>
-  </div>
-
-  <!-- Open Modal -->
-  <button
-    type="button"
-    id="btnOpenScheduleModal"
-    class="h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white"
-  >
-    Register Customer TEP Schedule
-  </button>
-
-</div>
-
-
-<<<<<<< HEAD
-
-        {% if tab == "stocks" %}
-=======
-<!-- MODAL -->
-<div id="scheduleModal"
-     class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4">
-
-  <!-- backdrop -->
-  <div class="absolute inset-0" data-close-schedule></div>
-
-  <!-- panel -->
-  <div class="relative bg-white rounded-2xl shadow-lg w-full max-w-lg p-6"
-       onclick="event.stopPropagation()">
-
-    <div class="flex items-start justify-between gap-3 mb-4">
-      <h2 class="text-lg font-semibold text-slate-900">
-        Register Monthly TEP Schedule
-      </h2>
-
-      <button type="button"
-              data-close-schedule
-              class="h-9 w-9 inline-flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-700">
-        ✕
-      </button>
-    </div>
-
-    <!-- CUSTOMER -->
-    <div class="mb-3">
-      <label class="text-sm text-slate-700">Customer</label>
-
-      <select id="sm_customer"
-              class="w-full h-10 px-3 rounded-xl border border-slate-300">
-        <option value="">Select Customer</option>
-        {% for c in customers_dropdown %}
-          <option value="{{ c.id }}">{{ c.customer_name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-
-    <!-- TEP -->
-    <div class="mb-3">
-      <label class="text-sm text-slate-700">TEP Code</label>
-
-      <select id="sm_tep"
-              class="w-full h-10 px-3 rounded-xl border border-slate-300"
-              disabled>
-        <option value="">Select Customer first</option>
-      </select>
-    </div>
-
-    <!-- YEAR + MONTH (inside modal, searchable) -->
-    <div class="grid grid-cols-2 gap-3 mb-3">
-      <div>
-        <label class="text-sm text-slate-700">Year</label>
-        <input id="sm_year"
-               list="year-options"
-               class="w-full h-10 px-3 rounded-xl border border-slate-300"
-               value="{{ selected_year }}"
-               placeholder="YYYY" />
-      </div>
-
-      <div>
-        <label class="text-sm text-slate-700">Month (MM)</label>
-        <input id="sm_month"
-               list="month-options"
-               class="w-full h-10 px-3 rounded-xl border border-slate-300"
-               value="{{ selected_month_num }}"
-               placeholder="MM" />
-      </div>
-    </div>
-
-    <!-- QUANTITY -->
-    <div class="mb-3">
-      <label class="text-sm text-slate-700">Quantity</label>
-
-      <input type="number"
-             id="sm_qty"
-             min="0"
-             step="1"
-             value="0"
-             class="w-full h-10 px-3 rounded-xl border border-slate-300">
-    </div>
-
-    <!-- HIDDEN FORM -->
-    <form id="sm_form"
-          method="post"
-          action="{% url 'app:register_customer_tep_schedule' %}"
-          class="hidden">
-      {% csrf_token %}
-      <input type="hidden" name="customer_id" id="sm_h_customer">
-      <input type="hidden" name="tep_id" id="sm_h_tep">
-      <input type="hidden" name="schedule_month" id="sm_h_month">  <!-- YYYY-MM -->
-      <input type="hidden" name="quantity" id="sm_h_qty">
-    </form>
-
-    <!-- BUTTONS -->
-    <div class="flex justify-end gap-2 mt-4">
-      <button type="button"
-              data-close-schedule
-              class="h-10 px-4 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-900">
-        Cancel
-      </button>
-
-      <button type="button"
-              id="btnSaveScheduleModal"
-              class="h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white">
-        Save
-      </button>
-    </div>
-
-  </div>
-</div>
-
-
-<!-- TABLE -->
-<div class="mt-4 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-
+  <!-- HEADER (simple + aligned) -->
   <div class="px-5 py-4 border-b border-slate-200">
-    <h2 class="text-lg font-semibold text-slate-900">
-      Registered Customer TEP Schedules
-    </h2>
-    <p class="text-sm text-slate-500">
-      Showing:
-      <span class="font-medium">{{ selected_month|date:"F Y" }}</span>
-    </p>
+    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+
+      <!-- Left: title/meta -->
+      <div class="min-w-0">
+        <div class="flex items-center gap-3">
+          <h2 class="text-lg font-semibold text-slate-900">Forecast</h2>
+
+          <span class="hidden sm:inline text-xs text-slate-500">
+            Latest run:
+            <span class="font-medium text-slate-700">
+              {% if forecast_latest %}{{ forecast_latest.created_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}
+            </span>
+          </span>
+        </div>
+
+        <div class="sm:hidden mt-1 text-xs text-slate-500">
+          Latest run:
+          <span class="font-medium text-slate-700">
+            {% if forecast_latest %}{{ forecast_latest.created_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}
+          </span>
+        </div>
+      </div>
+
+      <!-- Right: controls -->
+      <div class="w-full lg:w-auto">
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+
+          <!-- Filters (GET) -->
+          <form method="get" class="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <input type="hidden" name="tab" value="forecast">
+
+            <input
+              type="month"
+              name="fmonth"
+              value="{{ fmonth|default:'' }}"
+              class="h-10 w-full sm:w-[160px] px-3 rounded-xl border border-slate-300 bg-white text-slate-900
+                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+
+            <input
+              type="text"
+              name="fq"
+              value="{{ fq|default:'' }}"
+              placeholder="Search…"
+              class="h-10 w-full sm:w-[360px] px-3 rounded-xl border border-slate-300 bg-white text-slate-900
+                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+
+            <button
+              type="submit"
+              class="h-10 w-full sm:w-auto px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white"
+            >
+              Search
+            </button>
+          </form>
+
+          <!-- Main action -->
+          <button
+            type="button"
+            onclick="openForecastModal()"
+            class="h-10 w-full sm:w-auto px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white whitespace-nowrap"
+          >
+            Register / Run Forecast
+          </button>
+
+        </div>
+      </div>
+
+    </div>
   </div>
 
+  <!-- META ROW -->
+  <div class="px-5 py-3 border-b border-slate-200 flex items-center justify-between text-sm">
+    <div class="text-slate-600">
+      Total lines: <span class="font-semibold text-slate-900">{{ forecast_totals.lines }}</span>
+    </div>
+
+    {% if forecast_page %}
+      <div class="text-slate-500">
+        Page <span class="font-semibold text-slate-900">{{ forecast_page.number }}</span>
+        of <span class="font-semibold text-slate-900">{{ forecast_page.paginator.num_pages }}</span>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- TABLE -->
   <div class="overflow-x-auto">
-    <table class="w-full min-w-[900px] table-fixed text-sm">
+    <table class="w-full min-w-[1100px] text-sm">
       <thead class="bg-slate-50 text-slate-700">
         <tr>
+          <th class="px-4 py-3 text-left font-semibold">Part Code</th>
+          <th class="px-4 py-3 text-right font-semibold">Forecast</th>
           <th class="px-4 py-3 text-left font-semibold">Customer</th>
-          <th class="px-4 py-3 text-left font-semibold">TEP Code</th>
-          <th class="px-4 py-3 text-right font-semibold">Quantity</th>
-          <th class="px-4 py-3 text-left font-semibold">Updated</th>
+          <th class="px-4 py-3 text-left font-semibold">TEP</th>
+          <th class="px-4 py-3 text-left font-semibold">Material</th>
+          <th class="px-4 py-3 text-right font-semibold">Per Unit</th>
+          <th class="px-4 py-3 text-right font-semibold">Required</th>
+          <th class="px-4 py-3 text-left font-semibold">Unit</th>
         </tr>
       </thead>
 
       <tbody class="divide-y divide-slate-200">
-        {% for r in schedules %}
-          <tr class="hover:bg-slate-50">
-            <td class="px-4 py-3">{{ r.customer.customer_name }}</td>
-            <td class="px-4 py-3 font-semibold">{{ r.tep.tep_code }}</td>
-            <td class="px-4 py-3 text-right font-semibold">{{ r.quantity }}</td>
+        {% for r in forecast_page %}
+          <tr class="hover:bg-slate-50 align-middle">
+            <td class="px-4 py-3 font-medium text-slate-900">{{ r.part_code }}</td>
+            <td class="px-4 py-3 text-right text-slate-900 tabular-nums">{{ r.forecast_qty }}</td>
+            <td class="px-4 py-3 text-slate-800">{{ r.customer_name|default:"—" }}</td>
+            <td class="px-4 py-3 text-slate-800">{{ r.tep_code|default:"—" }}</td>
+
             <td class="px-4 py-3">
-              {% if r.created_at %}{{ r.created_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}
+              <div class="font-medium text-slate-900">{{ r.mat_partcode }}</div>
+              <div class="text-xs text-slate-500">
+                {{ r.mat_partname }}{% if r.mat_maker %} • {{ r.mat_maker }}{% endif %}
+              </div>
             </td>
+
+            <td class="px-4 py-3 text-right text-slate-900 tabular-nums">{{ r.per_unit_total }}</td>
+            <td class="px-4 py-3 text-right font-semibold text-slate-900 tabular-nums">{{ r.required_qty }}</td>
+            <td class="px-4 py-3 text-slate-800">{{ r.unit }}</td>
           </tr>
         {% empty %}
           <tr>
-            <td colspan="4" class="px-4 py-10 text-center text-slate-500">
-              No registrations found for this month.
+            <td colspan="8" class="px-4 py-10 text-center text-slate-500">
+              No forecast output yet.
             </td>
           </tr>
         {% endfor %}
@@ -1113,140 +1008,178 @@ function closeMaterialModal(){
     </table>
   </div>
 
+  <!-- PAGINATION -->
+  {% if forecast_page and forecast_page.paginator.num_pages > 1 %}
+    <div class="px-5 py-4 border-t border-slate-200 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div class="text-sm text-slate-500">
+        Showing
+        <span class="font-medium text-slate-900">{{ forecast_page.start_index }}</span>–
+        <span class="font-medium text-slate-900">{{ forecast_page.end_index }}</span>
+        of
+        <span class="font-medium text-slate-900">{{ forecast_page.paginator.count }}</span>
+      </div>
+
+      <div class="flex items-center gap-2 flex-wrap">
+        {% if forecast_page.has_previous %}
+          <a
+            class="h-10 inline-flex items-center px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm"
+            href="?tab=forecast&fq={{ fq|urlencode }}&fmonth={{ fmonth|urlencode }}&fpage={{ forecast_page.previous_page_number }}"
+          >
+            ← Prev
+          </a>
+        {% else %}
+          <span class="h-10 inline-flex items-center px-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-400">
+            ← Prev
+          </span>
+        {% endif %}
+
+        {% for p in forecast_page.paginator.page_range %}
+          {% if p == forecast_page.number %}
+            <span class="h-10 inline-flex items-center px-3 rounded-xl bg-blue-600 text-white text-sm">{{ p }}</span>
+          {% elif p >= forecast_page.number|add:-2 and p <= forecast_page.number|add:2 %}
+            <a
+              class="h-10 inline-flex items-center px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm"
+              href="?tab=forecast&fq={{ fq|urlencode }}&fmonth={{ fmonth|urlencode }}&fpage={{ p }}"
+            >
+              {{ p }}
+            </a>
+          {% endif %}
+        {% endfor %}
+
+        {% if forecast_page.has_next %}
+          <a
+            class="h-10 inline-flex items-center px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm"
+            href="?tab=forecast&fq={{ fq|urlencode }}&fmonth={{ fmonth|urlencode }}&fpage={{ forecast_page.next_page_number }}"
+          >
+            Next →
+          </a>
+        {% else %}
+          <span class="h-10 inline-flex items-center px-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-400">
+            Next →
+          </span>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+
 </div>
 
 
+<!-- MODAL (Register / Run Forecast) -->
+<div id="forecastModal" class="fixed inset-0 z-50 hidden" aria-hidden="true">
+  <!-- Backdrop -->
+  <div class="absolute inset-0 bg-slate-900/50" onclick="closeForecastModal()"></div>
+
+  <!-- Panel -->
+  <div class="relative w-full h-full flex items-start justify-center p-4 sm:p-6">
+    <div class="w-full max-w-xl mt-16 sm:mt-20">
+      <div class="rounded-2xl bg-white shadow-xl border border-slate-200 overflow-hidden">
+
+        <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+          <div class="min-w-0">
+            <div class="text-base font-semibold text-slate-900">Register / Run Forecast</div>
+            <div class="text-xs text-slate-500">Enter part code, quantity, and month</div>
+          </div>
+
+          <button
+            type="button"
+            class="h-9 w-9 inline-flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-600"
+            onclick="closeForecastModal()"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+
+        <!-- IMPORTANT: This matches your existing view exactly -->
+        <form method="post" class="p-5 space-y-4">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="run_prototype_forecast">
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs font-medium text-slate-600">Part code</label>
+              <input
+                type="text"
+                name="part_code"
+                required
+                placeholder="e.g. LT3436-001 REV.D"
+                class="mt-1 h-10 w-full px-3 rounded-xl border border-slate-300 bg-white text-slate-900
+                       focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label class="text-xs font-medium text-slate-600">Forecast qty</label>
+              <input
+                type="number"
+                name="forecast_qty"
+                min="0"
+                required
+                placeholder="0"
+                class="mt-1 h-10 w-full px-3 rounded-xl border border-slate-300 bg-white text-slate-900
+                       focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <div class="sm:col-span-2">
+              <label class="text-xs font-medium text-slate-600">Month</label>
+              <input
+                type="month"
+                name="schedule_month"
+                required
+                class="mt-1 h-10 w-full px-3 rounded-xl border border-slate-300 bg-white text-slate-900
+                       focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
+
+          <div class="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onclick="closeForecastModal()"
+              class="h-10 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+            >
+              Cancel
+            </button>
+
+            <button
+              type="submit"
+              class="h-10 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-medium"
+            >
+              Run Forecast
+            </button>
+          </div>
+        </form>
+
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
-document.addEventListener("DOMContentLoaded", () => {
-
-  const CUSTOMER_TEPS_API = "{% url 'app:api_customer_teps' %}";
-
-  // Filter controls
-  const yearFilter = document.getElementById("year-filter");
-  const monthFilter = document.getElementById("month-filter");
-  const applyBtn = document.getElementById("btnApplyMonthFilter");
-
-  function applyFilter() {
-    const y = (yearFilter.value || "").trim();
-    const m = (monthFilter.value || "").trim().padStart(2, "0");
-
-    if (!/^\d{4}$/.test(y) || !/^\d{2}$/.test(m) || Number(m) < 1 || Number(m) > 12) {
-      alert("Please enter a valid Year (YYYY) and Month (01-12).");
-      return;
-    }
-
-    const url = new URL(window.location.href);
-    url.searchParams.set("tab", "tep_schedule");
-    url.searchParams.set("year", y);
-    url.searchParams.set("month", m);
-    window.location.href = url.toString();
+  function openForecastModal() {
+    const el = document.getElementById("forecastModal");
+    el.classList.remove("hidden");
+    el.setAttribute("aria-hidden", "false");
+    document.body.classList.add("overflow-hidden");
   }
 
-  applyBtn?.addEventListener("click", applyFilter);
-  monthFilter?.addEventListener("keydown", (e) => { if (e.key === "Enter") applyFilter(); });
-  yearFilter?.addEventListener("keydown", (e) => { if (e.key === "Enter") applyFilter(); });
+  function closeForecastModal() {
+    const el = document.getElementById("forecastModal");
+    el.classList.add("hidden");
+    el.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("overflow-hidden");
+  }
 
-  // Modal
-  const modal = document.getElementById("scheduleModal");
-  const openBtn = document.getElementById("btnOpenScheduleModal");
-  const saveBtn = document.getElementById("btnSaveScheduleModal");
-
-  function openModal() { modal.classList.remove("hidden"); modal.classList.add("flex"); }
-  function closeModal() { modal.classList.add("hidden"); modal.classList.remove("flex"); }
-
-  openBtn?.addEventListener("click", openModal);
-
-  document.querySelectorAll("[data-close-schedule]").forEach(el => {
-    el.addEventListener("click", closeModal);
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") closeForecastModal();
   });
-
-  modal?.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
-  window.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !modal.classList.contains("hidden")) closeModal();
-  });
-
-  // Modal fields
-  const customerSel = document.getElementById("sm_customer");
-  const tepSel = document.getElementById("sm_tep");
-  const yearSel = document.getElementById("sm_year");
-  const monthSel = document.getElementById("sm_month");
-  const qtyInp = document.getElementById("sm_qty");
-
-  const hCustomer = document.getElementById("sm_h_customer");
-  const hTep = document.getElementById("sm_h_tep");
-  const hMonth = document.getElementById("sm_h_month");
-  const hQty = document.getElementById("sm_h_qty");
-  const form = document.getElementById("sm_form");
-
-  // Load TEPs
-  customerSel?.addEventListener("change", async function () {
-    tepSel.disabled = true;
-    tepSel.innerHTML = `<option value="">Loading...</option>`;
-
-    if (!this.value) {
-      tepSel.innerHTML = `<option value="">Select Customer first</option>`;
-      return;
-    }
-
-    try {
-      const res = await fetch(`${CUSTOMER_TEPS_API}?customer_id=${encodeURIComponent(this.value)}`);
-      const data = await res.json();
-
-      const items = Array.isArray(data.items) ? data.items : [];
-      tepSel.innerHTML = `<option value="">Select TEP Code</option>`;
-
-      if (items.length === 0) {
-        tepSel.innerHTML = `<option value="">No TEP codes found</option>`;
-        return;
-      }
-
-      items.forEach(item => {
-        const opt = document.createElement("option");
-        opt.value = item.id;
-        opt.textContent = item.tep_code;
-        tepSel.appendChild(opt);
-      });
-
-      tepSel.disabled = false;
-    } catch (err) {
-      console.error(err);
-      tepSel.innerHTML = `<option value="">Failed to load TEP codes</option>`;
-    }
-  });
-
-  // Save
-  saveBtn?.addEventListener("click", () => {
-    const customer = customerSel.value;
-    const tep = tepSel.value;
-
-    const y = (yearSel.value || "").trim();
-    const m = (monthSel.value || "").trim().padStart(2, "0");
-    const qty = qtyInp.value;
-
-    if (!customer || !tep) {
-      alert("Please select Customer and TEP Code.");
-      return;
-    }
-    if (!/^\d{4}$/.test(y) || !/^\d{2}$/.test(m) || Number(m) < 1 || Number(m) > 12) {
-      alert("Please enter a valid Year (YYYY) and Month (01-12).");
-      return;
-    }
-
-    // send YYYY-MM
-    hCustomer.value = customer;
-    hTep.value = tep;
-    hMonth.value = `${y}-${m}`;
-    hQty.value = qty;
-
-    form.submit();
-  });
-
-});
 </script>
 
 {% endif %}
-{% if tab == "stocks" %}
->>>>>>> d3319d1faa278dbb0e42ebb1a9860ed58da80d95
+
+        {% if tab == "stocks" %}
 
         <div class="grid grid-cols-1 gap-6">
           <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
@@ -1755,27 +1688,49 @@ document.addEventListener("DOMContentLoaded", () => {
 
   <div id="panel-backdrop" class="hidden fixed inset-0 bg-black/50 z-40"></div>
 
-  <div id="detail-panel"
-       class="fixed top-0 right-0 h-full w-full sm:w-[860px]
-              bg-white text-slate-900 border-l border-slate-200 z-50
-              translate-x-full transition-transform duration-200 flex flex-col">
+<div id="detail-panel"
+     class="fixed top-0 right-0 h-full w-full sm:w-[860px]
+            bg-white text-slate-900 border-l border-slate-200 z-50
+            translate-x-full transition-transform duration-200 flex flex-col">
 
-    <div class="p-4 border-b border-slate-200 flex justify-between items-center">
-      <div class="font-semibold text-blue-700">Customer Details</div>
-      <button id="panel-update"
-             class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200">
-        Update
+  <div class="p-4 border-b border-slate-200 flex justify-between items-center">
+    <div class="font-semibold text-blue-700">Customer Details</div>
+
+    <div class="flex items-center gap-2">
+
+      <button id="panel-history"
+              type="button"
+              class="px-3 py-2 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-slate-700">
+        History
       </button>
+
+      <form id="panel-revise-form"
+            method="post"
+            action="{% url 'app:admin_dashboard' %}"
+            class="inline">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="revise_tep">
+        <input type="hidden" name="tep_id" id="panel-revise-tep-id" value="">
+        <button id="panel-revise"
+                type="button"
+                class="px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white">
+          Revise TEP
+        </button>
+      </form>
+
       <button id="panel-close"
+              type="button"
               class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200">
         Close
       </button>
     </div>
-
-    <div id="panel-content" class="flex-1 overflow-y-auto p-4">
-      <div class="text-slate-500 text-sm">Select a customer and click View</div>
-    </div>
   </div>
+
+  <div id="panel-content" class="flex-1 overflow-y-auto p-4">
+    <div class="text-slate-500 text-sm">Select a customer and click View</div>
+  </div>
+
+</div>
 
   <div id="csv-backdrop" class="hidden fixed inset-0 bg-black/50 z-40"></div>
 
@@ -1979,6 +1934,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const panelClose = document.getElementById("panel-close");
     const panelContent = document.getElementById("panel-content");
 
+    const btnHistory = document.getElementById("panel-history");
+    const btnRevise = document.getElementById("panel-revise");
+    const reviseForm = document.getElementById("panel-revise-form");
+    const reviseTepInput = document.getElementById("panel-revise-tep-id");
+
     function openPanel() {
       panel.classList.remove("translate-x-full");
       backdrop.classList.remove("hidden");
@@ -1994,10 +1954,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function loadPanel(tepId) {
       panelContent.innerHTML = `<div class="text-slate-500 text-sm">Loading…</div>`;
-      const url = `/panel/dashboard/?tep_id=${encodeURIComponent(tepId)}`;
 
-      const res = await fetch(url, { headers: { "X-Requested-With": "XMLHttpRequest" } });
+      if (reviseTepInput) reviseTepInput.value = tepId;
+
+      const url = `/panel/dashboard/?tep_id=${encodeURIComponent(tepId)}`;
+      const res = await fetch(url, {
+        headers: { "X-Requested-With": "XMLHttpRequest" }
+      });
+
       panelContent.innerHTML = await res.text();
+
+      const flag = panelContent.querySelector("[data-is-obsolete]");
+      const isObsolete = flag && flag.getAttribute("data-is-obsolete") === "1";
+
+      if (btnRevise) {
+        if (isObsolete) {
+          btnRevise.disabled = true;
+          btnRevise.classList.add("opacity-50", "cursor-not-allowed");
+        } else {
+          btnRevise.disabled = false;
+          btnRevise.classList.remove("opacity-50", "cursor-not-allowed");
+        }
+      }
+
+      if (btnHistory) btnHistory.textContent = "History";
     }
 
     document.querySelectorAll(".view-link").forEach(btn => {
@@ -2010,17 +1990,69 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     });
 
-    (function autoOpenPanelFromUrl() {
-    const params = new URLSearchParams(window.location.search);
-    const open = params.get("open_panel");
-    const tepId = params.get("tep_id");
+if (panelContent) {
+  panelContent.addEventListener("submit", async (e) => {
+    const form = e.target;
+    if (!form || form.tagName !== "FORM") return;
 
-    if (open === "1" && tepId) {
-      openPanel();
-      loadPanel(tepId);
+    if (!form.action.includes("{% url 'app:add_material_to_tep' %}")) return;
+
+    e.preventDefault();
+
+    const tepId = form.querySelector('input[name="tep_id"]')?.value;
+    if (!tepId) return;
+
+    const fd = new FormData(form);
+
+    const res = await fetch(form.action, {
+      method: "POST",
+      body: fd,
+      headers: { "X-Requested-With": "XMLHttpRequest" },
+    });
+
+    if (res.ok) {
+      await loadPanel(tepId); 
+    } else {
+      const txt = await res.text();
+      panelContent.innerHTML = txt;
     }
-  })();
+  });
+}
+    if (btnHistory) {
+      btnHistory.addEventListener("click", () => {
+        const box = panelContent.querySelector("#revision-history");
+        if (!box) return;
 
+        box.classList.toggle("hidden");
+
+        const shown = !box.classList.contains("hidden");
+        btnHistory.textContent = shown ? "Hide History" : "History";
+
+        if (shown) {
+          box.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      });
+    }
+
+    if (btnRevise) {
+      btnRevise.addEventListener("click", () => {
+        if (btnRevise.disabled) return;
+
+        const tepId = reviseTepInput.value;
+        if (!tepId) {
+          alert("No TEP selected.");
+          return;
+        }
+
+        const ok = confirm(
+          "Revise this TEP? This will create a NEW EMPTY TEP and mark the old one obsolete."
+        );
+
+        if (!ok) return;
+
+        reviseForm.submit();
+      });
+    }
     const openCSV = document.getElementById("open-csv-upload");
     const csvModal = document.getElementById("csv-modal");
     const csvBackdrop = document.getElementById("csv-backdrop");
@@ -2146,70 +2178,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (lossPct) lossPct.addEventListener("input", recalcTotal);
 
     recalcTotal();
-     const FORECAST_MULTIPLIER = 1;
-
-  function openForecastModal() {
-    const modal = document.getElementById("forecastModal");
-    if (!modal) return;
-    modal.classList.remove("hidden");
-    modal.classList.add("flex");
-    recalcForecastTotal();
-  }
-
-  function closeForecastModal() {
-    const modal = document.getElementById("forecastModal");
-    if (!modal) return;
-    modal.classList.add("hidden");
-    modal.classList.remove("flex");
-  }
-
-  function recalcForecastTotal() {
-    const qtyEl = document.getElementById("fm_qty");
-    const totalEl = document.getElementById("fm_total");
-    if (!qtyEl || !totalEl) return;
-
-    const q = Number(qtyEl.value || 0);
-    const total = q * FORECAST_MULTIPLIER;
-    totalEl.textContent = String(total);
-    return total;
-  }
-
-  function saveForecastModal() {
-    const customer = document.getElementById("fm_customer");
-    const part = document.getElementById("fm_part");
-    const month = document.getElementById("fm_month");
-    const form = document.getElementById("fm_form");
-
-    const hCustomer = document.getElementById("fm_h_customer");
-    const hPart = document.getElementById("fm_h_part");
-    const hQty = document.getElementById("fm_h_qty");
-    const hMonth = document.getElementById("fm_h_month");
-
-    if (!customer || !part || !month || !form) return;
-
-    if (!customer.value) { alert("Select a customer."); return; }
-    if (!part.value) { alert("Select a part code."); return; }
-    if (!month.value) { alert("Select a month."); return; }
-
-    const total = recalcForecastTotal();
-
-    hCustomer.value = customer.value;
-    hPart.value = part.value;
-    hQty.value = String(total ?? 0);
-    hMonth.value = month.value;
-
-    form.submit();
-  }
-
-  // Wire up live total + ESC close (safe even if forecast tab isn't present)
-  document.addEventListener("DOMContentLoaded", () => {
-    const qtyEl = document.getElementById("fm_qty");
-    if (qtyEl) qtyEl.addEventListener("input", recalcForecastTotal);
-
-    window.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") closeForecastModal();
-    });
-  });
   </script>
 
 </body>
