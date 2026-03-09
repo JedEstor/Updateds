@@ -1,0 +1,292 @@
+<div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+  <div class="px-5 py-4 border-b border-slate-200 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+    <div>
+      <h2 class="text-lg font-semibold text-slate-900">BOM Master</h2>
+      <p class="text-sm text-slate-500">Register a shared recipe per part code. Any customer using the same part code will reuse this BOM.</p>
+    </div>
+
+    <form method="get" class="flex flex-wrap gap-2 items-center">
+      <input type="hidden" name="tab" value="bom_master">
+      <input
+        type="text"
+        name="bq"
+        value="{{ bq|default:'' }}"
+        placeholder="Search part code / part name"
+        class="w-72 max-w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+      />
+      <button class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white" type="submit">Search</button>
+    </form>
+  </div>
+
+
+  <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+    <form method="post" action="{% url 'app:admin_dashboard' %}?tab=bom_master" class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="save_part_master">
+      <div class="md:col-span-4">
+        <label class="block text-xs font-medium text-slate-600 mb-1">New Part Code</label>
+        <input
+          type="text"
+          name="part_code"
+          value="{{ selected_bom_part_code|default:'' }}"
+          placeholder="e.g. LT001"
+          class="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          required
+        />
+      </div>
+      <div class="md:col-span-6">
+        <label class="block text-xs font-medium text-slate-600 mb-1">Part Name</label>
+        <input
+          type="text"
+          name="part_name"
+          value="{{ selected_bom_part_name|default:'' }}"
+          placeholder="e.g. Lamp Top"
+          class="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          required
+        />
+      </div>
+      <div class="md:col-span-2">
+        <button class="w-full px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white" type="submit">Save Part</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="grid grid-cols-1 xl:grid-cols-12 gap-0">
+    <div class="xl:col-span-4 border-r border-slate-200 bg-slate-50/60">
+      <div class="p-4 border-b border-slate-200">
+        <div class="text-sm font-semibold text-slate-900">Part Codes</div>
+        <div class="text-xs text-slate-500 mt-1">Select a product/part code to maintain its shared BOM.</div>
+      </div>
+
+      <div class="max-h-[620px] overflow-y-auto divide-y divide-slate-200">
+        {% for code in bom_part_codes %}
+          <a
+            href="?tab=bom_master&bpart={{ code|urlencode }}{% if bq %}&bq={{ bq|urlencode }}{% endif %}"
+            class="block px-4 py-3 hover:bg-white transition {% if selected_bom_part_code == code %}bg-white{% endif %}"
+          >
+            <div class="font-medium text-slate-900">{{ code }}</div>
+                      </a>
+        {% empty %}
+          <div class="px-4 py-6 text-sm text-slate-500">No part codes found.</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="xl:col-span-8 p-5 space-y-5">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+          <div class="text-xs uppercase text-slate-500">Part Code</div>
+          <div class="mt-1 text-lg font-semibold text-slate-900">{{ selected_bom_part_code|default:"—" }}</div>
+        </div>
+        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+          <div class="text-xs uppercase text-slate-500">Part Name</div>
+          <div class="mt-1 text-lg font-semibold text-slate-900">{{ selected_bom_part_name|default:"—" }}</div>
+        </div>
+        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+          <div class="text-xs uppercase text-slate-500">Source TEP</div>
+          <div class="mt-1 text-lg font-semibold text-slate-900">{{ selected_bom_tep.tep_code|default:"—" }}</div>
+          {% if selected_bom_tep %}<div class="text-xs text-slate-500 mt-1">{{ selected_bom_tep.customer.customer_name }}</div>{% endif %}
+        </div>
+      </div>
+
+      {% if selected_bom_part_code %}
+      <form method="post" action="{% url 'app:admin_dashboard' %}?tab=bom_master&bpart={{ selected_bom_part_code|urlencode }}" id="bom-master-form" class="space-y-4">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save_bom_master">
+        <input type="hidden" name="part_code" value="{{ selected_bom_part_code }}">
+        <input type="hidden" name="source_tep_id" value="{{ selected_bom_tep.id|default:'' }}">
+
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <div class="text-sm font-semibold text-slate-900">Materials List</div>
+            <div class="text-xs text-slate-500">Add one or more material rows, then save once.</div>
+          </div>
+          <div class="flex gap-2">
+            <button type="button" id="add-bom-row-btn" class="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800">Add Row</button>
+            <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-500">Save BOM</button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto border border-slate-200 rounded-2xl">
+          <table class="w-full min-w-[820px] text-sm">
+            <thead class="bg-slate-50 text-slate-700">
+              <tr>
+                <th class="px-4 py-3 text-left font-semibold">Material Part Code</th>
+                <th class="px-4 py-3 text-left font-semibold">Name</th>
+                <th class="px-4 py-3 text-left font-semibold">Maker</th>
+                <th class="px-4 py-3 text-left font-semibold">Dim / Qty</th>
+                <th class="px-4 py-3 text-left font-semibold">Loss %</th>
+                <th class="px-4 py-3 text-left font-semibold">Unit</th>
+                <th class="px-4 py-3 text-right font-semibold">Action</th>
+              </tr>
+            </thead>
+            <tbody id="bom-master-body" class="divide-y divide-slate-200 bg-white">
+              {% for row in bom_rows %}
+              <tr class="bom-master-row">
+                <td class="px-4 py-3 align-top">
+                  <input name="mat_partcode[]" value="{{ row.mat_partcode }}" class="bom-mat-code w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400" placeholder="e.g. MAT001" required />
+                </td>
+                <td class="px-4 py-3 align-top">
+                  <input value="{{ row.mat_partname }}" class="bom-mat-name w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-700" readonly />
+                </td>
+                <td class="px-4 py-3 align-top">
+                  <input value="{{ row.mat_maker }}" class="bom-mat-maker w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-700" readonly />
+                </td>
+                <td class="px-4 py-3 align-top">
+                  <input name="dim_qty[]" value="{{ row.dim_qty }}" inputmode="decimal" class="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400" placeholder="0.0000" required />
+                </td>
+                <td class="px-4 py-3 align-top">
+                  <input name="loss_percent[]" value="{{ row.loss_percent }}" inputmode="decimal" class="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400" placeholder="10" />
+                </td>
+                <td class="px-4 py-3 align-top">
+                  <input value="{{ row.unit }}" class="bom-mat-unit w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-700" readonly />
+                </td>
+                <td class="px-4 py-3 align-top text-right">
+                  <button type="button" class="remove-bom-row px-3 py-2 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50">Remove</button>
+                </td>
+              </tr>
+              {% empty %}
+              <tr class="bom-master-row">
+                <td class="px-4 py-3 align-top">
+                  <input name="mat_partcode[]" class="bom-mat-code w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400" placeholder="e.g. MAT001" required />
+                </td>
+                <td class="px-4 py-3 align-top">
+                  <input class="bom-mat-name w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-700" readonly />
+                </td>
+                <td class="px-4 py-3 align-top">
+                  <input class="bom-mat-maker w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-700" readonly />
+                </td>
+                <td class="px-4 py-3 align-top">
+                  <input name="dim_qty[]" inputmode="decimal" class="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400" placeholder="0.0000" required />
+                </td>
+                <td class="px-4 py-3 align-top">
+                  <input name="loss_percent[]" value="10" inputmode="decimal" class="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400" placeholder="10" />
+                </td>
+                <td class="px-4 py-3 align-top">
+                  <input class="bom-mat-unit w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-700" readonly />
+                </td>
+                <td class="px-4 py-3 align-top text-right">
+                  <button type="button" class="remove-bom-row px-3 py-2 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50">Remove</button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="flex items-center justify-between gap-3 text-xs text-slate-500">
+          <div>Total rows: <span id="bom-row-count">{{ bom_rows|length|default:1 }}</span></div>
+          <div>Tip: material name, maker, and unit auto-fill from the Materials Master when the code is valid.</div>
+        </div>
+      </form>
+
+      <form method="post" action="{% url 'app:admin_dashboard' %}?tab=bom_master&bpart={{ selected_bom_part_code|urlencode }}" class="pt-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="delete_bom_master">
+        <input type="hidden" name="part_code" value="{{ selected_bom_part_code }}">
+        <button type="submit" class="px-4 py-2 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50" onclick="return confirm('Delete all BOM rows for {{ selected_bom_part_code }}?');">Delete Entire BOM</button>
+      </form>
+      {% else %}
+        <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-slate-500">Select a part code from the left to start managing its BOM.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const tableBody = document.getElementById('bom-master-body');
+  const addBtn = document.getElementById('add-bom-row-btn');
+  const rowCount = document.getElementById('bom-row-count');
+  if (!tableBody || !addBtn) return;
+
+  function updateCount() {
+    if (rowCount) rowCount.textContent = tableBody.querySelectorAll('.bom-master-row').length;
+  }
+
+  function buildRow() {
+    const tr = document.createElement('tr');
+    tr.className = 'bom-master-row';
+    tr.innerHTML = `
+      <td class="px-4 py-3 align-top">
+        <input name="mat_partcode[]" class="bom-mat-code w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400" placeholder="e.g. MAT001" required />
+      </td>
+      <td class="px-4 py-3 align-top">
+        <input class="bom-mat-name w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-700" readonly />
+      </td>
+      <td class="px-4 py-3 align-top">
+        <input class="bom-mat-maker w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-700" readonly />
+      </td>
+      <td class="px-4 py-3 align-top">
+        <input name="dim_qty[]" inputmode="decimal" class="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400" placeholder="0.0000" required />
+      </td>
+      <td class="px-4 py-3 align-top">
+        <input name="loss_percent[]" value="10" inputmode="decimal" class="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400" placeholder="10" />
+      </td>
+      <td class="px-4 py-3 align-top">
+        <input class="bom-mat-unit w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-700" readonly />
+      </td>
+      <td class="px-4 py-3 align-top text-right">
+        <button type="button" class="remove-bom-row px-3 py-2 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50">Remove</button>
+      </td>
+    `;
+    return tr;
+  }
+
+  async function hydrateRow(row) {
+    const codeInput = row.querySelector('.bom-mat-code');
+    const nameInput = row.querySelector('.bom-mat-name');
+    const makerInput = row.querySelector('.bom-mat-maker');
+    const unitInput = row.querySelector('.bom-mat-unit');
+    const code = (codeInput.value || '').trim();
+
+    if (!code) {
+      nameInput.value = '';
+      makerInput.value = '';
+      unitInput.value = '';
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/material-lookup/?mat_partcode=${encodeURIComponent(code)}`, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      });
+      const data = await res.json();
+      if (data && data.ok) {
+        nameInput.value = data.mat_partname || '';
+        makerInput.value = data.mat_maker || '';
+        unitInput.value = data.unit || '';
+      } else {
+        nameInput.value = '';
+        makerInput.value = '';
+        unitInput.value = '';
+      }
+    } catch (err) {
+      console.log('material lookup failed', err);
+    }
+  }
+
+  addBtn.addEventListener('click', function() {
+    tableBody.appendChild(buildRow());
+    updateCount();
+  });
+
+  tableBody.addEventListener('click', function(e) {
+    const btn = e.target.closest('.remove-bom-row');
+    if (!btn) return;
+    const rows = tableBody.querySelectorAll('.bom-master-row');
+    if (rows.length <= 1) return;
+    btn.closest('.bom-master-row').remove();
+    updateCount();
+  });
+
+  tableBody.addEventListener('change', function(e) {
+    const input = e.target.closest('.bom-mat-code');
+    if (!input) return;
+    hydrateRow(input.closest('.bom-master-row'));
+  });
+
+  tableBody.querySelectorAll('.bom-master-row').forEach(hydrateRow);
+  updateCount();
+})();
+</script>

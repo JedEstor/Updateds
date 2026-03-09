@@ -6,9 +6,13 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from django.db.models import Prefetch
 import csv, io, re
-from .models import Customer, TEPCode, Material, CustomerCSV, MaterialList
+from .models import Customer, TEPCode, Material, CustomerCSV, MaterialList, Forecast
 #new, naglagay nung MaterialList sa itaas na import
-from .schemas import (CustomerIn, CustomerOut, CustomerFullOut, TEPCodeIn, TEPCodeOut, MaterialIn, MaterialOut, MaterialListIn)
+from .schemas import (CustomerIn, CustomerOut, CustomerFullOut, TEPCodeIn, 
+                      TEPCodeOut, MaterialIn, MaterialOut, MaterialListIn, 
+                      ForecastIn, ForecastBatchIn, ForecastBatchPartIn,
+                      CustomerPart, TEPNodeOut, PartNodeOut, CustomerTreeOut,
+                      )
 
 
 api = NinjaAPI(title="Sales API")
@@ -366,9 +370,6 @@ def create_material_by_tep_code(
             exclude_partcode=mat_partcode
         )
 
-    with transaction.atomic():
-        final_name = _allocate_material_name
-
     material, created = Material.objects.get_or_create(
         tep_code=tep,
         mat_partcode=mat_partcode,
@@ -697,13 +698,371 @@ def output_format(request):
     return jresponse(result)
 
 
+def _month_index_from_string(val: str) -> int | None:
+    """
+    Convert various month representations (Jan-2026, JAN, January, 1, 01/2026) to 1-12.
+    Returns None if it cannot be parsed.
+    """
+    if not val:
+        return None
+    s = str(val).strip()
+    if not s:
+        return None
+
+    months = [
+        "january", "february", "march", "april", "may", "june",
+        "july", "august", "september", "october", "november", "december",
+    ]
+    abbr = ["jan", "feb", "mar", "apr", "may", "jun",
+            "jul", "aug", "sep", "oct", "nov", "dec"]
+
+    lower = s.lower()
+    for i, a in enumerate(abbr):
+        if lower.startswith(a) or lower == a:
+            return i + 1
+
+    # Try full month names
+    for i, name in enumerate(months):
+        if lower.startswith(name) or lower == name:
+            return i + 1
+
+    # Try numeric forms (1, 01, 1-2026, 01/2026, etc.)
+    try:
+        head = s.split("-")[0] if "-" in s else s.split("/")[0] if "/" in s else s
+        n = int(head)
+        if 1 <= n <= 12:
+            return n
+    except (ValueError, IndexError):
+        return None
+
+    return None
+
+
+def _forecast_to_output(forecast):
+    """Format forecast as desired output: { Customer: { part_number, part_name, monthly_forecasts } }."""
+    monthly = []
+    for m in (forecast.monthly_forecasts or []):
+        if isinstance(m, dict):
+            unit_price = float(m.get("unit_price", 0))
+            quantity = float(m.get("quantity", 0))
+            total_amount = unit_price * quantity
+            row = {
+                "date": m.get("date", ""),
+                "unit_price": unit_price,
+                "quantity": quantity,
+                "Total Quantity": quantity,
+                "Total Amount": total_amount,
+            }
+            monthly.append(row)
+    return {
+        "Customer": {
+            "part_number": forecast.part_number,
+            "part_name": forecast.part_name,
+            "monthly_forecasts": monthly,
+        }
+    }
+
+@api.post("/forecasts", tags=["FORECAST"])
+def create_forecast(request, payload: ForecastBatchIn):
+    """
+    Create forecasts for multiple parts under one customer.
+    Expected JSON:
+    {
+        "customer_name": "SEMITEC ELECTRONICS PHILIPPINES, INC",
+        "parts": [
+            {
+                "part_number": "45677890",
+                "part_name": "rrrr",
+                "monthly_forecasts": [
+                    {"date": "February", "unit_price": 12.5, "quantity": 100}
+                ]
+            }
+        ]
+    }
+    
+    If customer doesn't exist, it will be created automatically.
+    Multiple forecasts with the same part number for the same customer are allowed.
+    """
+    customer_name = (payload.customer_name or "").strip()
+    if not customer_name:
+        return jresponse({"error": "customer_name is required"}, status=400)
+
+    if not payload.parts:
+        return jresponse({"error": "parts list cannot be empty"}, status=400)
+
+    # Find or create customer by name
+    customer, created = Customer.objects.get_or_create(
+        customer_name=customer_name,
+        defaults={"parts": []}
+    )
+
+    created_forecasts = []
+
+    for part in payload.parts:
+        part_number = (part.part_number or "").strip()
+        part_name = (part.part_name or "").strip()
+        
+        if not part_number or not part_name:
+            return jresponse({"error": "Each part must have part_number and part_name"}, status=400)
+
+        monthly = []
+        for m in (part.monthly_forecasts or []):
+            monthly.append({
+                "date": m.date,
+                "unit_price": float(m.unit_price),
+                "quantity": float(m.quantity),
+            })
+
+        # Create the forecast (allow duplicates)
+        forecast = Forecast.objects.create(
+            customer=customer,
+            part_number=part_number,
+            part_name=part_name,
+            monthly_forecasts=monthly,
+        )
+        created_forecasts.append(forecast)
+
+        # Also add to customer.parts if not already there
+        customer_parts = customer.parts or []
+        part_exists = any(
+            isinstance(p, dict) and str(p.get("Partcode", "")).strip() == part_number
+            for p in customer_parts
+        )
+        if not part_exists:
+            customer_parts.append({"Partcode": part_number, "Partname": part_name})
+            customer.parts = customer_parts
+            customer.save()
+
+    # Build success response
+    response = {
+        "message": f"Successfully created {len(created_forecasts)} forecast(s)",
+        "customer_name": customer.customer_name,
+        "customer_created": created,
+        "parts": [
+            {
+                "part_number": f.part_number,
+                "part_name": f.part_name,
+                "id": f.id,
+                "monthly_forecasts": f.monthly_forecasts,
+            }
+            for f in created_forecasts
+        ]
+    }
+    return jresponse(response, status=201)
+
+
+@api.get("/forecasts/by-customer/{customer_name}", tags=["FORECAST"])
+def get_forecasts_by_customer(
+    request,
+    customer_name: str,
+    from_month: str = "",
+    to_month: str = "",
+):
+    """Get all forecasts for a customer by customer name.
+
+    Optionally provide from_month and to_month (e.g. January, Feb, 1, 3)
+    to compute total amount for the selected month range per forecast.
+    """
+    customer_name = (customer_name or "").strip()
+    if not customer_name:
+        return jresponse({"error": "customer_name is required"}, status=400)
+
+    customer = Customer.objects.filter(customer_name__iexact=customer_name).first()
+    if not customer:
+        return jresponse({"error": f"Customer '{customer_name}' not found"}, status=404)
+
+    from_idx = _month_index_from_string(from_month) if from_month else None
+    to_idx = _month_index_from_string(to_month) if to_month else None
+    if (from_month or to_month) and (from_idx is None or to_idx is None):
+        return jresponse(
+            {"error": "from_month/to_month must be valid month names or numbers (e.g. January, Feb, 1, 12)."},
+            status=400,
+        )
+    if from_idx is not None and to_idx is not None and from_idx > to_idx:
+        from_idx, to_idx = to_idx, from_idx
+
+    forecasts = Forecast.objects.filter(customer=customer).select_related("customer").order_by("part_number")
+    result = []
+    for f in forecasts:
+        out = _forecast_to_output(f)
+        out["id"] = f.id
+        if from_idx is not None and to_idx is not None:
+            total_range = 0.0
+            for m in (f.monthly_forecasts or []):
+                if isinstance(m, dict):
+                    mi = _month_index_from_string(m.get("date", ""))
+                    if mi is None:
+                        continue
+                    if from_idx <= mi <= to_idx:
+                        price = float(m.get("unit_price", 0))
+                        qty = float(m.get("quantity", 0))
+                        total_range += price * qty
+            out["total_amount_selected_months"] = total_range
+        result.append(out)
+    return jresponse(result)
+
+
+@api.put("/forecasts/{customer_name}/{part_number}", tags=["FORECAST"])
+def update_forecast(request, customer_name: str, part_number: str, payload: ForecastIn):
+    """Update an existing forecast using customer name and part number."""
+    # Get original values from URL
+    original_customer_name = (customer_name or "").strip()
+    original_part_number = (part_number or "").strip()
+    
+    if not original_customer_name:
+        return jresponse({"error": "customer_name is required"}, status=400)
+    if not original_part_number:
+        return jresponse({"error": "part_number is required"}, status=400)
+
+    # Find original customer
+    original_customer = Customer.objects.filter(customer_name__iexact=original_customer_name).first()
+    if not original_customer:
+        return jresponse({"error": f"Customer '{original_customer_name}' not found"}, status=404)
+
+    # Find forecast by original customer and original part_number
+    forecast = Forecast.objects.filter(
+        customer=original_customer,
+        part_number=original_part_number
+    ).first()
+    
+    if not forecast:
+        return jresponse(
+            {"error": f"Forecast with part_number '{original_part_number}' not found for customer '{original_customer_name}'"},
+            status=404
+        )
+
+    # Get new values from payload (these can be different from original)
+    new_customer_name = (payload.customer_name or "").strip()
+    new_part_number = (payload.part_number or "").strip()
+    new_part_name = (payload.part_name or "").strip()
+    
+    if not new_part_name:
+        return jresponse({"error": "part_name is required"}, status=400)
+    if not new_part_number:
+        return jresponse({"error": "part_number is required"}, status=400)
+
+    # Handle customer change if needed
+    if new_customer_name and new_customer_name != original_customer_name:
+        # Find or create the new customer
+        new_customer, created = Customer.objects.get_or_create(
+            customer_name=new_customer_name,
+            defaults={"parts": []}
+        )
+        forecast.customer = new_customer
+        
+        # Add to new customer's parts if not already there
+        if new_part_number:
+            customer_parts = new_customer.parts or []
+            part_exists = any(
+                isinstance(p, dict) and str(p.get("Partcode", "")).strip() == new_part_number
+                for p in customer_parts
+            )
+            if not part_exists:
+                customer_parts.append({"Partcode": new_part_number, "Partname": new_part_name})
+                new_customer.parts = customer_parts
+                new_customer.save()
+    else:
+        # Use original customer
+        forecast.customer = original_customer
+
+    # Update forecast fields
+    forecast.part_number = new_part_number
+    forecast.part_name = new_part_name
+
+    # Update monthly forecasts
+    monthly = []
+    for m in (payload.monthly_forecasts or []):
+        monthly.append({
+            "date": m.date,
+            "unit_price": float(m.unit_price),
+            "quantity": float(m.quantity),
+        })
+    forecast.monthly_forecasts = monthly
+
+    # Save the forecast
+    forecast.save()
+
+    # Also update original customer's parts if part_number changed and using same customer
+    if not new_customer_name and new_part_number != original_part_number:
+        # Remove old part from original customer's parts if no other forecasts use it
+        other_forecasts = Forecast.objects.filter(
+            customer=original_customer,
+            part_number=original_part_number
+        ).exclude(id=forecast.id).exists()
+        
+        if not other_forecasts:
+            # No other forecasts use this part number, remove from customer.parts
+            customer_parts = original_customer.parts or []
+            updated_parts = [
+                p for p in customer_parts 
+                if not (isinstance(p, dict) and str(p.get("Partcode", "")).strip() == original_part_number)
+            ]
+            original_customer.parts = updated_parts
+            original_customer.save()
+        
+        # Add new part to customer's parts
+        customer_parts = original_customer.parts or []
+        part_exists = any(
+            isinstance(p, dict) and str(p.get("Partcode", "")).strip() == new_part_number
+            for p in customer_parts
+        )
+        if not part_exists:
+            customer_parts.append({"Partcode": new_part_number, "Partname": new_part_name})
+            original_customer.parts = customer_parts
+            original_customer.save()
+
+    out = _forecast_to_output(forecast)
+    out["customer_name"] = forecast.customer.customer_name
+    out["part_number"] = forecast.part_number
+    return jresponse(out)
+
+@api.delete("/forecasts/{customer_name}/{part_number}", tags=["FORECAST"])
+def delete_forecast(request, customer_name: str, part_number: str):
+    """Delete a forecast using customer name and part number."""
+    customer_name = (customer_name or "").strip()
+    part_number = (part_number or "").strip()
+    
+    if not customer_name:
+        return jresponse({"error": "customer_name is required"}, status=400)
+    if not part_number:
+        return jresponse({"error": "part_number is required"}, status=400)
+
+    # Find customer
+    customer = Customer.objects.filter(customer_name__iexact=customer_name).first()
+    if not customer:
+        return jresponse({"error": f"Customer '{customer_name}' not found"}, status=404)
+
+    # Find and delete forecast
+    forecast = Forecast.objects.filter(
+        customer=customer,
+        part_number=part_number
+    ).first()
+    
+    if not forecast:
+        return jresponse(
+            {"error": f"Forecast with part_number '{part_number}' not found for customer '{customer_name}'"},
+            status=404
+        )
+    
+    forecast.delete()
+    return jresponse(
+        {
+            "message": "Forecast deleted successfully",
+            "customer_name": customer_name,
+            "part_number": part_number
+        },
+        status=200
+    )
+
+
+
 @api.post("/master/materials", tags=["MASTER LIST"])
 def create_master_material(request, payload: MaterialListIn):
     code = (payload.mat_partcode or "").strip()
 
     if not code:
         return jresponse({"error": "mat_partcode is required"}, status=400)
-    
+
     obj, created = MaterialList.objects.get_or_create(
         mat_partcode=code,
         defaults = {
@@ -724,4 +1083,3 @@ def create_master_material(request, payload: MaterialListIn):
         },
         status=201
     )
-

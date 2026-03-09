@@ -33,6 +33,25 @@ class Customer(models.Model):
                 raise ValidationError({"parts": f"parts[{i}].Partname cannot be empty."})
 
 
+class PartMaster(models.Model):
+    part_code = models.CharField(max_length=60, unique=True)
+    part_name = models.CharField(max_length=160)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["part_code"]
+        indexes = [
+            models.Index(fields=["part_code"]),
+            models.Index(fields=["part_name"]),
+            models.Index(fields=["is_active"]),
+        ]
+
+    def __str__(self):
+        return f"{self.part_code} - {self.part_name}"
+
+
 class TEPCode(models.Model):
     customer = models.ForeignKey(
         Customer,
@@ -59,6 +78,7 @@ class TEPCode(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=["customer", "part_code", "tep_code"]),
+            models.Index(fields=["part_code"]),
             models.Index(fields=["is_active"]),
         ]
 
@@ -89,7 +109,7 @@ class Material(models.Model):
     unit = models.CharField(max_length=10, choices=UNIT_CHOICES)
     dim_qty = models.FloatField()
     loss_percent = models.FloatField(default=10.0)
-    total = models.FloatField()
+    total = models.FloatField(default=0)
 
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -106,8 +126,94 @@ class Material(models.Model):
             )
         ]
 
+    def save(self, *args, **kwargs):
+        base = float(self.dim_qty or 0)
+        loss = float(self.loss_percent or 0)
+        self.total = base + (base * loss / 100.0)
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.mat_partname} ({self.mat_partcode})"
+
+
+class BOMMaterial(models.Model):
+    """
+    Shared BOM / recipe per part code.
+    One part_code (e.g. LT001) can be used by many customers,
+    so the recipe must be stored by part_code, not per-customer TEP only.
+    """
+
+    UNIT_CHOICES = [
+        ("pc", "pc"),
+        ("pcs", "pcs"),
+        ("m", "m"),
+        ("g", "g"),
+        ("kg", "kg"),
+    ]
+
+    part_code = models.CharField(max_length=60, db_index=True)
+    source_tep = models.ForeignKey(
+        TEPCode,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="shared_bom_materials",
+    )
+    material = models.ForeignKey(
+        "MaterialList",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="bom_rows",
+    )
+
+    mat_partcode = models.CharField(max_length=80)
+    mat_partname = models.CharField(max_length=160, blank=True, default="")
+    mat_maker = models.CharField(max_length=120, blank=True, default="")
+    unit = models.CharField(max_length=10, choices=UNIT_CHOICES, blank=True, default="pc")
+
+    dim_qty = models.DecimalField(max_digits=18, decimal_places=4, default=0)
+    loss_percent = models.DecimalField(max_digits=7, decimal_places=2, default=10.00)
+    total = models.DecimalField(max_digits=18, decimal_places=4, default=0)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["part_code", "mat_partcode", "id"]
+        indexes = [
+            models.Index(fields=["part_code", "mat_partcode"]),
+            models.Index(fields=["mat_partcode"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["part_code", "mat_partcode"],
+                name="uniq_bom_material_per_partcode",
+            )
+        ]
+
+    def save(self, *args, **kwargs):
+        base = float(self.dim_qty or 0)
+        loss = float(self.loss_percent or 0)
+        self.total = base + (base * loss / 100.0)
+
+        if self.source_tep_id and not self.part_code:
+            self.part_code = self.source_tep.part_code
+
+        if self.material_id:
+            if not self.mat_partcode:
+                self.mat_partcode = self.material.mat_partcode
+            if not self.mat_partname:
+                self.mat_partname = self.material.mat_partname
+            if not self.mat_maker:
+                self.mat_maker = self.material.mat_maker
+            if not self.unit:
+                self.unit = self.material.unit
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.part_code} -> {self.mat_partcode}"
 
 
 class MaterialList(models.Model):
@@ -127,13 +233,13 @@ class MaterialList(models.Model):
     def __str__(self):
         return f"{self.mat_partname} ({self.mat_partcode})"
 
+
 class CustomerCSV(models.Model):
     csv_file = models.FileField(upload_to="customer_csvs/")
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"CustomerCSV {self.id}"
-
 
 
 class EmployeeProfile(models.Model):
@@ -256,7 +362,6 @@ class ForecastRun(models.Model):
         blank=True
     )
     note = models.CharField(max_length=255, blank=True, default="")
-    # Optional year-month label for the forecast period (e.g. "2026-03")
     schedule_month = models.CharField(max_length=7, blank=True, default="")
 
     def __str__(self):
@@ -293,3 +398,111 @@ class ForecastLine(models.Model):
 
     def __str__(self):
         return f"{self.part_code} -> {self.mat_partcode} req={self.required_qty}"
+
+
+class Forecast(models.Model):
+    """
+    Forecast for a part: part_number, part_name, and monthly forecasts.
+    Optionally linked to a Customer.
+    """
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.CASCADE,
+        related_name="forecasts",
+        null=True,
+        blank=True,
+    )
+    part_number = models.CharField(max_length=80)
+    part_name = models.CharField(max_length=200)
+    monthly_forecasts = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of {date, unit_price, quantity} per month, e.g. [{'date': 'Jan-2026', 'unit_price': 0.13, 'quantity': 1000}]",
+    )
+
+    class Meta:
+        ordering = ["part_number"]
+
+    def __str__(self):
+        return f"{self.part_number} - {self.part_name}"
+
+    @property
+    def monthly_count(self):
+        return len(self.monthly_forecasts or [])
+
+    @property
+    def months_display(self):
+        months = [
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December"
+        ]
+        abbr = ["jan", "feb", "mar", "apr", "may", "jun",
+                "jul", "aug", "sep", "oct", "nov", "dec"]
+        items = self.monthly_forecasts or []
+        names = []
+        seen = set()
+        for m in items:
+            if isinstance(m, dict):
+                d = str(m.get("date", "")).strip()
+                if not d:
+                    continue
+                s_lower = d.lower()
+                found = None
+                for i, a in enumerate(abbr):
+                    if s_lower.startswith(a) or s_lower == a:
+                        found = months[i]
+                        break
+                if found is None:
+                    try:
+                        n = int(d.split("-")[0] if "-" in d else d.split("/")[0] if "/" in d else d)
+                        found = months[n - 1] if 1 <= n <= 12 else d
+                    except (ValueError, IndexError):
+                        found = d
+                if found and found not in seen:
+                    seen.add(found)
+                    names.append(found)
+        return ", ".join(names) if names else "—"
+
+    @property
+    def base_unit_price(self) -> float:
+        for m in (self.monthly_forecasts or []):
+            if isinstance(m, dict):
+                try:
+                    return float(m.get("unit_price", 0) or 0)
+                except (TypeError, ValueError):
+                    continue
+        return 0.0
+
+    @property
+    def latest_quantity(self) -> float:
+        items = [m for m in (self.monthly_forecasts or []) if isinstance(m, dict)]
+        if not items:
+            return 0.0
+        try:
+            return float(items[-1].get("quantity", 0) or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    @property
+    def total_quantity(self) -> float:
+        total = 0.0
+        for m in (self.monthly_forecasts or []):
+            if isinstance(m, dict):
+                try:
+                    total += float(m.get("quantity", 0) or 0)
+                except (TypeError, ValueError):
+                    continue
+        return total
+
+    @property
+    def total_amount(self) -> float:
+        total = 0.0
+        for m in (self.monthly_forecasts or []):
+            if isinstance(m, dict):
+                try:
+                    price = float(m.get("unit_price", 0) or 0)
+                    qty = float(m.get("quantity", 0) or 0)
+                    total += price * qty
+                except (TypeError, ValueError):
+                    continue
+        return total
