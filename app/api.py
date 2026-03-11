@@ -554,9 +554,9 @@ def upload_csv(request, file: UploadedFile = File(...)):
 
                 total_csv = row.get("total")
                 if total_csv is None or str(total_csv).strip() == "":
-                    total = round(float(dim_qty) * (1 + (float(loss_percent) / 100.0)), 4)
+                    total = round(float(dim_qty) * (1 + (float(loss_percent) / 100.0)), 5)
                 else:
-                    total = round(fnum(total_csv, 0.0), 4)
+                    total = round(fnum(total_csv, 0.0), 5)
 
                 if not (customer_name and partcode and partname and tep_code):
                     continue
@@ -594,7 +594,7 @@ def upload_csv(request, file: UploadedFile = File(...)):
                         if total_csv is None or str(total_csv).strip() == "":
                             existing_mat.total = round(
                                 float(existing_mat.dim_qty) * (1 + (float(existing_mat.loss_percent) / 100.0)),
-                                4
+                                5
                             )
                         else:
                             existing_mat.total = total

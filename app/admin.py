@@ -3,7 +3,7 @@ from django import forms
 from django.contrib import admin
 from django.core.exceptions import ValidationError
 
-from .models import Customer, TEPCode, Material, MaterialList, MaterialStock
+from .models import Customer, TEPCode, Material, MaterialList, MaterialStock, BOMMaterial, PartMaster
 
 
 class TEPCodeInline(admin.TabularInline):
@@ -269,3 +269,33 @@ class MaterialStockAdmin(admin.ModelAdmin):
     autocomplete_fields = ("material",)
 
     list_editable = ("on_hand_qty",)
+
+
+@admin.register(PartMaster)
+class PartMasterAdmin(admin.ModelAdmin):
+    list_display = ("part_code", "part_name", "is_active")
+    search_fields = ("part_code", "part_name")
+    list_filter = ("is_active",)
+
+
+@admin.register(BOMMaterial)
+class BOMMaterialAdmin(admin.ModelAdmin):
+    list_display = (
+        "part_code",
+        "mat_partcode",
+        "mat_partname",
+        "mat_maker",
+        "unit",
+        "dim_qty",
+        "loss_percent",
+        "source_tep",
+    )
+    search_fields = (
+        "part_code",
+        "mat_partcode",
+        "mat_partname",
+        "mat_maker",
+    )
+    list_filter = ("unit", "source_tep")
+    autocomplete_fields = ("material", "source_tep")
+    list_editable = ("dim_qty", "loss_percent")

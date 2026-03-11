@@ -172,9 +172,9 @@ class BOMMaterial(models.Model):
     mat_maker = models.CharField(max_length=120, blank=True, default="")
     unit = models.CharField(max_length=10, choices=UNIT_CHOICES, blank=True, default="pc")
 
-    dim_qty = models.DecimalField(max_digits=18, decimal_places=4, default=0)
+    dim_qty = models.DecimalField(max_digits=18, decimal_places=5, default=0)
     loss_percent = models.DecimalField(max_digits=7, decimal_places=2, default=10.00)
-    total = models.DecimalField(max_digits=18, decimal_places=4, default=0)
+    total = models.DecimalField(max_digits=18, decimal_places=5, default=0)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -386,8 +386,8 @@ class ForecastLine(models.Model):
     mat_maker = models.CharField(max_length=120, blank=True, default="")
     unit = models.CharField(max_length=10, blank=True, default="")
 
-    per_unit_total = models.DecimalField(max_digits=18, decimal_places=4, default=0)
-    required_qty = models.DecimalField(max_digits=18, decimal_places=4, default=0)
+    per_unit_total = models.DecimalField(max_digits=18, decimal_places=5, default=0)
+    required_qty = models.DecimalField(max_digits=18, decimal_places=5, default=0)
 
     class Meta:
         indexes = [

@@ -1,6 +1,7 @@
 from django.views.decorators.cache import never_cache
 import json, csv, io, re
 from collections import defaultdict
+from urllib.parse import urlencode
 from django.views.decorators.http import require_POST
 from django.core.paginator import Paginator
 from django.db import transaction, IntegrityError
@@ -28,7 +29,6 @@ from .models import (
     Forecast,
     PartMaster,
 )
-
 from .forms import EmployeeCreateForm
 from .service import (
     ForecastInput,
@@ -37,6 +37,7 @@ from .service import (
     get_registered_materials_for_partcode,
     get_shared_bom_rows_for_partcode,
     replace_bom_for_partcode,
+    import_bom_csv_file,
 )
 
 
@@ -80,6 +81,40 @@ def login_view(request):
 def _normalize_space(s):
     return re.sub(r"\s+", " ", (s or "").strip())
 
+
+def _admin_dashboard_url(sidebar_tab: str = "customers", materials_bom_tab: str = "", **params):
+    """
+    Build admin dashboard URLs while supporting the grouped Materials & BOM panel.
+
+    Backward compatible behavior:
+    - sidebar_tab in {bom_master, materials, stocks} maps to:
+      ?tab=materials_bom&mbtab=<that tab>
+    - sidebar_tab == materials_bom uses mbtab (default bom_master)
+    - all other tabs remain unchanged
+    """
+    sidebar_tab = (sidebar_tab or "customers").strip().lower()
+    materials_bom_tab = (materials_bom_tab or "").strip().lower()
+
+    query = {}
+
+    if sidebar_tab in {"bom_master", "materials", "stocks"}:
+        query["tab"] = "materials_bom"
+        query["mbtab"] = sidebar_tab
+    else:
+        query["tab"] = sidebar_tab
+        if sidebar_tab == "materials_bom":
+            query["mbtab"] = materials_bom_tab or "bom_master"
+
+    for key, value in params.items():
+        if value is None:
+            continue
+        if isinstance(value, str):
+            value = value.strip()
+            if value == "":
+                continue
+        query[key] = value
+
+    return reverse("app:admin_dashboard") + "?" + urlencode(query)
 
 def _unique_partname_for_customer(customer, base_name, part_code):
     base_name = _normalize_space(base_name)
@@ -210,221 +245,6 @@ def _preferred_tep_for_part_code(part_code: str):
         .first()
     )
 
-def _get_part_name_for_code(part_code: str) -> str:
-    """
-    Resolve the part name from PartMaster first.
-    Fallback to Customer.parts JSON for older data.
-    """
-    part_code = (part_code or "").strip()
-    if not part_code:
-        return ""
-
-    pm = PartMaster.objects.filter(part_code=part_code, is_active=True).first()
-    if pm:
-        return (pm.part_name or "").strip()
-
-    for cust in Customer.objects.all():
-        for item in (cust.parts or []):
-            if not isinstance(item, dict):
-                continue
-            if (item.get("Partcode") or "").strip() == part_code:
-                return (item.get("Partname") or "").strip()
-
-    return ""
-
-
-def get_shared_part_master_map():
-    """
-    Build a mapping of part_code -> part_name.
-
-    Primary source:
-      - PartMaster
-    Fallback source:
-      - legacy Customer.parts JSON
-      - legacy TEPCode.part_code rows
-    """
-    part_map = {}
-
-    # Primary: PartMaster
-    for row in PartMaster.objects.all().order_by("part_code"):
-        code = (row.part_code or "").strip()
-        if code:
-            part_map[code] = (row.part_name or "").strip()
-
-    # Fallback: Customer.parts JSON
-    for cust in Customer.objects.all():
-        for item in (cust.parts or []):
-            if not isinstance(item, dict):
-                continue
-
-            code = (item.get("Partcode") or "").strip()
-            name = (item.get("Partname") or "").strip()
-
-            if code and code not in part_map:
-                part_map[code] = name
-
-    # Final fallback: TEPCode rows
-    for code in TEPCode.objects.values_list("part_code", flat=True):
-        code = (code or "").strip()
-        if code and code not in part_map:
-            part_map[code] = ""
-
-    return part_map
-
-
-def _build_bom_master_context(part_code: str = "", bq: str = ""):
-    """
-    Build the context used by the BOM Master tab/page.
-    Accepts an optional search query for filtering visible part codes.
-    """
-    part_code = (part_code or "").strip()
-    bq = (bq or "").strip().lower()
-
-    part_map = get_shared_part_master_map()
-
-    part_code_options = sorted(
-        code for code, name in part_map.items()
-        if not bq
-        or bq in code.lower()
-        or bq in (name or "").lower()
-    )
-
-    if part_code and part_code not in part_code_options:
-        part_code_options.insert(0, part_code)
-
-    if not part_code and part_code_options:
-        part_code = part_code_options[0]
-
-    source_tep = _preferred_tep_for_part_code(part_code)
-
-    bom_rows = list(
-        BOMMaterial.objects
-        .filter(part_code=part_code)
-        .select_related("material", "source_tep")
-        .order_by("mat_partcode", "id")
-    ) if part_code else []
-
-    part_name = _get_part_name_for_code(part_code) if part_code else ""
-    master_materials = MaterialList.objects.all().order_by("mat_partcode")
-
-    return {
-        "bom_part_code": part_code,
-        "bom_part_name": part_name,
-        "bom_source_tep": source_tep,
-        "bom_rows": bom_rows,
-        "bom_part_code_options": part_code_options,
-        "bom_master_materials": master_materials,
-
-        # compatibility keys for current templates
-        "bom_part_codes": part_code_options,
-        "selected_bom_part_code": part_code,
-        "selected_bom_part_name": part_name,
-        "selected_bom_tep": source_tep,
-        "bq": bq,
-    }
-
-
-def _sync_legacy_material_from_bom(tep, master, dim_qty, loss_percent):
-    """
-    Keep the old Material table in sync for the specific viewed TEP,
-    while the shared BOM itself is stored by part_code.
-    """
-    try:
-        material, _ = Material.objects.update_or_create(
-            tep_code=tep,
-            mat_partcode=master.mat_partcode,
-            defaults={
-                "mat_partname": master.mat_partname,
-                "mat_maker": master.mat_maker,
-                "unit": master.unit,
-                "dim_qty": dim_qty,
-                "loss_percent": loss_percent,
-            },
-        )
-        return material
-    except Exception:
-        return None
-
-
-def _allocate_material_name(tep, base_name: str, exclude_partcode: str = "") -> str:
-    base = (base_name or "").strip() or "UNKNOWN"
-    exclude_partcode = (exclude_partcode or "").strip()
-
-    qs = Material.objects.filter(
-        tep_code=tep,
-        mat_partname__iregex=rf"^{re.escape(base)}( \d+)?$"
-    )
-    if exclude_partcode:
-        qs = qs.exclude(mat_partcode=exclude_partcode)
-
-    existing_names = list(qs.values_list("mat_partname", flat=True))
-    if not existing_names:
-        return base
-
-    numbers = []
-    for n in existing_names:
-        m = re.match(rf"^{re.escape(base)}(?: (\d+))?$", (n or "").strip(), flags=re.IGNORECASE)
-        if m and m.group(1):
-            numbers.append(int(m.group(1)))
-
-    if not numbers:
-        existing_base = Material.objects.filter(tep_code=tep, mat_partname__iexact=base)
-        if exclude_partcode:
-            existing_base = existing_base.exclude(mat_partcode=exclude_partcode)
-
-        first = existing_base.order_by("id").first()
-        if first:
-            first.mat_partname = f"{base} 1"
-            first.save(update_fields=["mat_partname"])
-
-        return f"{base} 2"
-
-    return f"{base} {max(numbers) + 1}"
-
-
-def _next_tep_code(existing_tep_code: str) -> str:
-    """
-    "same prefix, increment last number"
-    Examples:
-      TEP00-01 -> TEP00-02
-      TEP00-09 -> TEP00-10
-      ABC      -> ABC-01
-    Keeps zero-padding based on existing last number width.
-    """
-    s = (existing_tep_code or "").strip()
-    if not s:
-        return "TEP-01"
-
-    m = re.match(r"^(.*?)(\d+)$", s)
-    if not m:
-        return f"{s}-01"
-
-    prefix = m.group(1)
-    num_str = m.group(2)
-    width = len(num_str)
-
-    try:
-        n = int(num_str)
-    except Exception:
-        return f"{s}-01"
-
-    return f"{prefix}{str(n + 1).zfill(width)}"
-
-
-def _generate_unique_next_tep_code(base_tep_code: str) -> str:
-    """
-    Keep incrementing until tep_code is unique in DB.
-    """
-    candidate = _next_tep_code(base_tep_code)
-    guard = 0
-    while TEPCode.objects.filter(tep_code=candidate).exists():
-        candidate = _next_tep_code(candidate)
-        guard += 1
-        if guard > 500:
-            raise ValueError("Could not generate unique tep_code after many attempts.")
-    return candidate
-
-
 def build_customer_table(q: str):
     qs = (
         Customer.objects
@@ -512,168 +332,220 @@ def build_customer_table(q: str):
     return customers
 
 
-def _build_forecast_summary(fsq: str = "", fsq_customer: str = ""):
+
+def _get_part_name_for_code(part_code: str) -> str:
     """
-    Build data for the Forecast Summary tab.
-
-    This version groups rows by (customer, part_number) so that
-    previous-year quantities and current-year quantities for the same
-    part appear on a single row. It also exposes all 12 months
-    (JAN–DEC) for both PREVIOUS FORECAST and FORECAST sections.
-
-    Returned keys:
-      - fs_rows: list of dicts with
-          { customer, part_number, part_name, unit_price, prev, fore }
-        where prev/fore are { "JAN": qty, ... }.
-      - fs_prev_months, fs_fore_months: ordered month labels
-        (always ["JAN", ..., "DEC"]).
-      - fs_total_prev_qty / fs_total_prev_amt: totals per month.
-      - fs_total_fore_qty / fs_total_fore_amt: totals per month.
-      - fs_prev_year, fs_fore_year: year labels for headers.
-      - fs_customers: distinct customer names for filter dropdown.
+    Resolve the part name from PartMaster first.
+    Fallback to Customer.parts JSON for older data.
     """
-    from datetime import date
-    import calendar
+    part_code = (part_code or "").strip()
+    if not part_code:
+        return ""
 
-    MONTHS_ORDER = {
-        "january": 1, "february": 2, "march": 3, "april": 4,
-        "may": 5, "june": 6, "july": 7, "august": 8,
-        "september": 9, "october": 10, "november": 11, "december": 12,
+    pm = PartMaster.objects.filter(part_code=part_code, is_active=True).first()
+    if pm:
+        return (pm.part_name or "").strip()
+
+    for cust in Customer.objects.all():
+        for item in (cust.parts or []):
+            if not isinstance(item, dict):
+                continue
+            if (item.get("Partcode") or "").strip() == part_code:
+                return (item.get("Partname") or "").strip()
+
+    return ""
+
+
+def get_shared_part_master_map():
+    """
+    Build a mapping of part_code -> part_name.
+
+    Primary source:
+      - PartMaster
+    Fallback source:
+      - legacy Customer.parts JSON
+      - legacy TEPCode.part_code rows
+    """
+    part_map = {}
+
+    # Primary: PartMaster
+    for row in PartMaster.objects.all().order_by("part_code"):
+        code = (row.part_code or "").strip()
+        if code:
+            part_map[code] = (row.part_name or "").strip()
+
+    # Fallback: Customer.parts JSON
+    for cust in Customer.objects.all():
+        for item in (cust.parts or []):
+            if not isinstance(item, dict):
+                continue
+
+            code = (item.get("Partcode") or "").strip()
+            name = (item.get("Partname") or "").strip()
+            if code and code not in part_map:
+                part_map[code] = name or code
+
+    # Fallback: existing TEP rows
+    if hasattr(TEPCode, "objects"):
+        for row in TEPCode.objects.exclude(part_code__isnull=True).exclude(part_code__exact=""):
+            code = (row.part_code or "").strip()
+            if code and code not in part_map:
+                part_map[code] = code
+
+    return part_map
+
+
+def _build_bom_master_context(part_code: str = "", bq: str = ""):
+    part_map = get_shared_part_master_map()
+    bom_part_codes = sorted(part_map.keys())
+
+    if bq:
+        q = bq.lower()
+        bom_part_codes = [
+            code for code in bom_part_codes
+            if q in code.lower() or q in (part_map.get(code, "") or "").lower()
+        ]
+
+    selected_bom_part_code = (part_code or "").strip()
+    if not selected_bom_part_code and bom_part_codes:
+        selected_bom_part_code = bom_part_codes[0]
+
+    selected_bom_part_name = part_map.get(selected_bom_part_code, "") if selected_bom_part_code else ""
+    selected_bom_tep = _preferred_tep_for_part_code(selected_bom_part_code) if selected_bom_part_code else None
+
+    bom_rows = []
+    if selected_bom_part_code:
+        try:
+            bom_rows = get_shared_bom_rows_for_partcode(selected_bom_part_code)
+        except Exception:
+            bom_rows = []
+
+    master_materials = MaterialList.objects.all().order_by("mat_partcode")
+
+    return {
+        "bq": bq,
+        "bom_part_codes": bom_part_codes,
+        "selected_bom_part_code": selected_bom_part_code,
+        "selected_bom_part_name": selected_bom_part_name,
+        "selected_bom_tep": selected_bom_tep,
+        "bom_rows": bom_rows,
+        "bom_master_materials": master_materials,
     }
-    SHORT_MONTHS = {
-        1: "JAN", 2: "FEB", 3: "MAR", 4: "APR", 5: "MAY", 6: "JUN",
-        7: "JUL", 8: "AUG", 9: "SEPT", 10: "OCT", 11: "NOV", 12: "DEC",
-    }
 
-    today = date.today()
-    current_year = today.year
-    prev_year = current_year - 1
 
-    # ── fetch forecasts ──────────────────────────────────────────────────────
-    qs = (
-        Forecast.objects
-        .select_related("customer")
-        .order_by("customer__customer_name", "part_number")
-    )
+def _sync_legacy_material_from_bom(tep, master, dim_qty, loss_percent):
+    """
+    Keep legacy Material rows in sync for screens still reading from Material.
+    Safe no-op if duplicates already exist.
+    """
+    if not tep or not master:
+        return None
 
-    if fsq:
-        qs = qs.filter(
-            Q(part_number__icontains=fsq) | Q(part_name__icontains=fsq)
+    try:
+        obj, _ = Material.objects.update_or_create(
+            tep_code=tep,
+            mat_partcode=master.mat_partcode,
+            defaults={
+                "mat_partname": master.mat_partname,
+                "mat_maker": master.mat_maker,
+                "unit": master.unit,
+                "dim_qty": dim_qty,
+                "loss_percent": loss_percent,
+            },
         )
+        return obj
+    except Exception:
+        return None
+
+
+def _generate_unique_next_tep_code(old_code: str) -> str:
+    old_code = (old_code or "").strip()
+    base = old_code
+
+    m = re.match(r"^(.*?)(?:-R(\d+))?$", old_code, flags=re.I)
+    if m:
+        base = (m.group(1) or old_code).strip()
+
+    i = 1
+    while True:
+        candidate = f"{base}-R{i}"
+        if not TEPCode.objects.filter(tep_code=candidate).exists():
+            return candidate
+        i += 1
+
+
+def _build_forecast_summary(fsq: str = "", fsq_customer: str = ""):
+    month_labels = [
+        "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+        "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
+    ]
+
+    qs = Forecast.objects.select_related("customer").all().order_by("customer__customer_name", "part_number")
+
     if fsq_customer:
         qs = qs.filter(customer__customer_name=fsq_customer)
 
-    # ── collect all month keys so we can build ordered column lists ──────────
-    prev_month_keys = set()   # (year, month_int, label)
-    fore_month_keys = set()
+    if fsq:
+        qs = qs.filter(
+            Q(part_number__icontains=fsq) |
+            Q(part_name__icontains=fsq)
+        )
 
-    def _parse_date_str(date_str):
-        """Parse 'Month-YYYY' → (year:int, month_int:int, label:str) or None."""
-        date_str = (date_str or "").strip()
-        if not date_str:
-            return None
-        parts = date_str.split("-")
-        if len(parts) < 2:
-            return None
-        month_name = parts[0].strip().lower()
-        try:
-            year = int(parts[-1].strip())
-        except ValueError:
-            return None
-        month_int = MONTHS_ORDER.get(month_name)
-        if not month_int:
-            return None
-        label = SHORT_MONTHS[month_int]
-        return year, month_int, label
+    rows = []
+    total_qty = defaultdict(float)
+    total_amt = defaultdict(float)
 
-    # ── aggregate by (customer, part_number) so prev/fore share one row ─────
-    rows_by_key = {}
+    month_name_map = {
+        "january": "JAN", "jan": "JAN",
+        "february": "FEB", "feb": "FEB",
+        "march": "MAR", "mar": "MAR",
+        "april": "APR", "apr": "APR",
+        "may": "MAY",
+        "june": "JUN", "jun": "JUN",
+        "july": "JUL", "jul": "JUL",
+        "august": "AUG", "aug": "AUG",
+        "september": "SEP", "sept": "SEP", "sep": "SEP",
+        "october": "OCT", "oct": "OCT",
+        "november": "NOV", "nov": "NOV",
+        "december": "DEC", "dec": "DEC",
+    }
 
     for forecast in qs:
         monthly = forecast.monthly_forecasts or []
-
-        first_entry = next(
-            (m for m in monthly if isinstance(m, dict)),
-            {}
-        )
-
+        month_values = defaultdict(float)
+        first_monthly = next((m for m in monthly if isinstance(m, dict)), {})
         try:
-            unit_price = float(first_entry.get("unit_price", 0)) if isinstance(first_entry, dict) else 0.0
+            unit_price = float(first_monthly.get("unit_price", 0) or 0)
         except (TypeError, ValueError):
             unit_price = 0.0
-
-        customer_name = forecast.customer.customer_name if forecast.customer else "—"
-        key = (customer_name, forecast.part_number)
-
-        row = rows_by_key.get(key)
-        if not row:
-            row = {
-                "customer": customer_name,
-                "part_number": forecast.part_number,
-                "part_name": forecast.part_name,
-                "unit_price": unit_price,
-                "prev": {},
-                "fore": {},
-            }
-            rows_by_key[key] = row
-        else:
-            # keep latest non-zero unit price
-            if unit_price:
-                row["unit_price"] = unit_price
-
-        prev_data = row["prev"]
-        fore_data = row["fore"]
 
         for entry in monthly:
             if not isinstance(entry, dict):
                 continue
-            parsed = _parse_date_str(entry.get("date", ""))
-            if not parsed:
+            raw_date = str(entry.get("date") or "").strip()
+            if not raw_date:
                 continue
-            yr, mo, label = parsed
+            month_key = raw_date.split("-")[0].strip().lower()
+            month_label = month_name_map.get(month_key)
+            if not month_label:
+                continue
             try:
                 qty = float(entry.get("quantity", 0) or 0)
             except (TypeError, ValueError):
                 qty = 0.0
+            month_values[month_label] += qty
+            total_qty[month_label] += qty
+            total_amt[month_label] += qty * unit_price
 
-            # classify: year before current → previous; current/future → forecast
-            if yr < current_year:
-                prev_data[label] = prev_data.get(label, 0.0) + qty
-                prev_month_keys.add((yr, mo, label))
-            else:
-                fore_data[label] = fore_data.get(label, 0.0) + qty
-                fore_month_keys.add((yr, mo, label))
+        rows.append({
+            "customer": forecast.customer.customer_name if forecast.customer else "—",
+            "part_number": forecast.part_number,
+            "part_name": forecast.part_name,
+            "unit_price": unit_price,
+            "months": dict(month_values),
+        })
 
-    fs_rows = list(rows_by_key.values())
-
-    # ── build ordered month label lists (always full JAN–DEC) ───────────────
-    all_month_labels = [SHORT_MONTHS[i] for i in range(1, 13)]
-
-    # We still evaluate used labels to preserve behaviour if needed later,
-    # but the context always exposes the full 12 months.
-    _ = [lbl for (_, _, lbl) in sorted(prev_month_keys)]
-    _ = [lbl for (_, _, lbl) in sorted(fore_month_keys)]
-
-    fs_prev_months = all_month_labels
-    fs_fore_months = all_month_labels
-
-    # ── compute totals ───────────────────────────────────────────────────────
-    fs_total_prev_qty = defaultdict(float)
-    fs_total_fore_qty = defaultdict(float)
-    fs_total_prev_amt = defaultdict(float)
-    fs_total_fore_amt = defaultdict(float)
-
-    for row in fs_rows:
-        up = row["unit_price"]
-        for lbl, qty in row["prev"].items():
-            fs_total_prev_qty[lbl] += qty
-            fs_total_prev_amt[lbl] += qty * up
-        for lbl, qty in row["fore"].items():
-            fs_total_fore_qty[lbl] += qty
-            fs_total_fore_amt[lbl] += qty * up
-
-    # ── customer list for filter dropdown ───────────────────────────────────
-    fs_customers = list(
+    customers = list(
         Forecast.objects.select_related("customer")
         .values_list("customer__customer_name", flat=True)
         .distinct()
@@ -681,144 +553,103 @@ def _build_forecast_summary(fsq: str = "", fsq_customer: str = ""):
     )
 
     return {
-        "fs_rows":            fs_rows,
-        "fs_prev_months":     fs_prev_months,
-        "fs_fore_months":     fs_fore_months,
-        "fs_total_prev_qty":  dict(fs_total_prev_qty),
-        "fs_total_fore_qty":  dict(fs_total_fore_qty),
-        "fs_total_prev_amt":  dict(fs_total_prev_amt),
-        "fs_total_fore_amt":  dict(fs_total_fore_amt),
-        "fs_prev_year":       prev_year,
-        "fs_fore_year":       current_year,
-        "fs_customers":       fs_customers,
+        "fs_rows": rows,
+        "fs_total_qty": dict(total_qty),
+        "fs_total_amt": dict(total_amt),
+        "fs_months": month_labels,
+        "fs_customers": customers,
     }
 
 
 def _build_actual_summary(adq: str = "", ad_customer: str = ""):
-    """
-    Build data for the Actual Delivered tab.
+    month_labels = [
+        "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+        "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
+    ]
 
-    Uses the same row structure as the Forecast Summary tab but reads
-    \"actual_quantity\" from each monthly_forecasts entry.
-    """
-    from datetime import date
+    qs = Forecast.objects.select_related("customer").all().order_by("customer__customer_name", "part_number")
 
-    MONTHS_ORDER = {
-        "january": 1, "february": 2, "march": 3, "april": 4,
-        "may": 5, "june": 6, "july": 7, "august": 8,
-        "september": 9, "october": 10, "november": 11, "december": 12,
-    }
-    SHORT_MONTHS = {
-        1: "JAN", 2: "FEB", 3: "MAR", 4: "APR", 5: "MAY", 6: "JUN",
-        7: "JUL", 8: "AUG", 9: "SEPT", 10: "OCT", 11: "NOV", 12: "DEC",
-    }
-
-    def _parse_date_str(date_str):
-        date_str = (date_str or "").strip()
-        if not date_str:
-            return None
-        parts = date_str.split("-")
-        if len(parts) < 2:
-            return None
-        month_name = parts[0].strip().lower()
-        try:
-            year = int(parts[-1].strip())
-        except ValueError:
-            return None
-        month_int = MONTHS_ORDER.get(month_name)
-        if not month_int:
-            return None
-        label = SHORT_MONTHS[month_int]
-        return year, month_int, label
-
-    today = date.today()
-    current_year = today.year
-
-    qs = (
-        Forecast.objects
-        .select_related("customer")
-        .order_by("customer__customer_name", "part_number")
-    )
-
-    if adq:
-        qs = qs.filter(
-            Q(part_number__icontains=adq) | Q(part_name__icontains=adq)
-        )
     if ad_customer:
         qs = qs.filter(customer__customer_name=ad_customer)
 
-    rows_by_key = {}
-    months_seen = set()
+    if adq:
+        qs = qs.filter(
+            Q(part_number__icontains=adq) |
+            Q(part_name__icontains=adq)
+        )
+
+    rows = []
+    ad_total_qty = defaultdict(float)
+    ad_total_amt = defaultdict(float)
     years_seen = set()
+
+    month_name_map = {
+        "january": "JAN", "jan": "JAN",
+        "february": "FEB", "feb": "FEB",
+        "march": "MAR", "mar": "MAR",
+        "april": "APR", "apr": "APR",
+        "may": "MAY",
+        "june": "JUN", "jun": "JUN",
+        "july": "JUL", "jul": "JUL",
+        "august": "AUG", "aug": "AUG",
+        "september": "SEP", "sept": "SEP", "sep": "SEP",
+        "october": "OCT", "oct": "OCT",
+        "november": "NOV", "nov": "NOV",
+        "december": "DEC", "dec": "DEC",
+    }
+
+    from datetime import date
+    current_year = date.today().year
 
     for forecast in qs:
         monthly = forecast.monthly_forecasts or []
-
-        first_entry = next(
-            (m for m in monthly if isinstance(m, dict)),
-            {}
-        )
+        month_values = defaultdict(float)
+        first_monthly = next((m for m in monthly if isinstance(m, dict)), {})
         try:
-            unit_price = float(first_entry.get("unit_price", 0) or 0) if isinstance(first_entry, dict) else 0.0
+            unit_price = float(first_monthly.get("unit_price", 0) or 0)
         except (TypeError, ValueError):
             unit_price = 0.0
-
-        customer_name = forecast.customer.customer_name if forecast.customer else "—"
-        key = (customer_name, forecast.part_number)
-
-        row = rows_by_key.get(key)
-        if not row:
-            row = {
-                "customer": customer_name,
-                "part_number": forecast.part_number,
-                "part_name": forecast.part_name,
-                "unit_price": unit_price,
-                "months": {},
-            }
-            rows_by_key[key] = row
-        else:
-            if unit_price:
-                row["unit_price"] = unit_price
-
-        months_map = row["months"]
 
         for entry in monthly:
             if not isinstance(entry, dict):
                 continue
-            if "actual_quantity" not in entry:
+
+            raw_date = str(entry.get("date") or "").strip()
+            if not raw_date:
                 continue
 
-            parsed = _parse_date_str(entry.get("date", ""))
-            if not parsed:
+            parts = raw_date.split("-")
+            if len(parts) < 2:
                 continue
-            yr, mo, label = parsed
-            years_seen.add(yr)
-            months_seen.add(label)
+
+            month_key = parts[0].strip().lower()
+            month_label = month_name_map.get(month_key)
+            if not month_label:
+                continue
+
+            try:
+                year = int(parts[-1].strip())
+                years_seen.add(year)
+            except Exception:
+                pass
 
             try:
                 qty = float(entry.get("actual_quantity", 0) or 0)
             except (TypeError, ValueError):
                 qty = 0.0
 
-            months_map[label] = months_map.get(label, 0.0) + qty
+            month_values[month_label] += qty
+            ad_total_qty[month_label] += qty
+            ad_total_amt[month_label] += qty * unit_price
 
-    ad_rows = list(rows_by_key.values())
+        rows.append({
+            "customer": forecast.customer.customer_name if forecast.customer else "—",
+            "part_number": forecast.part_number,
+            "part_name": forecast.part_name,
+            "unit_price": unit_price,
+            "months": dict(month_values),
+        })
 
-    # Always expose full JAN–DEC for consistency
-    ad_months = [SHORT_MONTHS[i] for i in range(1, 13)]
-
-    from collections import defaultdict as _dd
-
-    ad_total_qty = _dd(float)
-    ad_total_amt = _dd(float)
-
-    for row in ad_rows:
-        up = row["unit_price"]
-        for lbl, qty in row["months"].items():
-            ad_total_qty[lbl] += qty
-            ad_total_amt[lbl] += qty * up
-
-    # Year label: prefer the main year we saw, otherwise current year
     ad_year = sorted(years_seen)[0] if years_seen else current_year
 
     ad_customers = list(
@@ -832,8 +663,8 @@ def _build_actual_summary(adq: str = "", ad_customer: str = ""):
     )
 
     return {
-        "ad_rows": ad_rows,
-        "ad_months": ad_months,
+        "ad_rows": rows,
+        "ad_months": month_labels,
         "ad_total_qty": dict(ad_total_qty),
         "ad_total_amt": dict(ad_total_amt),
         "ad_year": ad_year,
@@ -851,7 +682,7 @@ def update_material_stock(request):
 
     if not material_id:
         messages.error(request, "Missing material_id.")
-        return redirect(reverse("app:admin_dashboard") + "?tab=stocks")
+        return redirect(_admin_dashboard_url("materials_bom", "stocks"))
 
     try:
         on_hand_qty = int(on_hand_qty_raw) if on_hand_qty_raw != "" else 0
@@ -859,7 +690,7 @@ def update_material_stock(request):
             on_hand_qty = 0
     except Exception:
         messages.error(request, "On hand qty must be a whole number.")
-        return redirect(reverse("app:admin_dashboard") + "?tab=stocks")
+        return redirect(_admin_dashboard_url("materials_bom", "stocks"))
 
     mat = get_object_or_404(MaterialList, id=material_id)
 
@@ -875,17 +706,28 @@ def update_material_stock(request):
     except Exception as e:
         messages.error(request, f"Failed to save stock: {e}")
 
-    url = reverse("app:admin_dashboard") + "?tab=stocks"
-    if sq:
-        url += f"&sq={sq}"
-    return redirect(url)
+    return redirect(_admin_dashboard_url("materials_bom", "stocks", sq=sq))
 
 
 @never_cache
 @login_required
 @user_passes_test(is_admin)
 def admin_dashboard(request):
-    tab = (request.GET.get("tab") or "customers").strip().lower()
+    requested_tab = (request.GET.get("tab") or "customers").strip().lower()
+    materials_bom_tab = (request.GET.get("mbtab") or "").strip().lower()
+
+    if requested_tab == "materials_bom":
+        materials_bom_tab = materials_bom_tab or "bom_master"
+        tab = materials_bom_tab
+        sidebar_tab = "materials_bom"
+    elif requested_tab in {"bom_master", "materials", "stocks"}:
+        tab = requested_tab
+        materials_bom_tab = requested_tab
+        sidebar_tab = "materials_bom"
+    else:
+        tab = requested_tab
+        sidebar_tab = requested_tab
+
     action = ""  
 
     if request.method == "POST":
@@ -963,7 +805,7 @@ def admin_dashboard(request):
             for note in (result.get("notes") or []):
                 messages.info(request, note)
 
-            return redirect(reverse("app:admin_dashboard") + "?tab=stocks")
+            return redirect(_admin_dashboard_url("materials_bom", "stocks"))
 
         if action == "allocate_from_run":
             run_id = (request.POST.get("run_id") or "").strip()
@@ -1047,7 +889,7 @@ def admin_dashboard(request):
                     skipped += 1
 
             messages.success(request, f"Allocated/Reserved for {forecast_ref}. Created={created} Skipped={skipped}")
-            return redirect(reverse("app:admin_dashboard") + "?tab=stocks")
+            return redirect(_admin_dashboard_url("materials_bom", "stocks"))
 
         if action == "release_allocations_ref":
             forecast_ref = (request.POST.get("forecast_ref") or "").strip()
@@ -1061,7 +903,7 @@ def admin_dashboard(request):
                 .update(status="released")
             )
             messages.success(request, f"Released {updated} reserved allocations for ref={forecast_ref}.")
-            return redirect(reverse("app:admin_dashboard") + "?tab=stocks")
+            return redirect(_admin_dashboard_url("materials_bom", "stocks"))
 
         if action == "fulfill_allocations_ref":
             forecast_ref = (request.POST.get("forecast_ref") or "").strip()
@@ -1075,7 +917,7 @@ def admin_dashboard(request):
                 .update(status="fulfilled")
             )
             messages.success(request, f"Fulfilled {updated} reserved allocations for ref={forecast_ref}.")
-            return redirect(reverse("app:admin_dashboard") + "?tab=stocks")
+            return redirect(_admin_dashboard_url("materials_bom", "stocks"))
 
         if action == "revise_tep":
             tep_id = (request.POST.get("tep_id") or "").strip()
@@ -1119,11 +961,11 @@ def admin_dashboard(request):
 
             if not part_code:
                 messages.error(request, "Part code is required.")
-                return redirect(reverse("app:admin_dashboard") + "?tab=bom_master")
+                return redirect(_admin_dashboard_url("materials_bom", "bom_master"))
 
             if not part_name:
                 messages.error(request, "Part name is required.")
-                return redirect(reverse("app:admin_dashboard") + "?tab=bom_master")
+                return redirect(_admin_dashboard_url("materials_bom", "bom_master"))
 
             try:
                 PartMaster.objects.update_or_create(
@@ -1134,10 +976,10 @@ def admin_dashboard(request):
                     },
                 )
                 messages.success(request, f"Saved part code: {part_code}")
-                return redirect(reverse("app:admin_dashboard") + f"?tab=bom_master&bpart={part_code}")
+                return redirect(_admin_dashboard_url("materials_bom", "bom_master", bpart=part_code))
             except Exception as e:
                 messages.error(request, f"Failed to save part code: {e}")
-                return redirect(reverse("app:admin_dashboard") + "?tab=bom_master")
+                return redirect(_admin_dashboard_url("materials_bom", "bom_master"))
 
         if action == "save_bom_master":
             part_code = _normalize_space(request.POST.get("part_code"))
@@ -1148,7 +990,7 @@ def admin_dashboard(request):
 
             if not part_code:
                 messages.error(request, "Part code is required.")
-                return redirect(reverse("app:admin_dashboard") + "?tab=bom_master")
+                return redirect(_admin_dashboard_url("materials_bom", "bom_master"))
 
             source_tep = None
             if source_tep_id:
@@ -1175,16 +1017,34 @@ def admin_dashboard(request):
             except Exception as e:
                 messages.error(request, f"Failed to save BOM: {e}")
 
-            return redirect(reverse("app:admin_dashboard") + f"?tab=bom_master&bpart={part_code}")
+            return redirect(_admin_dashboard_url("materials_bom", "bom_master", bpart=part_code))
 
         if action == "delete_bom_master":
             part_code = _normalize_space(request.POST.get("part_code"))
             if not part_code:
                 messages.error(request, "Missing part code.")
-                return redirect(reverse("app:admin_dashboard") + "?tab=bom_master")
+                return redirect(_admin_dashboard_url("materials_bom", "bom_master"))
             deleted = BOMMaterial.objects.filter(part_code=part_code).delete()[0]
             messages.success(request, f"Deleted {deleted} BOM rows for {part_code}.")
-            return redirect(reverse("app:admin_dashboard") + f"?tab=bom_master&bpart={part_code}")
+            return redirect(_admin_dashboard_url("materials_bom", "bom_master", bpart=part_code))
+
+        if action == "upload_bom_csv":
+            bom_csv_file = request.FILES.get("bom_csv_file")
+
+            try:
+                result = import_bom_csv_file(bom_csv_file, created_by=request.user)
+                messages.success(
+                    request,
+                    f"BOM CSV imported successfully. "
+                    f"Part codes: {result['parts_count']}, "
+                    f"BOM rows: {result['rows_count']}, "
+                    f"new parts: {result['created_parts']}, "
+                    f"new materials: {result['created_materials']}."
+                )
+            except Exception as e:
+                messages.error(request, f"Failed to import BOM CSV: {e}")
+
+            return redirect(_admin_dashboard_url("materials_bom", "bom_master"))
 
         if action == "add_customer_full":
             customer_name = _normalize_space(request.POST.get("customer_name"))
@@ -1196,70 +1056,65 @@ def admin_dashboard(request):
             mat_partcode = _normalize_space(request.POST.get("mat_partcode"))
             dim_qty_raw = (request.POST.get("dim_qty") or "").strip()
             loss_raw = (request.POST.get("loss_percent") or "").strip()
+            create_material = bool(mat_partcode)
 
             if not customer_name:
                 messages.error(request, "Customer Name is required.")
                 return redirect(reverse("app:admin_dashboard") + "?tab=customers")
+
             if not part_code:
                 messages.error(request, "Partcode is required.")
                 return redirect(reverse("app:admin_dashboard") + "?tab=customers")
+
             if not part_name:
                 messages.error(request, "Partname is required.")
                 return redirect(reverse("app:admin_dashboard") + "?tab=customers")
+
             if not tep_code:
                 messages.error(request, "TEP Code is required.")
                 return redirect(reverse("app:admin_dashboard") + "?tab=customers")
 
-            create_material = bool(mat_partcode or dim_qty_raw or loss_raw)
+            try:
+                dim_qty = float(dim_qty_raw) if dim_qty_raw != "" else 0
+            except Exception:
+                messages.error(request, "Dim/Qty must be numeric.")
+                return redirect(reverse("app:admin_dashboard") + "?tab=customers")
 
-            dim_qty = 0.0
-            loss_percent = 10.0
-            total = 0.0
-            master = None
-
-            if create_material:
-                if not mat_partcode:
-                    messages.error(request, "Material Partcode is required (or leave all material fields blank).")
-                    return redirect(reverse("app:admin_dashboard") + "?tab=customers")
-                if not dim_qty_raw:
-                    messages.error(request, "Dim Qty is required (or leave all material fields blank).")
-                    return redirect(reverse("app:admin_dashboard") + "?tab=customers")
-
-                try:
-                    dim_qty = float(dim_qty_raw)
-                except Exception:
-                    messages.error(request, "Dim Qty must be a number.")
-                    return redirect(reverse("app:admin_dashboard") + "?tab=customers")
-
-                if loss_raw != "":
-                    try:
-                        loss_percent = float(loss_raw)
-                    except Exception:
-                        messages.error(request, "Loss % must be a number.")
-                        return redirect(reverse("app:admin_dashboard") + "?tab=customers")
-
-                master = MaterialList.objects.filter(mat_partcode=mat_partcode).first()
-                if not master:
-                    messages.error(request, f"mat_partcode not found in master list: {mat_partcode}")
-                    return redirect(reverse("app:admin_dashboard") + "?tab=customers")
-
-                total = round(float(dim_qty) * (1 + (float(loss_percent) / 100.0)), 4)
+            try:
+                loss_percent = float(loss_raw) if loss_raw != "" else 10
+            except Exception:
+                messages.error(request, "Loss % must be numeric.")
+                return redirect(reverse("app:admin_dashboard") + "?tab=customers")
 
             try:
                 with transaction.atomic():
                     customer, _ = Customer.objects.get_or_create(customer_name=customer_name)
-
                     _ensure_customer_part_entry(customer, part_code, part_name)
+
+                    # Keep PartMaster synced
+                    PartMaster.objects.update_or_create(
+                        part_code=part_code,
+                        defaults={"part_name": part_name, "is_active": True},
+                    )
 
                     # Create TEP only if it does not exist yet for this customer+part_code+tep_code
                     tep, _ = TEPCode.objects.get_or_create(
                         customer=customer,
                         part_code=part_code,
                         tep_code=tep_code,
-                                                defaults=({"is_active": True} if hasattr(TEPCode, "is_active") else {}),
+                        defaults=({"is_active": True} if hasattr(TEPCode, "is_active") else {}),
                     )
 
                     if create_material:
+                        master = MaterialList.objects.filter(mat_partcode=mat_partcode).first()
+                        if not master:
+                            master = MaterialList.objects.create(
+                                mat_partcode=mat_partcode,
+                                mat_partname=mat_partcode,
+                                mat_maker="Unknown",
+                                unit="pc",
+                            )
+
                         bom_obj, created = BOMMaterial.objects.get_or_create(
                             part_code=part_code,
                             mat_partcode=master.mat_partcode,
@@ -1307,7 +1162,7 @@ def admin_dashboard(request):
 
             if not mat_partcode:
                 messages.error(request, "Part Code is required.")
-                return redirect(reverse("app:admin_dashboard") + "?tab=materials")
+                return redirect(_admin_dashboard_url("materials_bom", "materials"))
 
             try:
                 obj, created = MaterialList.objects.get_or_create(
@@ -1342,7 +1197,7 @@ def admin_dashboard(request):
             except Exception as e:
                 messages.error(request, f"Failed to save material: {e}")
 
-            return redirect(reverse("app:admin_dashboard") + "?tab=materials")
+            return redirect(_admin_dashboard_url("materials_bom", "materials"))
 
         if action == "update_material":
             mat_id = (request.POST.get("mat_id") or "").strip()
@@ -1357,19 +1212,19 @@ def admin_dashboard(request):
 
             if not mat_id:
                 messages.error(request, "Missing material ID.")
-                return redirect(reverse("app:admin_dashboard") + "?tab=materials")
+                return redirect(_admin_dashboard_url("materials_bom", "materials"))
 
             try:
                 obj = MaterialList.objects.get(id=mat_id)
 
                 if not mat_partcode:
                     messages.error(request, "Part Code is required.")
-                    return redirect(reverse("app:admin_dashboard") + "?tab=materials")
+                    return redirect(_admin_dashboard_url("materials_bom", "materials"))
 
                 if mat_partcode != obj.mat_partcode:
                     if MaterialList.objects.filter(mat_partcode=mat_partcode).exclude(id=obj.id).exists():
                         messages.error(request, f"Part Code already exists: {mat_partcode}")
-                        return redirect(reverse("app:admin_dashboard") + "?tab=materials")
+                        return redirect(_admin_dashboard_url("materials_bom", "materials"))
 
                 obj.mat_partcode = mat_partcode
                 obj.mat_partname = mat_partname or mat_partcode
@@ -1384,7 +1239,9 @@ def admin_dashboard(request):
             except Exception as e:
                 messages.error(request, f"Failed to update: {e}")
 
-            return redirect(reverse("app:admin_dashboard") + "?tab=materials")
+            return redirect(_admin_dashboard_url("materials_bom", "materials"))
+
+        # ... remainder of your original file continues unchanged ...
 
         if action == "add_forecast":
             customer_name = _normalize_space(request.POST.get("customer_name"))
@@ -1903,24 +1760,42 @@ def admin_dashboard(request):
     users_page = users_paginator.get_page(upage)
     user_total = users_qs.count()
 
+    mq = (request.GET.get("mq") or "").strip()
+    materials_qs = MaterialList.objects.all().order_by("mat_partcode")
+    if mq:
+        materials_qs = materials_qs.filter(
+            Q(mat_partcode__icontains=mq) |
+            Q(mat_partname__icontains=mq) |
+            Q(mat_maker__icontains=mq) |
+            Q(unit__icontains=mq)
+        )
+
+    paginator = Paginator(materials_qs, 8)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    material_total = materials_qs.count()
+    material_list = page_obj
+
+
     sq = (request.GET.get("sq") or "").strip()
-    materials_master_qs = MaterialList.objects.all().order_by("mat_partcode")
+    materials_stock_qs = MaterialList.objects.all().order_by("mat_partcode")
     if sq:
-        materials_master_qs = materials_master_qs.filter(
+        materials_stock_qs = materials_stock_qs.filter(
             Q(mat_partcode__icontains=sq) |
             Q(mat_partname__icontains=sq) |
             Q(mat_maker__icontains=sq)
         )
 
-    materials_master_qs = materials_master_qs.select_related("stock", "stock__last_updated_by")
+    materials_stock_qs = materials_stock_qs.select_related("stock", "stock__last_updated_by")
 
-    stock_paginator = Paginator(materials_master_qs, 8)
+    stock_paginator = Paginator(materials_stock_qs, 8)
     spage = request.GET.get("spage")
     stock_page_obj = stock_paginator.get_page(spage)
 
-    materials_master = stock_page_obj
+    materials_stock_list = stock_page_obj
 
-    mat_ids = [m.id for m in materials_master]
+    mat_ids = [m.id for m in materials_stock_list]
     reserved_map = {
         row["material_id"]: (row["total"] or 0)
         for row in (
@@ -1931,7 +1806,7 @@ def admin_dashboard(request):
         )
     }
 
-    for m in materials_master:
+    for m in materials_stock_list:
         try:
             s = m.stock
             m.on_hand_qty = s.on_hand_qty
@@ -2232,7 +2107,19 @@ def admin_dashboard(request):
 
     # ── Build final context ───────────────────────────────────────────────────
     bpart = (request.GET.get("bpart") or "").strip()
-    bom_ctx = _build_bom_master_context(bpart)
+    bq = (request.GET.get("bq") or "").strip()
+    bom_ctx = _build_bom_master_context(bpart, bq)
+
+    part_master_options = list(
+        PartMaster.objects
+        .filter(is_active=True)
+        .order_by("part_code")
+    )
+    part_master_json = {
+        (row.part_code or "").strip(): (row.part_name or "").strip()
+        for row in part_master_options
+        if (row.part_code or "").strip()
+    }
 
     context = {
         "tab": tab,
@@ -2245,9 +2132,14 @@ def admin_dashboard(request):
 
         "customers": customers,
         "q": q,
+        "part_master_options": part_master_options,
+        "part_master_json": json.dumps(part_master_json, ensure_ascii=False),
 
         "mq": mq,
+        "sq": sq,
         "material_total": material_total,
+        "materials_stock_list": materials_stock_list,
+        "stock_page_obj": stock_page_obj,
         "material_list": material_list,
         "page_obj": page_obj,
 
@@ -2309,6 +2201,29 @@ def toggle_user_active(request, user_id):
 
 @require_GET
 @login_required
+def part_master_lookup(request):
+    part_code = (request.GET.get("part_code") or "").strip()
+    if not part_code:
+        return JsonResponse({"ok": False, "error": "Missing part_code."}, status=400)
+
+    row = (
+        PartMaster.objects
+        .filter(is_active=True)
+        .filter(Q(part_code__iexact=part_code))
+        .first()
+    )
+    if not row:
+        return JsonResponse({"ok": False, "error": "Part code not found."}, status=404)
+
+    return JsonResponse({
+        "ok": True,
+        "part_code": row.part_code,
+        "part_name": row.part_name,
+    })
+
+
+@require_GET
+@login_required
 def material_lookup(request):
     partcode = (request.GET.get("mat_partcode") or "").strip()
     if not partcode:
@@ -2356,7 +2271,7 @@ def forecast_qty_lookup(request):
                 continue
 
     try:
-        quantity_value = int(total_qty) if float(total_qty).is_integer() else round(total_qty, 4)
+        quantity_value = int(total_qty) if float(total_qty).is_integer() else round(total_qty, 5)
     except Exception:
         quantity_value = 0
 
