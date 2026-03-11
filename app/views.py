@@ -2,7 +2,7 @@ from django.views.decorators.cache import never_cache
 import json, csv, io, re
 from collections import defaultdict
 from urllib.parse import urlencode
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_GET
 from django.core.paginator import Paginator
 from django.db import transaction, IntegrityError
 from django.db.models import Q, Sum
@@ -16,6 +16,9 @@ from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_GET
 from django.utils import timezone
+from datetime import datetime, date
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
 from .models import (
     Customer,
     TEPCode,
@@ -39,6 +42,69 @@ from .service import (
     replace_bom_for_partcode,
     import_bom_csv_file,
 )
+
+
+# ── Timezone helpers ──────────────────────────────────────────────────────────
+
+def _get_user_tz(request) -> ZoneInfo:
+    """
+    Return ZoneInfo for the user's timezone.
+    Priority: session (browser-detected) → Django settings.TIME_ZONE → UTC.
+    """
+    from django.conf import settings
+    default_tz = getattr(settings, "TIME_ZONE", "UTC")
+    tz_name = request.session.get("user_timezone", default_tz)
+    try:
+        return ZoneInfo(tz_name)
+    except (ZoneInfoNotFoundError, KeyError):
+        try:
+            return ZoneInfo(default_tz)
+        except (ZoneInfoNotFoundError, KeyError):
+            return ZoneInfo("UTC")
+
+
+def _now_in_tz(request) -> datetime:
+    """Return current datetime in the user's session timezone."""
+    return datetime.now(tz=_get_user_tz(request))
+
+
+def _today_in_tz(request) -> date:
+    """Return today's date in the user's session timezone."""
+    return _now_in_tz(request).date()
+
+
+# ── Helper: normalize a month abbreviation from a date string ─────────────────
+_MONTH_NAME_TO_NUM = {
+    'january': 1, 'february': 2, 'march': 3, 'april': 4,
+    'may': 5, 'june': 6, 'july': 7, 'august': 8,
+    'september': 9, 'october': 10, 'november': 11, 'december': 12,
+    'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4,
+    'jun': 6, 'jul': 7, 'aug': 8, 'sep': 9, 'sept': 9,
+    'oct': 10, 'nov': 11, 'dec': 12,
+}
+_SHORT_MONTHS = {
+    1: 'JAN', 2: 'FEB', 3: 'MAR', 4: 'APR', 5: 'MAY', 6: 'JUN',
+    7: 'JUL', 8: 'AUG', 9: 'SEPT', 10: 'OCT', 11: 'NOV', 12: 'DEC',
+}
+
+
+def _month_abbr_from_date_str(date_str: str) -> str | None:
+    """
+    Given a date string like 'January-2026' or 'Jan-2026',
+    return the abbreviated month label used in the summary tables
+    (e.g. 'JAN'), or None if unparseable.
+    """
+    date_str = (date_str or "").strip()
+    if not date_str:
+        return None
+    parts = date_str.split("-")
+    if len(parts) < 2:
+        return None
+    month_name = parts[0].strip().lower()
+    month_num = _MONTH_NAME_TO_NUM.get(month_name)
+    if not month_num:
+        return None
+    return _SHORT_MONTHS[month_num]
 
 
 def is_admin(user):
@@ -115,6 +181,7 @@ def _admin_dashboard_url(sidebar_tab: str = "customers", materials_bom_tab: str 
         query[key] = value
 
     return reverse("app:admin_dashboard") + "?" + urlencode(query)
+
 
 def _unique_partname_for_customer(customer, base_name, part_code):
     base_name = _normalize_space(base_name)
@@ -229,6 +296,7 @@ def _build_bom_display_rows(tep):
 
     return list(Material.objects.filter(tep_code=tep).order_by("mat_partname", "id"))
 
+
 def _preferred_tep_for_part_code(part_code: str):
     """
     Return the best source TEP for a shared BOM part code.
@@ -244,6 +312,7 @@ def _preferred_tep_for_part_code(part_code: str):
         .order_by("-is_active", "-id")
         .first()
     )
+
 
 def build_customer_table(q: str):
     qs = (
@@ -330,7 +399,6 @@ def build_customer_table(q: str):
         })
 
     return customers
-
 
 
 def _get_part_name_for_code(part_code: str) -> str:
@@ -441,6 +509,8 @@ def _sync_legacy_material_from_bom(tep, master, dim_qty, loss_percent):
     if not tep or not master:
         return None
 
+    total = round(float(dim_qty) * (1 + (float(loss_percent) / 100.0)), 4)
+
     try:
         obj, _ = Material.objects.update_or_create(
             tep_code=tep,
@@ -451,6 +521,7 @@ def _sync_legacy_material_from_bom(tep, master, dim_qty, loss_percent):
                 "unit": master.unit,
                 "dim_qty": dim_qty,
                 "loss_percent": loss_percent,
+                "total": total,
             },
         )
         return obj
@@ -474,78 +545,138 @@ def _generate_unique_next_tep_code(old_code: str) -> str:
         i += 1
 
 
-def _build_forecast_summary(fsq: str = "", fsq_customer: str = ""):
-    month_labels = [
-        "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
-        "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
-    ]
+def _build_forecast_summary(fsq: str = "", fsq_customer: str = "", fsq_month: str = "", user_tz=None):
+    """
+    Build data for the Forecast Summary tab (current year only).
 
-    qs = Forecast.objects.select_related("customer").all().order_by("customer__customer_name", "part_number")
+    fsq_month: abbreviated month label to highlight/filter, e.g. 'JAN'.
+               When provided the rows are filtered so only rows that have
+               a non-zero quantity for that month are shown.
+    """
+    from datetime import date
+    import calendar
 
-    if fsq_customer:
-        qs = qs.filter(customer__customer_name=fsq_customer)
+    if user_tz is None:
+        from zoneinfo import ZoneInfo
+        user_tz = ZoneInfo("UTC")
+    today = datetime.now(tz=user_tz).date()
+    current_year = today.year
+    prev_year = current_year - 1
+
+    qs = (
+        Forecast.objects
+        .select_related("customer")
+        .order_by("customer__customer_name", "part_number")
+    )
 
     if fsq:
         qs = qs.filter(
-            Q(part_number__icontains=fsq) |
-            Q(part_name__icontains=fsq)
+            Q(part_number__icontains=fsq) | Q(part_name__icontains=fsq)
         )
+    if fsq_customer:
+        qs = qs.filter(customer__customer_name=fsq_customer)
 
-    rows = []
-    total_qty = defaultdict(float)
-    total_amt = defaultdict(float)
+    prev_month_keys = set()
+    fore_month_keys = set()
 
-    month_name_map = {
-        "january": "JAN", "jan": "JAN",
-        "february": "FEB", "feb": "FEB",
-        "march": "MAR", "mar": "MAR",
-        "april": "APR", "apr": "APR",
-        "may": "MAY",
-        "june": "JUN", "jun": "JUN",
-        "july": "JUL", "jul": "JUL",
-        "august": "AUG", "aug": "AUG",
-        "september": "SEP", "sept": "SEP", "sep": "SEP",
-        "october": "OCT", "oct": "OCT",
-        "november": "NOV", "nov": "NOV",
-        "december": "DEC", "dec": "DEC",
-    }
+    def _parse_date_str(date_str):
+        date_str = (date_str or "").strip()
+        if not date_str:
+            return None
+        parts = date_str.split("-")
+        if len(parts) < 2:
+            return None
+        month_name = parts[0].strip().lower()
+        try:
+            year = int(parts[-1].strip())
+        except ValueError:
+            return None
+        month_int = _MONTH_NAME_TO_NUM.get(month_name)
+        if not month_int:
+            return None
+        label = _SHORT_MONTHS[month_int]
+        return year, month_int, label
+
+    rows_by_key = {}
 
     for forecast in qs:
         monthly = forecast.monthly_forecasts or []
-        month_values = defaultdict(float)
-        first_monthly = next((m for m in monthly if isinstance(m, dict)), {})
+
+        first_entry = next(
+            (m for m in monthly if isinstance(m, dict)),
+            {}
+        )
+
         try:
-            unit_price = float(first_monthly.get("unit_price", 0) or 0)
+            unit_price = float(first_entry.get("unit_price", 0)) if isinstance(first_entry, dict) else 0.0
         except (TypeError, ValueError):
             unit_price = 0.0
+
+        customer_name = forecast.customer.customer_name if forecast.customer else "—"
+        key = (customer_name, forecast.part_number)
+
+        row = rows_by_key.get(key)
+        if not row:
+            row = {
+                "customer": customer_name,
+                "part_number": forecast.part_number,
+                "part_name": forecast.part_name,
+                "unit_price": unit_price,
+                "prev": {},
+                "fore": {},
+            }
+            rows_by_key[key] = row
+        else:
+            if unit_price:
+                row["unit_price"] = unit_price
+
+        prev_data = row["prev"]
+        fore_data = row["fore"]
 
         for entry in monthly:
             if not isinstance(entry, dict):
                 continue
-            raw_date = str(entry.get("date") or "").strip()
-            if not raw_date:
+            parsed = _parse_date_str(entry.get("date", ""))
+            if not parsed:
                 continue
-            month_key = raw_date.split("-")[0].strip().lower()
-            month_label = month_name_map.get(month_key)
-            if not month_label:
-                continue
+            yr, mo, label = parsed
             try:
                 qty = float(entry.get("quantity", 0) or 0)
             except (TypeError, ValueError):
                 qty = 0.0
-            month_values[month_label] += qty
-            total_qty[month_label] += qty
-            total_amt[month_label] += qty * unit_price
 
-        rows.append({
-            "customer": forecast.customer.customer_name if forecast.customer else "—",
-            "part_number": forecast.part_number,
-            "part_name": forecast.part_name,
-            "unit_price": unit_price,
-            "months": dict(month_values),
-        })
+            if yr < current_year:
+                prev_data[label] = prev_data.get(label, 0.0) + qty
+                prev_month_keys.add((yr, mo, label))
+            else:
+                fore_data[label] = fore_data.get(label, 0.0) + qty
+                fore_month_keys.add((yr, mo, label))
 
-    customers = list(
+    fs_rows = list(rows_by_key.values())
+
+    # ── Filter rows by selected month ────────────────────────────────────────
+    if fsq_month:
+        fs_rows = [r for r in fs_rows if r["fore"].get(fsq_month, 0)]
+
+    all_month_labels = [_SHORT_MONTHS[i] for i in range(1, 13)]
+    fs_prev_months = all_month_labels
+    fs_fore_months = all_month_labels
+
+    fs_total_prev_qty = defaultdict(float)
+    fs_total_fore_qty = defaultdict(float)
+    fs_total_prev_amt = defaultdict(float)
+    fs_total_fore_amt = defaultdict(float)
+
+    for row in fs_rows:
+        up = row["unit_price"]
+        for lbl, qty in row["prev"].items():
+            fs_total_prev_qty[lbl] += qty
+            fs_total_prev_amt[lbl] += qty * up
+        for lbl, qty in row["fore"].items():
+            fs_total_fore_qty[lbl] += qty
+            fs_total_fore_amt[lbl] += qty * up
+
+    fs_customers = list(
         Forecast.objects.select_related("customer")
         .values_list("customer__customer_name", flat=True)
         .distinct()
@@ -553,102 +684,137 @@ def _build_forecast_summary(fsq: str = "", fsq_customer: str = ""):
     )
 
     return {
-        "fs_rows": rows,
-        "fs_total_qty": dict(total_qty),
-        "fs_total_amt": dict(total_amt),
-        "fs_months": month_labels,
-        "fs_customers": customers,
+        "fs_rows":            fs_rows,
+        "fs_prev_months":     fs_prev_months,
+        "fs_fore_months":     fs_fore_months,
+        "fs_total_prev_qty":  dict(fs_total_prev_qty),
+        "fs_total_fore_qty":  dict(fs_total_fore_qty),
+        "fs_total_prev_amt":  dict(fs_total_prev_amt),
+        "fs_total_fore_amt":  dict(fs_total_fore_amt),
+        "fs_prev_year":       prev_year,
+        "fs_fore_year":       current_year,
+        "fs_customers":       fs_customers,
     }
 
 
-def _build_actual_summary(adq: str = "", ad_customer: str = ""):
-    month_labels = [
-        "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
-        "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
-    ]
+def _build_actual_summary(adq: str = "", ad_customer: str = "", ad_month: str = "", user_tz=None):
+    """
+    Build data for the Actual Delivered tab.
 
-    qs = Forecast.objects.select_related("customer").all().order_by("customer__customer_name", "part_number")
+    ad_month: abbreviated month label to filter on, e.g. 'JAN'.
+    """
+    from datetime import date
 
-    if ad_customer:
-        qs = qs.filter(customer__customer_name=ad_customer)
+    def _parse_date_str(date_str):
+        date_str = (date_str or "").strip()
+        if not date_str:
+            return None
+        parts = date_str.split("-")
+        if len(parts) < 2:
+            return None
+        month_name = parts[0].strip().lower()
+        try:
+            year = int(parts[-1].strip())
+        except ValueError:
+            return None
+        month_int = _MONTH_NAME_TO_NUM.get(month_name)
+        if not month_int:
+            return None
+        label = _SHORT_MONTHS[month_int]
+        return year, month_int, label
+
+    if user_tz is None:
+        from zoneinfo import ZoneInfo
+        user_tz = ZoneInfo("UTC")
+    today = datetime.now(tz=user_tz).date()
+    current_year = today.year
+
+    qs = (
+        Forecast.objects
+        .select_related("customer")
+        .order_by("customer__customer_name", "part_number")
+    )
 
     if adq:
         qs = qs.filter(
-            Q(part_number__icontains=adq) |
-            Q(part_name__icontains=adq)
+            Q(part_number__icontains=adq) | Q(part_name__icontains=adq)
         )
+    if ad_customer:
+        qs = qs.filter(customer__customer_name=ad_customer)
 
-    rows = []
-    ad_total_qty = defaultdict(float)
-    ad_total_amt = defaultdict(float)
+    rows_by_key = {}
+    months_seen = set()
     years_seen = set()
-
-    month_name_map = {
-        "january": "JAN", "jan": "JAN",
-        "february": "FEB", "feb": "FEB",
-        "march": "MAR", "mar": "MAR",
-        "april": "APR", "apr": "APR",
-        "may": "MAY",
-        "june": "JUN", "jun": "JUN",
-        "july": "JUL", "jul": "JUL",
-        "august": "AUG", "aug": "AUG",
-        "september": "SEP", "sept": "SEP", "sep": "SEP",
-        "october": "OCT", "oct": "OCT",
-        "november": "NOV", "nov": "NOV",
-        "december": "DEC", "dec": "DEC",
-    }
-
-    from datetime import date
-    current_year = date.today().year
 
     for forecast in qs:
         monthly = forecast.monthly_forecasts or []
-        month_values = defaultdict(float)
-        first_monthly = next((m for m in monthly if isinstance(m, dict)), {})
+
+        first_entry = next(
+            (m for m in monthly if isinstance(m, dict)),
+            {}
+        )
         try:
-            unit_price = float(first_monthly.get("unit_price", 0) or 0)
+            unit_price = float(first_entry.get("unit_price", 0) or 0) if isinstance(first_entry, dict) else 0.0
         except (TypeError, ValueError):
             unit_price = 0.0
+
+        customer_name = forecast.customer.customer_name if forecast.customer else "—"
+        key = (customer_name, forecast.part_number)
+
+        row = rows_by_key.get(key)
+        if not row:
+            row = {
+                "customer": customer_name,
+                "part_number": forecast.part_number,
+                "part_name": forecast.part_name,
+                "unit_price": unit_price,
+                "months": {},
+            }
+            rows_by_key[key] = row
+        else:
+            if unit_price:
+                row["unit_price"] = unit_price
+
+        months_map = row["months"]
 
         for entry in monthly:
             if not isinstance(entry, dict):
                 continue
-
-            raw_date = str(entry.get("date") or "").strip()
-            if not raw_date:
+            if "actual_quantity" not in entry:
                 continue
 
-            parts = raw_date.split("-")
-            if len(parts) < 2:
+            parsed = _parse_date_str(entry.get("date", ""))
+            if not parsed:
                 continue
-
-            month_key = parts[0].strip().lower()
-            month_label = month_name_map.get(month_key)
-            if not month_label:
-                continue
-
-            try:
-                year = int(parts[-1].strip())
-                years_seen.add(year)
-            except Exception:
-                pass
+            yr, mo, label = parsed
+            years_seen.add(yr)
+            months_seen.add(label)
 
             try:
                 qty = float(entry.get("actual_quantity", 0) or 0)
             except (TypeError, ValueError):
                 qty = 0.0
 
-            month_values[month_label] += qty
-            ad_total_qty[month_label] += qty
-            ad_total_amt[month_label] += qty * unit_price
+            months_map[label] = months_map.get(label, 0.0) + qty
 
-        rows.append({
-            "customer": forecast.customer.customer_name if forecast.customer else "—",
-            "part_number": forecast.part_number,
-            "part_name": forecast.part_name,
-            "unit_price": unit_price,
-            "months": dict(month_values),
-        })
+    ad_rows = list(rows_by_key.values())
+
+    # ── Filter rows by selected month ────────────────────────────────────────
+    if ad_month:
+        ad_rows = [r for r in ad_rows if r["months"].get(ad_month, 0)]
+
+    ad_months = [_SHORT_MONTHS[i] for i in range(1, 13)]
+
+    from collections import defaultdict as _dd
+
+    ad_total_qty = _dd(float)
+    ad_total_amt = _dd(float)
+
+    for row in ad_rows:
+        up = row["unit_price"]
+        for lbl, qty in row["months"].items():
+            ad_total_qty[lbl] += qty
+            ad_total_amt[lbl] += qty * up
 
     ad_year = sorted(years_seen)[0] if years_seen else current_year
 
@@ -663,13 +829,94 @@ def _build_actual_summary(adq: str = "", ad_customer: str = ""):
     )
 
     return {
-        "ad_rows": rows,
-        "ad_months": month_labels,
+        "ad_rows": ad_rows,
+        "ad_months": ad_months,
         "ad_total_qty": dict(ad_total_qty),
         "ad_total_amt": dict(ad_total_amt),
         "ad_year": ad_year,
         "ad_customers": ad_customers,
     }
+
+
+def _allocate_material_name(tep, base_name: str, exclude_partcode: str = "") -> str:
+    """Legacy function for Material model naming - kept for backward compatibility"""
+    base = (base_name or "").strip() or "UNKNOWN"
+    exclude_partcode = (exclude_partcode or "").strip()
+
+    qs = Material.objects.filter(
+        tep_code=tep,
+        mat_partname__iregex=rf"^{re.escape(base)}( \d+)?$"
+    )
+    if exclude_partcode:
+        qs = qs.exclude(mat_partcode=exclude_partcode)
+
+    existing_names = list(qs.values_list("mat_partname", flat=True))
+    if not existing_names:
+        return base
+
+    numbers = []
+    for n in existing_names:
+        m = re.match(rf"^{re.escape(base)}(?: (\d+))?$", (n or "").strip(), flags=re.IGNORECASE)
+        if m and m.group(1):
+            numbers.append(int(m.group(1)))
+
+    if not numbers:
+        existing_base = Material.objects.filter(tep_code=tep, mat_partname__iexact=base)
+        if exclude_partcode:
+            existing_base = existing_base.exclude(mat_partcode=exclude_partcode)
+
+        first = existing_base.order_by("id").first()
+        if first:
+            first.mat_partname = f"{base} 1"
+            first.save(update_fields=["mat_partname"])
+
+        return f"{base} 2"
+
+    return f"{base} {max(numbers) + 1}"
+
+
+def _next_tep_code(existing_tep_code: str) -> str:
+    """
+    "same prefix, increment last number"
+    Examples:
+      TEP00-01 -> TEP00-02
+      TEP00-09 -> TEP00-10
+      ABC      -> ABC-01
+    Keeps zero-padding based on existing last number width.
+    """
+    s = (existing_tep_code or "").strip()
+    if not s:
+        return "TEP-01"
+
+    m = re.match(r"^(.*?)(\d+)$", s)
+    if not m:
+        return f"{s}-01"
+
+    prefix = m.group(1)
+    num_str = m.group(2)
+    width = len(num_str)
+
+    try:
+        n = int(num_str)
+    except Exception:
+        return f"{s}-01"
+
+    return f"{prefix}{str(n + 1).zfill(width)}"
+
+
+def _generate_unique_next_tep_code_old(base_tep_code: str) -> str:
+    """
+    Keep incrementing until tep_code is unique in DB.
+    Legacy version kept for compatibility.
+    """
+    candidate = _next_tep_code(base_tep_code)
+    guard = 0
+    while TEPCode.objects.filter(tep_code=candidate).exists():
+        candidate = _next_tep_code(candidate)
+        guard += 1
+        if guard > 500:
+            raise ValueError("Could not generate unique tep_code after many attempts.")
+    return candidate
 
 
 @require_POST
@@ -728,7 +975,12 @@ def admin_dashboard(request):
         tab = requested_tab
         sidebar_tab = requested_tab
 
-    action = ""  
+    action = ""
+
+    # ── Timezone ─────────────────────────────────────────────────────────────
+    user_tz = _get_user_tz(request)
+    _user_now = datetime.now(tz=user_tz)
+    _user_today = _user_now.date()
 
     if request.method == "POST":
         action = (request.POST.get("action") or "").strip()
@@ -759,10 +1011,8 @@ def admin_dashboard(request):
 
             # Basic YYYY-MM validation
             if schedule_month:
-                import datetime
-
                 try:
-                    datetime.datetime.strptime(schedule_month, "%Y-%m")
+                    datetime.strptime(schedule_month, "%Y-%m")
                 except Exception:
                     messages.error(
                         request,
@@ -933,7 +1183,11 @@ def admin_dashboard(request):
 
             try:
                 with transaction.atomic():
-                    new_code = _generate_unique_next_tep_code(old_tep.tep_code)
+                    # Try new method first, fall back to old if it fails
+                    try:
+                        new_code = _generate_unique_next_tep_code(old_tep.tep_code)
+                    except Exception:
+                        new_code = _generate_unique_next_tep_code_old(old_tep.tep_code)
 
                     new_tep = TEPCode.objects.create(
                         customer=old_tep.customer,
@@ -953,7 +1207,6 @@ def admin_dashboard(request):
             except Exception as e:
                 messages.error(request, f"Failed to revise TEP: {e}")
                 return redirect(reverse("app:admin_dashboard") + f"?tab=customers&open_panel=1&tep_id={old_tep.id}")
-
 
         if action == "save_part_master":
             part_code = _normalize_space(request.POST.get("part_code"))
@@ -1241,8 +1494,6 @@ def admin_dashboard(request):
 
             return redirect(_admin_dashboard_url("materials_bom", "materials"))
 
-        # ... remainder of your original file continues unchanged ...
-
         if action == "add_forecast":
             customer_name = _normalize_space(request.POST.get("customer_name"))
             part_name = _normalize_space(request.POST.get("part_name"))
@@ -1358,7 +1609,7 @@ def admin_dashboard(request):
 
             messages.success(request, f"Forecast added successfully for {customer_name} - {part_number}")
             return redirect(reverse("app:admin_dashboard") + "?tab=forecast" + ("&fq=" + request.GET.get("fq", "") if request.GET.get("fq") else ""))
-        
+
         if action == "update_forecast":
             original_customer = _normalize_space(request.POST.get("original_customer_name"))
             original_part_number = _normalize_space(request.POST.get("original_part_number"))
@@ -1533,8 +1784,7 @@ def admin_dashboard(request):
 
             messages.success(request, f"Forecast updated successfully for {customer_name} - {part_number}")
             return redirect(reverse("app:admin_dashboard") + "?tab=forecast" + ("&fq=" + request.GET.get("fq", "") if request.GET.get("fq") else ""))
-        
-        
+
         if action == "delete_forecast":
             customer_name = _normalize_space(request.POST.get("customer_name"))
             part_number = _normalize_space(request.POST.get("part_number"))
@@ -1638,6 +1888,85 @@ def admin_dashboard(request):
                 customer.save()
 
             messages.success(request, f"Forecast deleted successfully: {forecast_info}")
+            return redirect(
+                reverse("app:admin_dashboard")
+                + "?tab=forecast"
+                + ("&fq=" + request.GET.get("fq", "") if request.GET.get("fq") else "")
+            )
+
+        if action == "bulk_delete_forecast":
+            import re as _re
+
+            # Parse items[N][field] from POST data
+            items = {}
+            for key, val in request.POST.items():
+                m = _re.match(r'^items\[(\d+)\]\[(\w+)\]$', key)
+                if m:
+                    idx = int(m.group(1))
+                    field = m.group(2)
+                    if idx not in items:
+                        items[idx] = {}
+                    items[idx][field] = val.strip()
+
+            if not items:
+                messages.error(request, "No items selected for deletion.")
+                return redirect(reverse("app:admin_dashboard") + "?tab=forecast")
+
+            deleted_count = 0
+            errors = []
+
+            for idx in sorted(items.keys()):
+                item = items[idx]
+                forecast_id   = item.get("forecast_id", "").strip()
+                date_str      = item.get("date", "").strip()
+                part_number   = item.get("part_number", "").strip()
+                customer_name = item.get("customer", "").strip()
+
+                if not forecast_id or not date_str:
+                    continue
+
+                try:
+                    forecast = Forecast.objects.select_related("customer").get(id=forecast_id)
+                except Forecast.DoesNotExist:
+                    errors.append(f"Forecast ID {forecast_id} not found.")
+                    continue
+
+                monthly_list = list(forecast.monthly_forecasts or [])
+                target = date_str.lower()
+                new_monthly = [
+                    m for m in monthly_list
+                    if not (
+                        isinstance(m, dict)
+                        and str(m.get("date", "")).strip().lower() == target
+                    )
+                ]
+
+                customer = forecast.customer
+                pn = forecast.part_number
+
+                if not new_monthly:
+                    # All months removed — delete the whole forecast record
+                    forecast.delete()
+                else:
+                    forecast.monthly_forecasts = new_monthly
+                    forecast.save()
+
+                # Clean up customer.parts if no forecasts remain for this part
+                if not Forecast.objects.filter(customer=customer, part_number=pn).exists():
+                    customer_parts = customer.parts or []
+                    customer.parts = [
+                        p for p in customer_parts
+                        if not (isinstance(p, dict) and str(p.get("Partcode", "")).strip() == pn)
+                    ]
+                    customer.save(update_fields=["parts"])
+
+                deleted_count += 1
+
+            if deleted_count:
+                messages.success(request, f"Deleted {deleted_count} forecast row(s) successfully.")
+            for e in errors:
+                messages.error(request, e)
+
             return redirect(
                 reverse("app:admin_dashboard")
                 + "?tab=forecast"
@@ -1760,24 +2089,6 @@ def admin_dashboard(request):
     users_page = users_paginator.get_page(upage)
     user_total = users_qs.count()
 
-    mq = (request.GET.get("mq") or "").strip()
-    materials_qs = MaterialList.objects.all().order_by("mat_partcode")
-    if mq:
-        materials_qs = materials_qs.filter(
-            Q(mat_partcode__icontains=mq) |
-            Q(mat_partname__icontains=mq) |
-            Q(mat_maker__icontains=mq) |
-            Q(unit__icontains=mq)
-        )
-
-    paginator = Paginator(materials_qs, 8)
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
-
-    material_total = materials_qs.count()
-    material_list = page_obj
-
-
     sq = (request.GET.get("sq") or "").strip()
     materials_stock_qs = MaterialList.objects.all().order_by("mat_partcode")
     if sq:
@@ -1845,7 +2156,6 @@ def admin_dashboard(request):
         })
 
     fq = (request.GET.get("fq") or "").strip()
-    fcustomer = (request.GET.get("fcustomer") or "").strip()
     fmonth = (request.GET.get("fmonth") or "").strip()  # "YYYY-MM"
 
     # Forecast Run tab (ForecastRun / ForecastLine)
@@ -1858,17 +2168,6 @@ def admin_dashboard(request):
     forecast_lines_qs = ForecastLine.objects.none()
     if forecast_latest:
         forecast_lines_qs = forecast_latest.lines.all().order_by("part_code", "mat_partcode")
-
-        if fcustomer:
-            filtered = forecast_lines_qs.filter(customer_name__iexact=fcustomer)
-            if filtered.exists():
-                forecast_lines_qs = filtered
-            else:
-                try:
-                    forecast_lines_qs = forecast_lines_qs.filter(customer_id=fcustomer)
-                except Exception:
-                    pass
-
         if fq:
             forecast_lines_qs = forecast_lines_qs.filter(
                 Q(part_code__icontains=fq) |
@@ -1886,70 +2185,116 @@ def admin_dashboard(request):
         "lines": forecast_lines_qs.count()
     }
 
-    # Forecast Records tab (Forecast model with monthly_forecasts)
-    forecast_records_qs = (
-        Forecast.objects
-        .select_related("customer")
-        .order_by("customer__customer_name", "part_number")
-    )
-
-    if fcustomer:
-        forecast_records_qs = forecast_records_qs.filter(customer__customer_name=fcustomer)
-
+    # ── Current Forecast Tab ──────────────────────────────────────────────────
+    fcustomer = (request.GET.get("fcustomer") or "").strip()
+    fmonth_forecast = (request.GET.get("fmonth") or "").strip()  # full month name for forecast tab
+    page_number = request.GET.get('page', 1)
+    
+    forecasts_qs = Forecast.objects.select_related("customer").order_by("-id")
+    
     if fq:
-        forecast_records_qs = forecast_records_qs.filter(
-            Q(part_number__icontains=fq) |
-            Q(part_name__icontains=fq)
+        forecasts_qs = forecasts_qs.filter(
+            Q(part_number__icontains=fq)
+            | Q(part_name__icontains=fq)
+            | Q(customer__customer_name__icontains=fq)
         )
+    
+    if fcustomer:
+        forecasts_qs = forecasts_qs.filter(customer__customer_name=fcustomer)
 
-    forecasts_list = list(forecast_records_qs)
-    forecasts_total = forecast_records_qs.count()
+    # Get total count before month-filtering (month filter happens in Python
+    # because monthly_forecasts is a JSONField list)
+    forecasts_total_pre_month = forecasts_qs.count()
 
-    for forecast in forecasts_list:
-        first_monthly = next(
-            (m for m in (forecast.monthly_forecasts or []) if isinstance(m, dict)),
-            {}
-        )
-        try:
-            forecast.unit_price_display = float(first_monthly.get("unit_price", 0) or 0)
-        except (TypeError, ValueError):
-            forecast.unit_price_display = 0
-        try:
-            forecast.quantity_display = float(first_monthly.get("quantity", 0) or 0)
-        except (TypeError, ValueError):
-            forecast.quantity_display = 0
+    # ── Month filter for the Forecast tab ────────────────────────────────────
+    # We need to filter + expand monthly entries by the chosen month.
+    # We do this in Python after fetching, then re-paginate the expanded list.
 
-    # ── Previous Forecast Tab Data (NEW) ─────────────────────────────────────
+    if fmonth_forecast:
+        # Build a flat list of (forecast_obj, month_entry) tuples for the
+        # selected month only, then paginate that flat list.
+        expanded_rows = []
+        for forecast in forecasts_qs.iterator():
+            for entry in (forecast.monthly_forecasts or []):
+                if not isinstance(entry, dict):
+                    continue
+                date_str = str(entry.get("date", "")).strip()
+                # date_str is like "January-2026"; compare the month part
+                entry_month = date_str.split("-")[0].strip() if "-" in date_str else date_str
+                if entry_month.lower() == fmonth_forecast.lower():
+                    # Attach a synthetic attribute so the template can read it
+                    # without change — reuse forecast obj with overridden monthly
+                    import copy
+                    fc = copy.copy(forecast)
+                    fc.monthly_forecasts = [entry]
+                    # unit_price_display for rows without monthly override
+                    try:
+                        fc.unit_price_display = float(entry.get("unit_price", 0) or 0)
+                    except (TypeError, ValueError):
+                        fc.unit_price_display = 0
+                    fc.quantity_display = float(entry.get("quantity", 0) or 0)
+                    expanded_rows.append(fc)
+
+        forecasts_total = len(expanded_rows)
+        paginator = Paginator(expanded_rows, 8)
+        forecasts_page = paginator.get_page(page_number)
+        forecasts_list = list(forecasts_page)
+
+    else:
+        forecasts_total = forecasts_total_pre_month
+        paginator = Paginator(forecasts_qs, 8)
+        forecasts_page = paginator.get_page(page_number)
+
+        forecasts_list = []
+        for forecast in forecasts_page:
+            first_monthly = None
+            if forecast.monthly_forecasts and len(forecast.monthly_forecasts) > 0:
+                first_monthly = forecast.monthly_forecasts[0]
+                if isinstance(first_monthly, dict):
+                    first_monthly = {
+                        "date": first_monthly.get("date", ""),
+                        "unit_price": float(first_monthly.get("unit_price", 0)),
+                        "quantity": float(first_monthly.get("quantity", 0)),
+                    }
+
+            forecast.unit_price_display = first_monthly.get("unit_price", 0) if first_monthly else 0
+            forecast.quantity_display = first_monthly.get("quantity", 0) if first_monthly else 0
+            forecasts_list.append(forecast)
+
+    forecasts_monthly_json = {}
+    for f in forecasts_list:
+        monthly_list = []
+        for m in (f.monthly_forecasts or []):
+            if isinstance(m, dict):
+                monthly_list.append({
+                    "date": m.get("date", ""),
+                    "unit_price": float(m.get("unit_price", 0)),
+                    "quantity": float(m.get("quantity", 0)),
+                })
+        forecasts_monthly_json[str(f.id)] = monthly_list
+
+    forecasts_monthly_json = json.dumps(forecasts_monthly_json, default=str)
+
+    all_customers = Customer.objects.all().order_by("customer_name")
+
+    # ── Previous Forecast Tab (from old code) ─────────────────────────────────
     pf_customer = (request.GET.get("pf_customer") or "").strip()
     pf_q = (request.GET.get("pf_q") or "").strip()
+    # pf_month holds an abbreviated month label, e.g. "JAN"
+    pf_month = (request.GET.get("pf_month") or "").strip().upper()
     
-    # Get current and previous years
-    from datetime import date
-    current_year = date.today().year
+    current_year = _user_today.year
     previous_year = current_year - 1
     
     prev_data = {}
     if tab == "previous_forecast":
-        # Month mapping for display
         month_map = {
             1: 'JAN', 2: 'FEB', 3: 'MAR', 4: 'APR', 5: 'MAY', 6: 'JUN',
             7: 'JUL', 8: 'AUG', 9: 'SEP', 10: 'OCT', 11: 'NOV', 12: 'DEC'
         }
         
-        # Month name to number mapping for parsing
-        month_name_to_num = {
-            'january': 1, 'february': 2, 'march': 3, 'april': 4,
-            'may': 5, 'june': 6, 'july': 7, 'august': 8,
-            'september': 9, 'october': 10, 'november': 11, 'december': 12,
-            'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4,
-            'jun': 6, 'jul': 7, 'aug': 8, 'sep': 9, 'sept': 9,
-            'oct': 10, 'nov': 11, 'dec': 12
-        }
-        
-        # Get all forecasts
         qs = Forecast.objects.select_related("customer").all()
         
-        # Apply filters
         if pf_customer:
             qs = qs.filter(customer__customer_name=pf_customer)
         
@@ -1959,7 +2304,6 @@ def admin_dashboard(request):
                 Q(part_name__icontains=pf_q)
             )
         
-        # Organize data by (customer, part_number)
         rows_by_key = {}
         total_qty = defaultdict(float)
         total_amt = defaultdict(float)
@@ -1967,7 +2311,6 @@ def admin_dashboard(request):
         for forecast in qs:
             monthly = forecast.monthly_forecasts or []
             
-            # Get first entry for unit price
             first_entry = next(
                 (m for m in monthly if isinstance(m, dict)),
                 {}
@@ -1981,7 +2324,6 @@ def admin_dashboard(request):
             customer_name = forecast.customer.customer_name if forecast.customer else "—"
             key = (customer_name, forecast.part_number)
             
-            # Initialize row if not exists
             if key not in rows_by_key:
                 rows_by_key[key] = {
                     "customer": customer_name,
@@ -1993,7 +2335,6 @@ def admin_dashboard(request):
             
             row = rows_by_key[key]
             
-            # Process each monthly entry
             for entry in monthly:
                 if not isinstance(entry, dict):
                     continue
@@ -2002,7 +2343,6 @@ def admin_dashboard(request):
                 if not date_str:
                     continue
                 
-                # Parse date (format: "Month-YYYY")
                 try:
                     parts = date_str.split('-')
                     if len(parts) < 2:
@@ -2011,42 +2351,38 @@ def admin_dashboard(request):
                     month_name = parts[0].strip().lower()
                     year = int(parts[-1].strip())
                     
-                    # Only include if year is previous year
                     if year != previous_year:
                         continue
                     
-                    month_num = month_name_to_num.get(month_name)
+                    month_num = _MONTH_NAME_TO_NUM.get(month_name)
                     if not month_num:
                         continue
                     
-                    month_abbr = month_map[month_num]
+                    month_abbr = _SHORT_MONTHS[month_num]
                     
-                    # Get quantity
                     try:
                         qty = float(entry.get("quantity", 0) or 0)
                     except (TypeError, ValueError):
                         qty = 0.0
                     
-                    # Add to row
                     row["months"][month_abbr] += qty
-                    
-                    # Add to totals
                     total_qty[month_abbr] += qty
                     total_amt[month_abbr] += qty * unit_price
                     
                 except (ValueError, IndexError, KeyError):
                     continue
         
-        # Convert defaultdict to regular dict for template
         prev_rows = []
         for key, row in rows_by_key.items():
             row["months"] = dict(row["months"])
             prev_rows.append(row)
         
-        # Sort rows by customer then part number
+        # ── Filter by selected month ──────────────────────────────────────────
+        if pf_month:
+            prev_rows = [r for r in prev_rows if r["months"].get(pf_month, 0)]
+
         prev_rows.sort(key=lambda x: (x["customer"], x["part_number"]))
         
-        # Get unique customers for filter dropdown
         prev_customers = list(set(
             Forecast.objects.filter(
                 monthly_forecasts__0__date__icontains=str(previous_year)
@@ -2060,6 +2396,7 @@ def admin_dashboard(request):
             "prev_customers": prev_customers,
             "pf_customer": pf_customer,
             "pf_q": pf_q,
+            "pf_month": pf_month,
             "fs_prev_months": ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 
                                'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'],
             "fs_prev_year": previous_year,
@@ -2068,42 +2405,82 @@ def admin_dashboard(request):
     # ── Forecast Summary tab data ─────────────────────────────────────────────
     fsq = (request.GET.get("fsq") or "").strip()
     fsq_customer = (request.GET.get("fsq_customer") or "").strip()
+    # fsq_month holds an abbreviated month label, e.g. "JAN"
+    fsq_month = (request.GET.get("fsq_month") or "").strip().upper()
 
     fs_data = {}
     if tab == "forecast_summary":
-        fs_data = _build_forecast_summary(fsq=fsq, fsq_customer=fsq_customer)
+        fs_data = _build_forecast_summary(fsq=fsq, fsq_customer=fsq_customer, fsq_month=fsq_month, user_tz=user_tz)
 
     # Actual Delivered tab data
     adq = (request.GET.get("adq") or "").strip()
     ad_customer = (request.GET.get("ad_customer") or "").strip()
+    # ad_month holds an abbreviated month label, e.g. "JAN"
+    ad_month = (request.GET.get("ad_month") or "").strip().upper()
 
     ad_data = {}
     if tab == "actual_delivered":
-        ad_data = _build_actual_summary(adq=adq, ad_customer=ad_customer)
+        ad_data = _build_actual_summary(adq=adq, ad_customer=ad_customer, ad_month=ad_month, user_tz=user_tz)
 
-    tep_id = request.GET.get("tep_id")
-    is_ajax = request.headers.get("x-requested-with") == "XMLHttpRequest"
+    # ── Forecast Analytics (from old code) ────────────────────────────────────
+    all_forecasts = Forecast.objects.all()
+    
+    unique_customers = set()
+    for forecast in all_forecasts:
+        if forecast.customer:
+            unique_customers.add(forecast.customer.id)
+    forecast_customers_count = len(unique_customers)
+    
+    current_month = _user_now.strftime('%B')
+    current_year = _user_today.year
+    active_this_month = set()
+    
+    for forecast in all_forecasts:
+        if not forecast.customer:
+            continue
+        for monthly in (forecast.monthly_forecasts or []):
+            if isinstance(monthly, dict):
+                date_str = monthly.get('date', '')
+                if current_month in date_str and str(current_year) in date_str:
+                    active_this_month.add(forecast.customer.id)
+                    break
+    
+    part_numbers_count = all_forecasts.count()
+    
+    unique_part_numbers = set()
+    for forecast in all_forecasts:
+        unique_part_numbers.add(forecast.part_number)
+    
+    total_forecast_entries = 0
+    for forecast in all_forecasts:
+        total_forecast_entries += len(forecast.monthly_forecasts or [])
+    
+    all_months = set()
+    for forecast in all_forecasts:
+        for monthly in (forecast.monthly_forecasts or []):
+            if isinstance(monthly, dict):
+                date_str = monthly.get('date', '')
+                if date_str:
+                    all_months.add(date_str)
+    active_months_count = len(all_months)
+    
+    fs_fore_months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 
+                      'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
 
-    if tep_id and is_ajax:
-        tep = get_object_or_404(TEPCode.objects.select_related("customer"), id=tep_id)
-        materials = _build_bom_display_rows(tep)
+    previous_year_parts = set()
+    current_year_parts = set()
 
-        selected_part = (tep.part_code or "").strip()
-        selected_part_name = ""
+    for forecast in all_forecasts:
+        for monthly in (forecast.monthly_forecasts or []):
+            if isinstance(monthly, dict):
+                date_str = monthly.get('date', '')
+                if str(previous_year) in date_str:
+                    previous_year_parts.add(forecast.part_number)
+                if str(current_year) in date_str:
+                    current_year_parts.add(forecast.part_number)
 
-        for p in (tep.customer.parts or []):
-            if isinstance(p, dict) and str(p.get("Partcode", "")).strip() == selected_part:
-                selected_part_name = str(p.get("Partname", "")).strip()
-                break
-
-        return render(request, "admin/_customer_detail_panel.html", {
-            "customer": tep.customer,
-            "materials": materials,
-            "selected_tep": tep.tep_code,
-            "selected_part": selected_part,
-            "selected_part_name": selected_part_name,
-            "tep_id": tep.id,
-        })
+    previous_year_count = len(previous_year_parts)
+    current_year_count = len(current_year_parts)
 
     # ── Build final context ───────────────────────────────────────────────────
     bpart = (request.GET.get("bpart") or "").strip()
@@ -2150,29 +2527,53 @@ def admin_dashboard(request):
         "fq": fq,
         "fcustomer": fcustomer,
         "fmonth": fmonth,
+        "fmonth_forecast": fmonth_forecast,
         "forecast_latest": forecast_latest,
         "forecast_page": forecast_page,
         "forecast_totals": forecast_totals,
-        "forecasts_list": forecasts_list,
+        "forecasts_list": forecasts_page,
         "forecasts_total": forecasts_total,
-        "all_customers": Customer.objects.all().order_by("customer_name"),
+        "forecasts_monthly_json": forecasts_monthly_json,
+        "all_customers": all_customers,
         "forecast_customers": Customer.objects.filter(forecasts__isnull=False).distinct().order_by("customer_name"),
 
         "master_map_json": json.dumps(master_map, ensure_ascii=False),
 
+        # Previous Forecast
+        **prev_data,
+
         # Forecast Summary
         "fsq":         fsq,
         "fsq_customer": fsq_customer,
+        "fsq_month": fsq_month,
         **fs_data,
-        
-        # Previous Forecast
-        **prev_data,
 
         # Actual Delivered
         "adq": adq,
         "ad_customer": ad_customer,
+        "ad_month": ad_month,
         **ad_data,
+
+        # Analytics
+        "forecast_customers_count": forecast_customers_count,
+        "forecast_customers_active": len(active_this_month),
+        "part_numbers_count": part_numbers_count,
+        "unique_part_numbers": len(unique_part_numbers),
+        "total_forecast_entries": total_forecast_entries,
+        "active_months_count": active_months_count,
+        "fs_fore_months": fs_fore_months,
+        
+        "previous_year_count": previous_year_count,
+        "current_year_count": current_year_count,
+        "display_prev_year": previous_year,
+        "display_curr_year": current_year,
+
+        # BOM Master
         **bom_ctx,
+
+        # Timezone
+        "user_timezone": request.session.get("user_timezone", "UTC"),
+        "user_now": _user_now,
     }
     
     return render(request, "admin/dashboard.html", context)
@@ -2198,6 +2599,7 @@ def toggle_user_active(request, user_id):
 
     messages.success(request, f"Updated user: {user_obj.username} (active={user_obj.is_active})")
     return redirect(reverse("app:admin_dashboard") + "?tab=users")
+
 
 @require_GET
 @login_required
@@ -2240,6 +2642,7 @@ def material_lookup(request):
         return JsonResponse({"ok": False, "error": "Not found."}, status=404)
 
     return JsonResponse({"ok": True, "material": mat})
+
 
 @require_GET
 @login_required
@@ -2309,6 +2712,7 @@ def part_bom_lookup(request):
         "customer_name": tep.customer.customer_name if tep and tep.customer_id else "",
         "materials": materials,
     })
+
 
 @require_GET
 @login_required
@@ -2434,6 +2838,7 @@ def admin_csv_upload(request):
             return redirect(next_url)
 
     return redirect(next_url)
+
 
 @never_cache
 @login_required
@@ -2674,7 +3079,7 @@ def admin_forecast_csv_upload(request):
                     if year is None:
                         # Fallbacks when the band label has no year:
                         # - actual / previous forecast → previous year
-                        # - forecast (current)         → current year
+                        # - forecast (current)         -> current year
                         if group in ("actual", "prev"):
                             year = _today_year - 1
                         else:  # "fore"
@@ -2917,7 +3322,6 @@ def customer_detail(request, tep_id: int):
 @login_required
 @user_passes_test(is_admin)
 def add_material_to_tep(request):
-
     tep_id = (request.POST.get("tep_id") or "").strip()
     mat_partcode = _normalize_space(request.POST.get("mat_partcode"))
     dim_qty_raw = (request.POST.get("dim_qty") or "").strip()
@@ -2962,6 +3366,7 @@ def add_material_to_tep(request):
 
     try:
         with transaction.atomic():
+            # Try to use new BOM system first
             bom_obj, created = BOMMaterial.objects.get_or_create(
                 part_code=tep.part_code,
                 mat_partcode=master.mat_partcode,
@@ -2978,19 +3383,22 @@ def add_material_to_tep(request):
 
             if not created:
                 messages.error(request, f"Material already exists for this Part Code + {mat_partcode}.")
-            else:
-                _sync_legacy_material_from_bom(
-                    tep=tep,
-                    master=master,
-                    dim_qty=dim_qty,
-                    loss_percent=loss_percent,
-                )
-                messages.success(request, f"Added material: {mat_partcode}")
+                return redirect(reverse("app:admin_dashboard") + f"?tab=customers&open_panel=1&tep_id={tep_id}")
+
+            # Sync with legacy Material model
+            _sync_legacy_material_from_bom(
+                tep=tep,
+                master=master,
+                dim_qty=dim_qty,
+                loss_percent=loss_percent,
+            )
+            messages.success(request, f"Added material: {mat_partcode}")
 
     except Exception as e:
         messages.error(request, f"Failed to add material: {e}")
 
     return redirect(reverse("app:admin_dashboard") + f"?tab=customers&open_panel=1&tep_id={tep_id}")
+
 
 @require_POST
 @login_required
@@ -3040,6 +3448,7 @@ def add_material_to_tep_staff(request):
 
     try:
         with transaction.atomic():
+            # Try to use new BOM system first
             bom_obj, created = BOMMaterial.objects.get_or_create(
                 part_code=tep.part_code,
                 mat_partcode=master.mat_partcode,
@@ -3056,52 +3465,26 @@ def add_material_to_tep_staff(request):
 
             if not created:
                 messages.error(request, f"Material already exists for this Part Code + {mat_partcode}.")
-            else:
-                _sync_legacy_material_from_bom(
-                    tep=tep,
-                    master=master,
-                    dim_qty=dim_qty,
-                    loss_percent=loss_percent,
-                )
-                messages.success(request, f"Added material: {mat_partcode}")
+                return redirect("app:customer_detail", tep_id=tep.id)
+
+            # Sync with legacy Material model
+            _sync_legacy_material_from_bom(
+                tep=tep,
+                master=master,
+                dim_qty=dim_qty,
+                loss_percent=loss_percent,
+            )
+            messages.success(request, f"Added material: {mat_partcode}")
 
     except Exception as e:
         messages.error(request, f"Failed to add material: {e}")
 
     return redirect("app:customer_detail", tep_id=tep.id)
 
+
 @never_cache
 @login_required
 @user_passes_test(can_edit)  
-def staff_materials(request):
-    mq = (request.GET.get("mq") or "").strip()
-
-    qs = MaterialList.objects.all().order_by("mat_partcode")
-    if mq:
-        qs = qs.filter(
-            Q(mat_partcode__icontains=mq) |
-            Q(mat_partname__icontains=mq) |
-            Q(mat_maker__icontains=mq) |
-            Q(unit__icontains=mq)
-        )
-
-    paginator = Paginator(qs, 12)
-    page = paginator.get_page(request.GET.get("page"))
-
-    return render(request, "materials_list.html", {
-        "mq": mq,
-        "page_obj": page,
-        "materials": page,  
-    })
-
-from django.views.decorators.http import require_POST
-from django.views.decorators.cache import never_cache
-from django.db.models import Q
-from django.core.paginator import Paginator
-
-@never_cache
-@login_required
-@user_passes_test(can_edit)
 def staff_materials(request):
     mq = (request.GET.get("mq") or "").strip()
 
@@ -3341,6 +3724,7 @@ def customer_create(request):
         messages.error(request, "Failed to save customer record.")
         return redirect("app:customer_list")
 
+
 @require_POST
 @login_required
 @user_passes_test(is_admin)
@@ -3412,7 +3796,6 @@ def create_material_allocation(request):
     return redirect(url)
 
 
-
 def logout_view(request):
     logout(request)
     response = redirect(reverse("app:login"))
@@ -3434,3 +3817,39 @@ def reserve_material(request):
     record (status='reserved') after checking availability.
     """
     return create_material_allocation(request)
+
+
+# ── Timezone endpoint ─────────────────────────────────────────────────────────
+
+from django.views.decorators.csrf import csrf_exempt
+
+@csrf_exempt
+@require_POST
+def set_timezone(request):
+    """
+    Called by browser JS with the user's local IANA timezone string.
+    Stores it in the session so all views use the correct local time.
+    """
+    try:
+        body = json.loads(request.body)
+        tz_name = (body.get("timezone") or "").strip()
+    except (json.JSONDecodeError, AttributeError):
+        tz_name = ""
+
+    if tz_name:
+        try:
+            ZoneInfo(tz_name)          # validate it's a real IANA tz
+            request.session["user_timezone"] = tz_name
+            request.session.modified = True
+            return HttpResponse(
+                json.dumps({"ok": True, "timezone": tz_name}),
+                content_type="application/json"
+            )
+        except (ZoneInfoNotFoundError, KeyError):
+            pass
+
+    return HttpResponse(
+        json.dumps({"ok": False, "error": "Invalid timezone"}),
+        content_type="application/json",
+        status=400,
+    )
