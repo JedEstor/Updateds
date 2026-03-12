@@ -29,10 +29,18 @@
     .sidebar {
       width: 72px;
       transition: width 180ms ease;
+      position: fixed;
+      left: 0;
+      top: 0;
+      z-index: 50;
+      height: 100vh;
     }
+    
     .sidebar:hover {
       width: 260px;
+      box-shadow: 4px 0 18px rgba(0,0,0,0.35);
     }
+    
     .main-wrap {
       margin-left: 72px;
       width: calc(100% - 72px);
@@ -40,6 +48,7 @@
       transition: margin-left 180ms ease, width 180ms ease;
       overflow-x: hidden;
     }
+    
     .sidebar:hover ~ .main-wrap {
       margin-left: 260px;
       width: calc(100% - 260px);
@@ -96,57 +105,52 @@
         );
     }
 
-    .sidebar:hover {
-      box-shadow: 4px 0 18px rgba(0,0,0,0.35);
+    .button-gradient {
+      background:
+        linear-gradient(
+          180deg,
+          #0a1222 0%,
+          #0b1a33 40%,
+          #0c2344 60%,
+          #0b1a33 85%,
+          #0a1222 100%
+        );
+      position: relative;
+      color: white;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.08),
+        0 4px 10px rgba(0,0,0,0.35);
+      transition: all 0.2s ease;
     }
 
-        .button-gradient {
-  background:
-    linear-gradient(
-      180deg,
-      #0a1222 0%,
-      #0b1a33 40%,
-      #0c2344 60%,
-      #0b1a33 85%,
-      #0a1222 100%
-    );
-  position: relative;
-  color: white;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.08),
-    0 4px 10px rgba(0,0,0,0.35);
-  transition: all 0.2s ease;
-}
+    .button-gradient:hover {
+      transform: translateY(-1px);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.12),
+        0 6px 16px rgba(0,0,0,0.45);
+    }
 
-.button-gradient:hover {
-  transform: translateY(-1px);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.12),
-    0 6px 16px rgba(0,0,0,0.45);
-}
+    .button-gradient:active {
+      transform: translateY(0);
+      box-shadow:
+        inset 0 2px 6px rgba(0,0,0,0.5);
+    }
 
-.button-gradient:active {
-  transform: translateY(0);
-  box-shadow:
-    inset 0 2px 6px rgba(0,0,0,0.5);
-}
-
-.button-gradient::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background:
-    radial-gradient(
-      ellipse at bottom center,
-      rgba(255,255,255,0.15) 0%,
-      rgba(255,255,255,0.06) 30%,
-      rgba(255,255,255,0.02) 55%,
-      rgba(255,255,255,0) 75%
-    );
-  pointer-events: none;
-}
-
+    .button-gradient::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background:
+        radial-gradient(
+          ellipse at bottom center,
+          rgba(255,255,255,0.15) 0%,
+          rgba(255,255,255,0.06) 30%,
+          rgba(255,255,255,0.02) 55%,
+          rgba(255,255,255,0) 75%
+        );
+      pointer-events: none;
+    }
 
     /* Sidebar scrollbar */
     .sidebar-scroll{
@@ -167,15 +171,15 @@
       background-clip: padding-box;
     }
 
-  
-
-    /* merged forecast excel styles from dashboard 2 */
-    /* Forecast Summary Styles - Kept for the included templates */
+    /* Forecast Summary Styles */
     .fs-table-wrap {
       overflow-x: auto;
       border-radius: 1rem;
       border: 1px solid #e2e8f0;
       box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
     }
     .fs-table {
       border-collapse: collapse;
@@ -211,13 +215,6 @@
       font-size: 0.7rem;
       letter-spacing: 0.03em;
     }
-    .fs-table thead .fs-col-header. {
-      text-align: left;
-      position: static;
-      left: auto;
-      z-index: auto;
-      background: #f1f5f9;
-    }
     .fs-table tbody tr.data-row {
       background: #fff;
       border-bottom: 1px solid #e2e8f0;
@@ -232,18 +229,6 @@
       text-align: right;
       color: #334155;
       white-space: nowrap;
-    }
-    .fs-table tbody td. {
-      text-align: left;
-      position: static;
-      left: auto;
-      z-index: auto;
-      background: #fff;
-      font-weight: 500;
-      color: #0f172a;
-    }
-    .fs-table tbody tr.data-row:hover td. {
-      background: #f8fafc;
     }
     .fs-table tbody tr.total-row td {
       background: #f0fdf4;
@@ -272,12 +257,8 @@
       background: #eff6ff;
       color: #1e40af;
     }
-    .fs-table tbody tr.total-row td.,
-    .fs-table tbody tr.total-amount-row td. {
-      background: inherit;
-    }
   
-  
+    /* Forecast container styles */
     .forecast-panel-card,
     .forecast-panel-body,
     .forecast-filters,
@@ -314,26 +295,34 @@
     .forecast-filters form {
       min-width: 0;
     }
-    .fs-table-wrap {
-      width: 100%;
-      max-width: 100%;
-      overflow-x: auto;
-      overflow-y: hidden;
-      position: relative;
-      z-index: 0;
-      background: #fff;
-      box-sizing: border-box;
-    }
-    .fs-table {
-      width: max-content;
-      min-width: 100%;
-    }
 
+    /* Mobile responsive */
+    @media (max-width: 768px) {
+      .sidebar {
+        width: 0;
+        opacity: 0;
+        transition: width 180ms ease, opacity 180ms ease;
+      }
+      
+      .sidebar.sidebar-visible {
+        width: 260px;
+        opacity: 1;
+      }
+      
+      .main-wrap {
+        margin-left: 0;
+        width: 100%;
+      }
+      
+      .sidebar:hover ~ .main-wrap {
+        margin-left: 0;
+        width: 100%;
+      }
+    }
   </style>
 </head>
 
 <body class="min-h-screen bg-slate-100 text-slate-900">
-  <!-- FORECAST ALIGNMENT FINAL FIX -->
 
   <aside class="sidebar sidebar-gradient fixed left-0 top-0 h-full z-50 text-slate-100 border-r border-slate-800 overflow-x-hidden">
     <div class="h-full flex flex-col">
@@ -401,6 +390,10 @@
           class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition
                   {% if tab == 'forecast_run' %}bg-white/10{% endif %}">
           <span class="inline-flex h-9 w-9 rounded-lg bg-white/5 items-center justify-center border border-white/10">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
           </span>
           <div class="nav-text">
             <div class="font-medium">Forecast</div>
@@ -410,90 +403,89 @@
 
         <div class="pt-2 border-t border-white/10"></div>
 
-        
-      <!-- Forecast Records Link -->
-      <a href="{% url 'app:admin_dashboard' %}?tab=forecast"
-         class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition
-                {% if tab == 'forecast' %}bg-white/10{% endif %}">
-        <span class="inline-flex h-9 w-9 rounded-lg bg-white/5 items-center justify-center border border-white/10">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-          </svg>
-        </span>
-        <div class="nav-text">
-          <div class="font-medium">Forecast Records</div>
-          <div class="text-xs text-slate-200/80">View & manage forecasts</div>
-        </div>
-      </a>
+        <!-- Forecast Records Link -->
+        <a href="{% url 'app:admin_dashboard' %}?tab=forecast"
+           class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition
+                  {% if tab == 'forecast' %}bg-white/10{% endif %}">
+          <span class="inline-flex h-9 w-9 rounded-lg bg-white/5 items-center justify-center border border-white/10">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          </span>
+          <div class="nav-text">
+            <div class="font-medium">Forecast Records</div>
+            <div class="text-xs text-slate-200/80">View & manage forecasts</div>
+          </div>
+        </a>
 
-            <!-- Previous Forecast Link -->
-      <a href="{% url 'app:admin_dashboard' %}?tab=previous_forecast"
-        class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition
-                {% if tab == 'previous_forecast' %}bg-white/10{% endif %}">
-        <span class="inline-flex h-9 w-9 rounded-lg bg-white/5 items-center justify-center border border-white/10">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </span>
-        <div class="nav-text">
-          <div class="font-medium">Previous Forecast</div>
-          <div class="text-xs text-slate-200/80">Historical forecast data</div>
-        </div>
-      </a>
+        <!-- Previous Forecast Link -->
+        <a href="{% url 'app:admin_dashboard' %}?tab=previous_forecast"
+          class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition
+                  {% if tab == 'previous_forecast' %}bg-white/10{% endif %}">
+          <span class="inline-flex h-9 w-9 rounded-lg bg-white/5 items-center justify-center border border-white/10">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </span>
+          <div class="nav-text">
+            <div class="font-medium">Previous Forecast</div>
+            <div class="text-xs text-slate-200/80">Historical forecast data</div>
+          </div>
+        </a>
 
-      <!-- Forecast Summary Link -->
-      <a href="{% url 'app:admin_dashboard' %}?tab=forecast_summary"
-         class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition
-                {% if tab == 'forecast_summary' %}bg-white/10{% endif %}">
-        <span class="inline-flex h-9 w-9 rounded-lg bg-white/5 items-center justify-center border border-white/10">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
-          </svg>
-        </span>
-        <div class="nav-text">
-          <div class="font-medium">Forecast Summary</div>
-          <div class="text-xs text-slate-200/80">Charts & analytics</div>
-        </div>
-      </a>
+        <!-- Forecast Summary Link -->
+        <a href="{% url 'app:admin_dashboard' %}?tab=forecast_summary"
+           class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition
+                  {% if tab == 'forecast_summary' %}bg-white/10{% endif %}">
+          <span class="inline-flex h-9 w-9 rounded-lg bg-white/5 items-center justify-center border border-white/10">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+            </svg>
+          </span>
+          <div class="nav-text">
+            <div class="font-medium">Forecast Summary</div>
+            <div class="text-xs text-slate-200/80">Charts & analytics</div>
+          </div>
+        </a>
 
-      <!-- Actual Delivered Link -->
-      <a href="{% url 'app:admin_dashboard' %}?tab=actual_delivered"
-         class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition
-                {% if tab == 'actual_delivered' %}bg-white/10{% endif %}">
-        <span class="inline-flex h-9 w-9 rounded-lg bg-white/5 items-center justify-center border border-white/10">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M3 3h18v4H3V3zm0 6h10v4H3V9zm0 6h6v4H3v-4zM15 9h6v10h-6V9z" />
-          </svg>
-        </span>
-        <div class="nav-text">
-          <div class="font-medium">Actual Delivered</div>
-          <div class="text-xs text-slate-200/80">Actual shipment by month</div>
-        </div>
-      </a>
+        <!-- Actual Delivered Link -->
+        <a href="{% url 'app:admin_dashboard' %}?tab=actual_delivered"
+           class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition
+                  {% if tab == 'actual_delivered' %}bg-white/10{% endif %}">
+          <span class="inline-flex h-9 w-9 rounded-lg bg-white/5 items-center justify-center border border-white/10">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M3 3h18v4H3V3zm0 6h10v4H3V9zm0 6h6v4H3v-4zM15 9h6v10h-6V9z" />
+            </svg>
+          </span>
+          <div class="nav-text">
+            <div class="font-medium">Actual Delivered</div>
+            <div class="text-xs text-slate-200/80">Actual shipment by month</div>
+          </div>
+        </a>
 
-      <!-- Divider -->
-      <div class="pt-2 border-t border-white/10"></div>
+        <!-- Divider -->
+        <div class="pt-2 border-t border-white/10"></div>
 
-      <!-- Customers Page Link (External) -->
-      <a href="{% url 'app:customer_list' %}"
-         class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition">
-        <span class="inline-flex h-9 w-9 rounded-lg bg-white/5 items-center justify-center border border-white/10">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M8 7V3h8v4M6 7h12M6 7v14h12V7" />
-          </svg>
-        </span>
-        <div class="nav-text">
-          <div class="font-medium">Customers Page</div>
-          <div class="text-xs text-slate-200/80">Go to customer list</div>
-        </div>
-      </a>
+        <!-- Customers Page Link (External) -->
+        <a href="{% url 'app:customer_list' %}"
+           class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition">
+          <span class="inline-flex h-9 w-9 rounded-lg bg-white/5 items-center justify-center border border-white/10">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M8 7V3h8v4M6 7h12M6 7v14h12V7" />
+            </svg>
+          </span>
+          <div class="nav-text">
+            <div class="font-medium">Customers Page</div>
+            <div class="text-xs text-slate-200/80">Go to customer list</div>
+          </div>
+        </a>
 
         <a href="{% url 'app:logout' %}"
            class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition">
@@ -571,1664 +563,550 @@
             {% endfor %}
           </div>
         {% endif %}
+
+        <!-- CUSTOMERS TAB -->
         {% if tab == "customers" %}
-
-<div class="w-full">
-
-  <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-x-hidden">
-
-    <!-- Header -->
-    <div class="px-5 py-4 border-b border-slate-200 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-      
-      <div>
-        <h2 class="text-lg font-semibold text-slate-900">Customer Records</h2>
-      </div>
-
-      <form method="get" class="flex gap-2 flex-wrap">
-        <input type="hidden" name="tab" value="customers">
-
-        <input
-          type="text"
-          name="q"
-          value="{{ q|default:'' }}"
-          placeholder="Search customer / tep_code / part_code / materials..."
-          class="w-80 max-w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900
-                 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        />
-
-        <button
-          class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white"
-          type="submit">
-          Search
-        </button>
-
-        <button
-          type="button"
-          onclick="openCustomerModal()"
-          class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white transition">
-          Add Customer
-        </button>
-
-      </form>
-    </div>
-
-    <!-- Table -->
-    <div class="overflow-x-auto">
-
-      <table class="w-full table-auto text-sm">
-
-        <thead class="bg-slate-50 text-slate-700 sticky top-0 z-10">
-          <tr>
-            <th class="px-4 py-3 text-left font-semibold">Customer</th>
-            <th class="px-4 py-3 text-left font-semibold">Part Code</th>
-            <th class="px-4 py-3 text-left font-semibold">TEP Code</th>
-            <th class="px-4 py-3 text-left font-semibold">Materials</th>
-            <th class="px-4 py-3 text-right font-semibold">Action</th>
-          </tr>
-        </thead>
-
-        <tbody>
-
-        {% for c in customers %}
-          <tr class="border-t border-slate-200 hover:bg-slate-50 transition">
-
-            <!-- Customer -->
-            <td class="px-4 py-3 font-medium text-slate-900">
-              {{ c.customer_name }}
-            </td>
-
-            <!-- Part Code -->
-            <td class="px-4 py-3">
-              <select
-                class="part-code-dropdown ui-select w-full"
-                data-row="{{ forloop.counter0 }}"
-              >
-                {% for pc in c.part_code_options %}
-                  <option value="{{ pc }}"
-                    {% if pc == c.default_part_code %}selected{% endif %}
-                  >
-                    {{ pc }}
-                  </option>
-                {% endfor %}
-              </select>
-            </td>
-
-            <!-- TEP Code -->
-            <td class="px-4 py-3">
-              <select
-                class="tep-code-dropdown ui-select w-full"
-                data-row="{{ forloop.counter0 }}"
-                id="tep-dd-{{ forloop.counter0 }}"
-              >
-                {% for t in c.default_tep_options %}
-                  <option
-                    value="{{ t.tep_id }}"
-                    {% if t.tep_id == c.default_tep_id %}selected{% endif %}
-                  >
-                    {{ t.tep_code }}
-                  </option>
-                {% endfor %}
-              </select>
-            </td>
-
-            <!-- Materials -->
-            <td
-              class="px-4 py-3 text-slate-700"
-              id="mat-{{ forloop.counter0 }}"
-            >
-              {{ c.default_materials_count|default:0 }}
-            </td>
-
-            <!-- Action -->
-            <td class="px-4 py-3 text-right">
-
-              {% if c.default_tep_id %}
-
-                <a
-                  href="#"
-                  class="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white view-link inline-flex items-center"
-                  id="view-{{ forloop.counter0 }}"
-                  data-tep-id="{{ c.default_tep_id }}"
-                  data-part-code="{{ c.default_part_code|escapejs }}"
-                >
-                  View
-                </a>
-
-              {% else %}
-
-                <span class="px-3 py-2 rounded-xl bg-slate-200 text-slate-600 inline-block">
-                  No TEP
-                </span>
-
-                <a
-                  href="#"
-                  class="hidden view-link"
-                  id="view-{{ forloop.counter0 }}"
-                >
-                  View
-                </a>
-
-              {% endif %}
-
-            </td>
-
-          </tr>
-
-        {% empty %}
-
-          <tr>
-            <td colspan="5" class="px-4 py-10 text-center text-slate-500">
-              No customers found.
-            </td>
-          </tr>
-
-        {% endfor %}
-
-        </tbody>
-
-      </table>
-
-    </div>
-
-  </div>
-
-</div>
-
-
-          
-<!-- ADD CUSTOMER MODAL -->
-<div id="customerModal"
-     class="fixed inset-0 bg-black bg-opacity-40 hidden items-center justify-center z-50">
-  <div class="bg-white w-[600px] h-[500px] rounded-lg shadow-lg flex flex-col overflow-x-hidden">
-
-    <!-- HEADER -->
-    <div class="flex justify-between items-center p-4 border-b">
-      <h3 class="text-lg font-semibold">Add Customer</h3>
-      <button onclick="closeCustomerModal()"
-              class="text-gray-500 hover:text-gray-700 font-bold text-xl">&times;</button>
-    </div>
-
-    <!-- PROGRESS BAR -->
-    <div class="w-full px-4 mt-4">
-      <div class="w-full bg-gray-200 h-2 rounded">
-        <div id="progressBar" class="bg-blue-600 h-2 rounded w-0 transition-all"></div>
-      </div>
-    </div>
-
-    <!-- MODAL BODY -->
-    <div class="flex flex-row flex-1 p-6 gap-6 overflow-x-hidden">
-
-      <!-- LEFT SUMMARY -->
-      <div class="w-1/3 bg-gray-100 p-4 rounded overflow-y-auto">
-        <h4 class="font-semibold mb-3">Summary</h4>
-        <div class="space-y-2 text-sm">
-          <p><strong>Name:</strong> <span id="summary_name">-</span></p>
-          <p><strong>Part Code:</strong> <span id="summary_part_code">-</span></p>
-          <p><strong>Part Name:</strong> <span id="summary_part_name">-</span></p>
-          <p><strong>TEP Code:</strong> <span id="summary_tep_code">-</span></p>
-        </div>
-      </div>
-
-      <!-- RIGHT FORM -->
-      <div class="w-2/3 flex flex-col overflow-y-auto">
-        <form id="customerForm" method="post" class="flex flex-col flex-1">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="add_customer_full">
-
-          <!-- STEP 1 -->
-          <div class="step" id="step1">
-            <h4 class="text-lg font-semibold mb-4">Step 1: Customer Info</h4>
-            <input type="text" name="customer_name" placeholder="Customer Name"
-                   class="w-full border p-2 mb-3 rounded"
-                   oninput="updateSummary(); validateStep()" required>
-          </div>
-
-          <!-- STEP 2 -->
-          <div class="step hidden" id="step2">
-            <h4 class="text-lg font-semibold mb-4">Step 2: Part Info</h4>
-
-            <input
-              type="text"
-              name="part_code"
-              id="customerPartCode"
-              list="customerPartCodeList"
-              placeholder="Type or select existing Part Code"
-              class="w-full border p-2 mb-3 rounded"
-              oninput="syncPartMasterSelection(); updateSummary(); validateStep()"
-              onchange="syncPartMasterSelection(); updateSummary(); validateStep()"
-              autocomplete="off"
-              required
-            >
-
-            <datalist id="customerPartCodeList">
-              {% for part in part_master_options %}
-                <option value="{{ part.part_code }}" data-part-name="{{ part.part_name|escape }}">
-                  {{ part.part_code }} - {{ part.part_name }}
-                </option>
-              {% endfor %}
-              {% for part in shared_part_master_items %}
-                <option value="{{ part.part_code }}" data-part-name="{{ part.part_name|escape }}">
-                  {{ part.part_code }} - {{ part.part_name }}
-                </option>
-              {% endfor %}
-            </datalist>
-
-            <input type="text" name="part_name" id="customerPartName" placeholder="Part Name"
-                   class="w-full border p-2 mb-3 rounded bg-slate-100"
-                   readonly required>
-            <div id="customerPartCodeHint" class="text-xs text-slate-500 -mt-1 mb-2">
-              Type a part code and pick from the suggestions. Part codes are maintained in BOM Master.
+          <div class="w-full">
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-x-hidden">
+              <!-- Header -->
+              <div class="px-5 py-4 border-b border-slate-200 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h2 class="text-lg font-semibold text-slate-900">Customer Records</h2>
+                </div>
+                <form method="get" class="flex gap-2 flex-wrap">
+                  <input type="hidden" name="tab" value="customers">
+                  <input
+                    type="text"
+                    name="q"
+                    value="{{ q|default:'' }}"
+                    placeholder="Search customer / tep_code / part_code / materials..."
+                    class="w-80 max-w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-900
+                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <button class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white" type="submit">Search</button>
+                  <button type="button" onclick="openCustomerModal()" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white transition">Add Customer</button>
+                </form>
+              </div>
+              <!-- Table -->
+              <div class="overflow-x-auto">
+                <table class="w-full table-auto text-sm">
+                  <thead class="bg-slate-50 text-slate-700 sticky top-0 z-10">
+                    <tr>
+                      <th class="px-4 py-3 text-left font-semibold">Customer</th>
+                      <th class="px-4 py-3 text-left font-semibold">Part Code</th>
+                      <th class="px-4 py-3 text-left font-semibold">TEP Code</th>
+                      <th class="px-4 py-3 text-left font-semibold">Materials</th>
+                      <th class="px-4 py-3 text-right font-semibold">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                  {% for c in customers %}
+                    <tr class="border-t border-slate-200 hover:bg-slate-50 transition">
+                      <td class="px-4 py-3 font-medium text-slate-900">{{ c.customer_name }}</td>
+                      <td class="px-4 py-3">
+                        <select class="part-code-dropdown ui-select w-full" data-row="{{ forloop.counter0 }}">
+                          {% for pc in c.part_code_options %}
+                            <option value="{{ pc }}" {% if pc == c.default_part_code %}selected{% endif %}>{{ pc }}</option>
+                          {% endfor %}
+                        </select>
+                      </td>
+                      <td class="px-4 py-3">
+                        <select class="tep-code-dropdown ui-select w-full" data-row="{{ forloop.counter0 }}" id="tep-dd-{{ forloop.counter0 }}">
+                          {% for t in c.default_tep_options %}
+                            <option value="{{ t.tep_id }}" {% if t.tep_id == c.default_tep_id %}selected{% endif %}>{{ t.tep_code }}</option>
+                          {% endfor %}
+                        </select>
+                      </td>
+                      <td class="px-4 py-3 text-slate-700" id="mat-{{ forloop.counter0 }}">{{ c.default_materials_count|default:0 }}</td>
+                      <td class="px-4 py-3 text-right">
+                        {% if c.default_tep_id %}
+                          <a href="#" class="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white view-link inline-flex items-center" id="view-{{ forloop.counter0 }}" data-tep-id="{{ c.default_tep_id }}" data-part-code="{{ c.default_part_code|escapejs }}">View</a>
+                        {% else %}
+                          <span class="px-3 py-2 rounded-xl bg-slate-200 text-slate-600 inline-block">No TEP</span>
+                          <a href="#" class="hidden view-link" id="view-{{ forloop.counter0 }}">View</a>
+                        {% endif %}
+                      </td>
+                    </tr>
+                  {% empty %}
+                    <tr><td colspan="5" class="px-4 py-10 text-center text-slate-500">No customers found.</td></tr>
+                  {% endfor %}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
 
-          <!-- STEP 3 -->
-          <div class="step hidden" id="step3">
-            <h4 class="text-lg font-semibold mb-4">Step 3: TEP Code</h4>
-            <input type="text" name="tep_code" placeholder="TEP Code"
-                   class="w-full border p-2 mb-3 rounded"
-                   oninput="updateSummary(); validateStep()" required>
-          </div>
-
-          <!-- NAVIGATION (Bottom) -->
-          <div class="mt-auto flex justify-end gap-3 border-t pt-3">
-            <button type="button" id="prevBtn"
-                    class="px-5 py-2 bg-gray-400 text-white rounded"
-                    onclick="prevStep()">Back</button>
-
-            <button type="button" id="nextBtn"
-                    class="px-5 py-2 bg-blue-600 text-white rounded disabled:bg-blue-300 disabled:cursor-not-allowed"
-                    onclick="nextStep()" disabled>
-              Next
-            </button>
-
-            <button type="submit" id="saveBtn"
-                    class="px-5 py-2 bg-green-600 text-white rounded disabled:bg-green-300 disabled:cursor-not-allowed hidden"
-                    disabled>
-              Save Customer
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-</div>
-
-
-
-    <div class="p-4 overflow-y-auto max-h-96">
-      <ul id="materialList" class="list-disc pl-5 space-y-1 text-sm"></ul>
-    </div>
-  </div>
-</div>
-
-<style>
-.dropdown-standard { width: 150px; min-width: 120px; }
-
-    .forecast-panel-card {
-      background: #fff;
-      border: 1px solid #e2e8f0;
-      border-radius: 1rem;
-      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
-      overflow: hidden;
-      min-width: 0;
-    }
-    .forecast-panel-header {
-      padding: 1.25rem;
-      border-bottom: 1px solid #e2e8f0;
-    }
-    .forecast-panel-body {
-      padding: 1.25rem;
-      min-width: 0;
-    }
-    .forecast-filters {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .forecast-filters form {
-      min-width: 0;
-    }
-    .fs-table-wrap {
-      width: 100%;
-      max-width: 100%;
-      overflow-x: auto;
-      overflow-y: hidden;
-      position: relative;
-      z-index: 0;
-      background: #fff;
-      box-sizing: border-box;
-    }
-    .fs-table {
-      width: max-content;
-      min-width: 100%;
-    }
-
-  </style>
-
-<script>
-let currentStep = 1;
-const totalSteps = 3;
-
-function openCustomerModal() {
-    document.getElementById('customerModal').classList.remove('hidden');
-    document.getElementById('customerModal').classList.add('flex');
-    if (!window.PART_MASTER_MAP || !Object.keys(window.PART_MASTER_MAP).length) {
-        window.PART_MASTER_MAP = buildPartMasterMapFromDatalist();
-    }
-    showStep(currentStep);
-}
-function closeCustomerModal() {
-    document.getElementById('customerModal').classList.add('hidden');
-    document.getElementById('customerForm').reset();
-    const hint = document.getElementById('customerPartCodeHint');
-    if (hint) {
-        hint.textContent = 'Type a part code and pick from the suggestions. Part codes are maintained in BOM Master.';
-        hint.className = 'text-xs text-slate-500 -mt-1 mb-2';
-    }
-    currentStep = 1;
-    showStep(currentStep);
-}
-
-function showStep(step) {
-    document.querySelectorAll('.step').forEach(s => s.classList.add('hidden'));
-    document.getElementById('step'+step).classList.remove('hidden');
-    document.getElementById('prevBtn').style.display = step===1?'none':'inline-block';
-    document.getElementById('nextBtn').style.display = step===totalSteps?'none':'inline-block';
-    document.getElementById('saveBtn').classList.toggle('hidden', step!==totalSteps);
-    document.getElementById('progressBar').style.width = ((step/totalSteps)*100)+'%';
-    updateSummary();
-    validateStep();
-}
-function nextStep(){ if(currentStep<totalSteps) currentStep++; showStep(currentStep);}
-function prevStep(){ if(currentStep>1) currentStep--; showStep(currentStep);}
-function updateSummary(){
-    const getVal = name => document.querySelector(`[name="${name}"]`)?.value || '-';
-    document.getElementById('summary_name').innerText = getVal('customer_name');
-    document.getElementById('summary_part_code').innerText = getVal('part_code');
-    document.getElementById('summary_part_name').innerText = getVal('part_name');
-    document.getElementById('summary_tep_code').innerText = getVal('tep_code');
-}
-window.PART_MASTER_MAP = (function () {
-    try {
-        return {{ part_master_json|default:'{}'|safe }};
-    } catch (e) {
-        return {};
-    }
-})();
-
-function buildPartMasterMapFromDatalist() {
-    const out = {};
-    const dl = document.getElementById('customerPartCodeList');
-    if (!dl) return out;
-
-    dl.querySelectorAll('option').forEach(opt => {
-        const code = (opt.value || '').trim();
-        const name = (opt.getAttribute('data-part-name') || opt.textContent || '').trim();
-        if (!code) return;
-
-        const cleanedName = name.startsWith(code + ' - ')
-            ? name.slice((code + ' - ').length).trim()
-            : name;
-
-        if (!out[code]) {
-            out[code] = cleanedName;
-        }
-    });
-
-    return out;
-}
-
-function syncPartMasterSelection(){
-    const input = document.getElementById('customerPartCode');
-    const partName = document.getElementById('customerPartName');
-    const hint = document.getElementById('customerPartCodeHint');
-    if (!input || !partName) return;
-
-    let map = window.PART_MASTER_MAP || {};
-    if (!Object.keys(map).length) {
-        map = buildPartMasterMapFromDatalist();
-        window.PART_MASTER_MAP = map;
-    }
-
-    const code = (input.value || '').trim();
-    const foundName = map[code] || '';
-
-    partName.value = foundName;
-
-    if (hint) {
-        if (!code) {
-            hint.textContent = 'Type a part code and pick from the suggestions. Part codes are maintained in BOM Master.';
-            hint.className = 'text-xs text-slate-500 -mt-1 mb-2';
-        } else if (foundName) {
-            hint.textContent = 'Selected from BOM Master.';
-            hint.className = 'text-xs text-emerald-600 -mt-1 mb-2';
-        } else {
-            hint.textContent = 'Part code not found in BOM Master. Please choose an existing part code.';
-            hint.className = 'text-xs text-rose-600 -mt-1 mb-2';
-        }
-    }
-}
-
-function validateStep(){
-    const stepFields = document.querySelectorAll('#step'+currentStep+' [required]');
-    let allFilled = Array.from(stepFields).every(f=>f.value.trim()!=='');
-
-    if (currentStep === 2) {
-        const code = (document.getElementById('customerPartCode')?.value || '').trim();
-        const name = (document.getElementById('customerPartName')?.value || '').trim();
-        allFilled = allFilled && !!code && !!name;
-    }
-
-    document.getElementById('prevBtn').disabled=false;
-    if(currentStep<totalSteps) document.getElementById('nextBtn').disabled=!allFilled;
-    else document.getElementById('saveBtn').disabled=!allFilled;
-}
-
-// MATERIAL MODAL FUNCTIONS
-function openMaterialModal(materials){
-    const modal = document.getElementById('materialModal');
-    const list = document.getElementById('materialList');
-    list.innerHTML = '';
-    materials.forEach(m=>{
-        const li = document.createElement('li');
-        li.textContent = m;
-        list.appendChild(li);
-    });
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-}
-function closeMaterialModal(){
-    document.getElementById('materialModal').classList.add('hidden');
-}
-
-
-</script>
-
-        {% endif %}
-
-      {% if sidebar_tab == "materials_bom" or tab == "bom_master" or tab == "materials" or tab == "stocks" %}
-<div class="space-y-4">
-
-  <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-    <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
-      <div class="flex flex-wrap gap-2">
-        <a href="?tab=materials_bom&mbtab=bom_master{% if bq %}&bq={{ bq|urlencode }}{% endif %}{% if selected_bom_part_code %}&bpart={{ selected_bom_part_code|urlencode }}{% endif %}"
-           class="px-4 py-2 rounded-xl text-sm font-medium transition
-                  {% if materials_bom_tab == 'bom_master' %}
-                    bg-slate-900 text-white
-                  {% else %}
-                    bg-white border border-slate-300 text-slate-700 hover:bg-slate-50
-                  {% endif %}">
-          BOM Master
-        </a>
-
-        <a href="?tab=materials_bom&mbtab=materials{% if mq %}&mq={{ mq|urlencode }}{% endif %}"
-           class="px-4 py-2 rounded-xl text-sm font-medium transition
-                  {% if materials_bom_tab == 'materials' %}
-                    bg-slate-900 text-white
-                  {% else %}
-                    bg-white border border-slate-300 text-slate-700 hover:bg-slate-50
-                  {% endif %}">
-          Materials Master
-        </a>
-
-        <a href="?tab=materials_bom&mbtab=stocks{% if sq %}&sq={{ sq|urlencode }}{% endif %}"
-           class="px-4 py-2 rounded-xl text-sm font-medium transition
-                  {% if materials_bom_tab == 'stocks' %}
-                    bg-slate-900 text-white
-                  {% else %}
-                    bg-white border border-slate-300 text-slate-700 hover:bg-slate-50
-                  {% endif %}">
-          Material Stocks
-        </a>
-      </div>
-    </div>
-
-        {% if tab == "bom_master" %}
-          {% include "admin/bom_master.html" %}
-        {% endif %}
-
-        {% if tab == "materials" %}
-
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-          <div class="lg:col-span-8">
-            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-x-hidden">
-
-              <div class="px-5 py-4 border-b border-slate-200 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <h2 class="text-lg font-semibold text-slate-900">Material Masterlist</h2>
+          <!-- ADD CUSTOMER MODAL -->
+          <div id="customerModal" class="fixed inset-0 bg-black bg-opacity-40 hidden items-center justify-center z-50">
+            <div class="bg-white w-[600px] h-[500px] rounded-lg shadow-lg flex flex-col overflow-x-hidden">
+              <div class="flex justify-between items-center p-4 border-b">
+                <h3 class="text-lg font-semibold">Add Customer</h3>
+                <button onclick="closeCustomerModal()" class="text-gray-500 hover:text-gray-700 font-bold text-xl">&times;</button>
+              </div>
+              <div class="w-full px-4 mt-4">
+                <div class="w-full bg-gray-200 h-2 rounded">
+                  <div id="progressBar" class="bg-blue-600 h-2 rounded w-0 transition-all"></div>
                 </div>
-
-                <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-                  <form method="get" class="flex items-center gap-2">
-                    <input type="hidden" name="tab" value="materials_bom">
-                    <input type="hidden" name="mbtab" value="materials">
-                    <input
-                      type="text"
-                      name="mq"
-                      value="{{ mq|default:'' }}"
-                      placeholder="Search partcode / name / maker / unit..."
-                      class="h-10 w-80 max-w-full px-3 rounded-xl bg-white border border-slate-300 text-slate-900
-                             focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                    <button class="h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white" type="submit">
-                      Search
-                    </button>
+              </div>
+              <div class="flex flex-row flex-1 p-6 gap-6 overflow-x-hidden">
+                <div class="w-1/3 bg-gray-100 p-4 rounded overflow-y-auto">
+                  <h4 class="font-semibold mb-3">Summary</h4>
+                  <div class="space-y-2 text-sm">
+                    <p><strong>Name:</strong> <span id="summary_name">-</span></p>
+                    <p><strong>Part Code:</strong> <span id="summary_part_code">-</span></p>
+                    <p><strong>Part Name:</strong> <span id="summary_part_name">-</span></p>
+                    <p><strong>TEP Code:</strong> <span id="summary_tep_code">-</span></p>
+                  </div>
+                </div>
+                <div class="w-2/3 flex flex-col overflow-y-auto">
+                  <form id="customerForm" method="post" class="flex flex-col flex-1">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="add_customer_full">
+                    <div class="step" id="step1">
+                      <h4 class="text-lg font-semibold mb-4">Step 1: Customer Info</h4>
+                      <input type="text" name="customer_name" placeholder="Customer Name"
+                             class="w-full border p-2 mb-3 rounded"
+                             oninput="updateSummary(); validateStep()" required>
+                    </div>
+                    <div class="step hidden" id="step2">
+                      <h4 class="text-lg font-semibold mb-4">Step 2: Part Info</h4>
+                      <input type="text" name="part_code" id="customerPartCode" list="customerPartCodeList"
+                             placeholder="Type or select existing Part Code"
+                             class="w-full border p-2 mb-3 rounded"
+                             oninput="syncPartMasterSelection(); updateSummary(); validateStep()"
+                             onchange="syncPartMasterSelection(); updateSummary(); validateStep()"
+                             autocomplete="off" required>
+                      <datalist id="customerPartCodeList">
+                        {% for part in part_master_options %}
+                          <option value="{{ part.part_code }}" data-part-name="{{ part.part_name|escape }}">
+                            {{ part.part_code }} - {{ part.part_name }}
+                          </option>
+                        {% endfor %}
+                        {% for part in shared_part_master_items %}
+                          <option value="{{ part.part_code }}" data-part-name="{{ part.part_name|escape }}">
+                            {{ part.part_code }} - {{ part.part_name }}
+                          </option>
+                        {% endfor %}
+                      </datalist>
+                      <input type="text" name="part_name" id="customerPartName" placeholder="Part Name"
+                             class="w-full border p-2 mb-3 rounded bg-slate-100" readonly required>
+                      <div id="customerPartCodeHint" class="text-xs text-slate-500 -mt-1 mb-2">
+                        Type a part code and pick from the suggestions. Part codes are maintained in BOM Master.
+                      </div>
+                    </div>
+                    <div class="step hidden" id="step3">
+                      <h4 class="text-lg font-semibold mb-4">Step 3: TEP Code</h4>
+                      <input type="text" name="tep_code" placeholder="TEP Code"
+                             class="w-full border p-2 mb-3 rounded"
+                             oninput="updateSummary(); validateStep()" required>
+                    </div>
+                    <div class="mt-auto flex justify-end gap-3 border-t pt-3">
+                      <button type="button" id="prevBtn" class="px-5 py-2 bg-gray-400 text-white rounded" onclick="prevStep()">Back</button>
+                      <button type="button" id="nextBtn" class="px-5 py-2 bg-blue-600 text-white rounded disabled:bg-blue-300 disabled:cursor-not-allowed" onclick="nextStep()" disabled>Next</button>
+                      <button type="submit" id="saveBtn" class="px-5 py-2 bg-green-600 text-white rounded disabled:bg-green-300 disabled:cursor-not-allowed hidden" disabled>Save Customer</button>
+                    </div>
                   </form>
                 </div>
               </div>
+            </div>
+          </div>
+        {% endif %}
 
-              <div class="px-5 py-3 border-b border-slate-200 text-sm text-slate-600 flex items-center justify-between gap-4 flex-wrap">
-                <div>
-                  Total: <span class="font-semibold text-slate-900">{{ material_total }}</span>
-                </div>
-                {% if page_obj %}
-                <div class="text-slate-500">
-                  Page <span class="font-semibold text-slate-900">{{ page_obj.number }}</span>
-                  of <span class="font-semibold text-slate-900">{{ page_obj.paginator.num_pages }}</span>
-                </div>
-                {% endif %}
-              </div>
-
-              <div>
-                <table class="w-full text-sm">
-                  <thead class="bg-slate-50 text-slate-700">
-                    <tr>
-                      <th class="px-4 py-3 text-left">Part Code</th>
-                      <th class="px-4 py-3 text-left">Name</th>
-                      <th class="px-4 py-3 text-left">Maker</th>
-                      <th class="px-4 py-3 text-left">Unit</th>
-                      <th class="px-4 py-3 text-right">Actions</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {% for m in material_list %}
-                    <tr class="border-t border-slate-200 hover:bg-slate-50">
-                      <td class="px-4 py-3 font-medium">{{ m.mat_partcode }}</td>
-                      <td class="px-4 py-3">{{ m.mat_partname }}</td>
-                      <td class="px-4 py-3">{{ m.mat_maker|default:"—" }}</td>
-                      <td class="px-4 py-3">{{ m.unit|default:"—" }}</td>
-
-                      <td class="px-4 py-3 text-right">
-                        <div class="inline-flex items-center gap-2">
-                          <button
-                            type="button"
-                            class="edit-material px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
-                            data-id="{{ m.id }}"
-                            data-partcode="{{ m.mat_partcode|escapejs }}"
-                            data-partname="{{ m.mat_partname|escapejs }}"
-                            data-maker="{{ m.mat_maker|default_if_none:''|escapejs }}"
-                            data-unit="{{ m.unit|default_if_none:'pc'|escapejs }}"
-                          >
-                            Edit
-                          </button>
-
-                          <form method="post" class="inline"
-                                onsubmit="return confirm('Delete {{ m.mat_partcode }}? This cannot be undone.');">
-                            {% csrf_token %}
-                            <input type="hidden" name="action" value="delete_material">
-                            <input type="hidden" name="mat_id" value="{{ m.id }}">
-                            <button type="submit"
-                                    class="px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white">
-                              Delete
-                            </button>
-                          </form>
-                        </div>
-                      </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                      <td colspan="5" class="px-4 py-10 text-center text-slate-500">
-                        No materials found.
-                      </td>
-                    </tr>
-                    {% endfor %}
-                  </tbody>
-
-                </table>
-              </div>
-
-              {% if page_obj and page_obj.paginator.num_pages > 1 %}
-              <div class="px-5 py-4 border-t border-slate-200 flex items-center justify-between gap-3 flex-wrap">
-                <div class="text-sm text-slate-500">
-                  Showing
-                  <span class="font-medium text-slate-900">{{ page_obj.start_index }}</span>–
-                  <span class="font-medium text-slate-900">{{ page_obj.end_index }}</span>
-                  of
-                  <span class="font-medium text-slate-900">{{ page_obj.paginator.count }}</span>
-                </div>
-
-                <div class="flex items-center gap-2 flex-wrap">
-                  {% if page_obj.has_previous %}
-                    <a class="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm"
-                       href="?tab=materials&mq={{ mq|urlencode }}&page={{ page_obj.previous_page_number }}">
-                      ← Prev
-                    </a>
-                  {% else %}
-                    <span class="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-400">
-                      ← Prev
-                    </span>
-                  {% endif %}
-
-                  {% for p in page_obj.paginator.page_range %}
-                    {% if p == page_obj.number %}
-                      <span class="px-3 py-2 rounded-xl bg-blue-600 text-white text-sm">{{ p }}</span>
-                    {% elif p >= page_obj.number|add:-2 and p <= page_obj.number|add:2 %}
-                      <a class="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm"
-                         href="?tab=materials&mq={{ mq|urlencode }}&page={{ p }}">{{ p }}</a>
-                    {% endif %}
-                  {% endfor %}
-
-                  {% if page_obj.has_next %}
-                    <a class="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm"
-                       href="?tab=materials&mq={{ mq|urlencode }}&page={{ page_obj.next_page_number }}">
-                      Next →
-                    </a>
-                  {% else %}
-                    <span class="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-400">
-                      Next →
-                    </span>
-                  {% endif %}
+        <!-- MATERIALS & BOM TABS -->
+        {% if sidebar_tab == "materials_bom" or tab == "bom_master" or tab == "materials" or tab == "stocks" %}
+          <div class="space-y-4">
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+              <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+                <div class="flex flex-wrap gap-2">
+                  <a href="?tab=materials_bom&mbtab=bom_master{% if bq %}&bq={{ bq|urlencode }}{% endif %}{% if selected_bom_part_code %}&bpart={{ selected_bom_part_code|urlencode }}{% endif %}"
+                     class="px-4 py-2 rounded-xl text-sm font-medium transition
+                            {% if materials_bom_tab == 'bom_master' %}bg-slate-900 text-white{% else %}bg-white border border-slate-300 text-slate-700 hover:bg-slate-50{% endif %}">
+                    BOM Master
+                  </a>
+                  <a href="?tab=materials_bom&mbtab=materials{% if mq %}&mq={{ mq|urlencode }}{% endif %}"
+                     class="px-4 py-2 rounded-xl text-sm font-medium transition
+                            {% if materials_bom_tab == 'materials' %}bg-slate-900 text-white{% else %}bg-white border border-slate-300 text-slate-700 hover:bg-slate-50{% endif %}">
+                    Materials Master
+                  </a>
+                  <a href="?tab=materials_bom&mbtab=stocks{% if sq %}&sq={{ sq|urlencode }}{% endif %}"
+                     class="px-4 py-2 rounded-xl text-sm font-medium transition
+                            {% if materials_bom_tab == 'stocks' %}bg-slate-900 text-white{% else %}bg-white border border-slate-300 text-slate-700 hover:bg-slate-50{% endif %}">
+                    Material Stocks
+                  </a>
                 </div>
               </div>
+
+              {% if tab == "bom_master" %}
+                {% include "admin/bom_master.html" %}
               {% endif %}
 
-            </div>
-          </div>
-
-          <div class="lg:col-span-4">
-            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 lg:sticky lg:top-6">
-              <div class="flex items-start justify-between gap-3">
-                <div>
-                  <h3 class="text-base font-semibold text-slate-900">Add Material</h3>
-                  <p class="text-sm text-slate-500">Insert directly into MaterialList.</p>
-                </div>
-
-                <button type="button" id="open-csv-upload"
-                  class="h-10 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white whitespace-nowrap">
-                  CSV Upload
-                </button>
-              </div>
-
-              <form method="post" class="mt-4 space-y-3">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="add_material">
-
-                <div>
-                  <label class="text-sm font-medium text-slate-700">Part Code</label>
-                  <input type="text" name="mat_partcode" required
-                         class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
-                                focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                </div>
-
-                <div>
-                  <label class="text-sm font-medium text-slate-700">Part Name</label>
-                  <input type="text" name="mat_partname"
-                         class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
-                                focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                </div>
-
-                <div>
-                  <label class="text-sm font-medium text-slate-700">Maker</label>
-                  <input type="text" name="mat_maker"
-                         class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
-                                focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                </div>
-
-                <div>
-                  <label class="text-sm font-medium text-slate-700">Unit</label>
-                  <select name="unit"
-                      class="mt-1 w-full ui-select">
-                    <option value="pc">pc</option>
-                    <option value="pcs">pcs</option>
-                    <option value="m">m</option>
-                    <option value="g">g</option>
-                    <option value="kg">kg</option>
-                  </select>
-                </div>
-
-                <div class="pt-2">
-                  <button type="submit"
-                          class="w-full px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white">
-                    Save
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-
-        </div>
-        {% endif %}
-
-        {% if tab == "stocks" %}
-
-        <div class="grid grid-cols-1 gap-6">
-          <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-x-hidden">
-
-            <div class="px-5 py-4 border-b border-slate-200 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div>
-                <h2 class="text-lg font-semibold text-slate-900">Material Stocks (On Hand)</h2>
-              </div>
-
-              <form method="get" class="flex items-center gap-2">
-                <input type="hidden" name="tab" value="materials_bom">
-                <input type="hidden" name="mbtab" value="stocks">
-                <input
-                  type="text"
-                  name="sq"
-                  value="{{ sq|default:'' }}"
-                  placeholder="Search partcode / name / maker..."
-                  class="h-10 w-80 max-w-full px-3 rounded-xl bg-white border border-slate-300 text-slate-900
-                         focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-                <button class="h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white" type="submit">
-                  Search
-                </button>
-              </form>
-            </div>
-
-            <div class="overflow-x-auto">
-              <table class="w-full min-w-[1100px] table-fixed text-sm">
-                <colgroup>
-                  <col class="w-[250px]">  
-                  <col class="w-[110px]">  
-                  <col class="w-[110px]">  
-                  <col class="w-[110px]">  
-                  <col class="w-[160px]">  
-                  <col class="w-[110px]">  
-                  <col class="w-[140px]">  
-                </colgroup>
-
-                <thead class="bg-slate-50 text-slate-700 sticky top-0 z-10">
-                  <tr>
-                    <th class="px-4 py-3 text-left font-semibold">Material</th>
-                    <th class="px-4 py-3 text-right font-semibold tabular-nums whitespace-nowrap">On Hand</th>
-                    <th class="px-4 py-3 text-right font-semibold tabular-nums whitespace-nowrap">Reserved</th>
-                    <th class="px-4 py-3 text-right font-semibold tabular-nums whitespace-nowrap pr-8">Available</th>
-                    <th class="px-4 py-3 text-left  font-semibold whitespace-nowrap pl-8">Last Updated</th>
-                    <th class="px-4 py-3 text-left font-semibold whitespace-nowrap">By</th>
-                    <th class="px-4 py-3 text-right font-semibold whitespace-nowrap">Action</th>
-                  </tr>
-                </thead>
-
-                <tbody class="divide-y divide-slate-200">
-                  {% for m in materials_stock_list %}
-                  <tr class="hover:bg-slate-50 align-middle">
-                    
-                    <td class="px-4 py-3">
-                      <div class="leading-tight">
-                        <div class="font-semibold text-slate-900 truncate">
-                          {{ m.mat_partcode }} <span class="font-normal text-slate-500">•</span> {{ m.mat_partname }}
-                        </div>
-                        <div class="text-xs text-slate-500 truncate mt-1">
-                          {{ m.mat_maker|default:"—" }} • Unit: {{ m.unit|default:"—" }}
+              {% if tab == "materials" %}
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  <div class="lg:col-span-8">
+                    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-x-hidden">
+                      <div class="px-5 py-4 border-b border-slate-200 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div><h2 class="text-lg font-semibold text-slate-900">Material Masterlist</h2></div>
+                        <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                          <form method="get" class="flex items-center gap-2">
+                            <input type="hidden" name="tab" value="materials_bom">
+                            <input type="hidden" name="mbtab" value="materials">
+                            <input type="text" name="mq" value="{{ mq|default:'' }}" placeholder="Search partcode / name / maker / unit..." class="h-10 w-80 max-w-full px-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                            <button class="h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white" type="submit">Search</button>
+                          </form>
                         </div>
                       </div>
-                    </td>
-
-                    <td class="px-4 py-3 text-right tabular-nums whitespace-nowrap">
-                      <input
-                        form="stock-form-{{ m.id }}"
-                        type="number"
-                        min="0"
-                        name="on_hand_qty"
-                        value="{{ m.on_hand_qty|default:0 }}"
-                        class="h-9 w-[92px] text-right px-2 rounded-lg border border-slate-300 bg-white
-                              focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </td>
-
-                    <td class="px-4 py-3 text-right tabular-nums whitespace-nowrap">
-                      <span class="font-medium text-amber-600">
-                        {{ m.reserved_qty|default:0 }}
-                      </span>
-                    </td>
-
-                   <td class="px-4 py-3 text-right tabular-nums whitespace-nowrap pr-8">
-                    <span class="font-semibold {% if m.available_qty <= 0 %}text-rose-600{% else %}text-slate-900{% endif %}">
-                      {{ m.available_qty|default:0 }}
-                    </span>
-                  </td>
-
-                  <td class="px-4 py-3 whitespace-nowrap text-slate-700 pl-8">
-                    {% if m.last_updated_at %}
-                      {{ m.last_updated_at|date:"Y-m-d H:i" }}
-                    {% else %}
-                      <span class="text-slate-400">—</span>
-                    {% endif %}
-                  </td>
-
-                    <td class="px-4 py-3 whitespace-nowrap text-slate-700">
-                      {% if m.last_updated_by %}
-                        {{ m.last_updated_by }}
-                      {% else %}
-                        <span class="text-slate-400">—</span>
+                      <div class="px-5 py-3 border-b border-slate-200 text-sm text-slate-600 flex items-center justify-between gap-4 flex-wrap">
+                        <div>Total: <span class="font-semibold text-slate-900">{{ material_total }}</span></div>
+                        {% if page_obj %}<div class="text-slate-500">Page <span class="font-semibold text-slate-900">{{ page_obj.number }}</span> of <span class="font-semibold text-slate-900">{{ page_obj.paginator.num_pages }}</span></div>{% endif %}
+                      </div>
+                      <div>
+                        <table class="w-full text-sm">
+                          <thead class="bg-slate-50 text-slate-700">
+                            <tr><th class="px-4 py-3 text-left">Part Code</th><th class="px-4 py-3 text-left">Name</th><th class="px-4 py-3 text-left">Maker</th><th class="px-4 py-3 text-left">Unit</th><th class="px-4 py-3 text-right">Actions</th></tr>
+                          </thead>
+                          <tbody>
+                            {% for m in material_list %}
+                            <tr class="border-t border-slate-200 hover:bg-slate-50">
+                              <td class="px-4 py-3 font-medium">{{ m.mat_partcode }}</td>
+                              <td class="px-4 py-3">{{ m.mat_partname }}</td>
+                              <td class="px-4 py-3">{{ m.mat_maker|default:"—" }}</td>
+                              <td class="px-4 py-3">{{ m.unit|default:"—" }}</td>
+                              <td class="px-4 py-3 text-right">
+                                <div class="inline-flex items-center gap-2">
+                                  <button type="button" class="edit-material px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700" data-id="{{ m.id }}" data-partcode="{{ m.mat_partcode|escapejs }}" data-partname="{{ m.mat_partname|escapejs }}" data-maker="{{ m.mat_maker|default_if_none:''|escapejs }}" data-unit="{{ m.unit|default_if_none:'pc'|escapejs }}">Edit</button>
+                                  <form method="post" class="inline" onsubmit="return confirm('Delete {{ m.mat_partcode }}? This cannot be undone.');">
+                                    {% csrf_token %}<input type="hidden" name="action" value="delete_material"><input type="hidden" name="mat_id" value="{{ m.id }}"><button type="submit" class="px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white">Delete</button>
+                                  </form>
+                                </div>
+                              </td>
+                            </tr>
+                            {% empty %}<tr><td colspan="5" class="px-4 py-10 text-center text-slate-500">No materials found.</td></tr>{% endfor %}
+                          </tbody>
+                        </table>
+                      </div>
+                      {% if page_obj and page_obj.paginator.num_pages > 1 %}
+                      <div class="px-5 py-4 border-t border-slate-200 flex items-center justify-between gap-3 flex-wrap">
+                        <div class="text-sm text-slate-500">Showing <span class="font-medium text-slate-900">{{ page_obj.start_index }}</span>–<span class="font-medium text-slate-900">{{ page_obj.end_index }}</span> of <span class="font-medium text-slate-900">{{ page_obj.paginator.count }}</span></div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                          {% if page_obj.has_previous %}<a class="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm" href="?tab=materials&mq={{ mq|urlencode }}&page={{ page_obj.previous_page_number }}">← Prev</a>{% else %}<span class="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-400">← Prev</span>{% endif %}
+                          {% for p in page_obj.paginator.page_range %}{% if p == page_obj.number %}<span class="px-3 py-2 rounded-xl bg-blue-600 text-white text-sm">{{ p }}</span>{% elif p >= page_obj.number|add:-2 and p <= page_obj.number|add:2 %}<a class="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm" href="?tab=materials&mq={{ mq|urlencode }}&page={{ p }}">{{ p }}</a>{% endif %}{% endfor %}
+                          {% if page_obj.has_next %}<a class="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm" href="?tab=materials&mq={{ mq|urlencode }}&page={{ page_obj.next_page_number }}">Next →</a>{% else %}<span class="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-400">Next →</span>{% endif %}
+                        </div>
+                      </div>
                       {% endif %}
-                    </td>
-
-
-    <td class="px-4 py-3 text-right whitespace-nowrap">
-  <div class="inline-flex items-center justify-end gap-2">
-
-    <!-- =========================
-         SAVE ON-HAND (ONLY)
-         ========================= -->
-    <form
-      id="stock-form-{{ m.id }}"
-      method="post"
-      action="{% url 'app:update_material_stock' %}"
-      class="inline-flex items-center justify-end"
-    >
-      {% csrf_token %}
-      <input type="hidden" name="material_id" value="{{ m.id }}">
-      <input type="hidden" name="tab" value="stocks">
-      <input type="hidden" name="sq" value="{{ sq|default:'' }}">
-      <input type="hidden" name="spage" value="{{ stock_page_obj.number|default:'' }}">
-
-      <button type="submit" class="h-9 px-4 rounded-lg button-gradient">
-        Save
-      </button>
-    </form>
-    <!-- ✅ IMPORTANT: Save form ends here -->
-
-    <!-- =========================
-         RESERVE BUTTON + MODAL
-         ========================= -->
-    <div class="inline-block">
-
-      <!-- Open modal -->
-      <button
-        type="button"
-        onclick="this.nextElementSibling.classList.remove('hidden')"
-        class="h-9 px-4 rounded-lg bg-blue-600 hover:bg-blue-500 text-white"
-      >
-        Reserve
-      </button>
-
-      <!-- Modal backdrop -->
-      <div class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-
-        <!-- Modal panel -->
-        <div class="bg-white w-full max-w-md rounded-2xl shadow-xl p-6 relative">
-          <div class="flex items-start justify-between gap-3 mb-4">
-            <h3 class="text-lg font-semibold text-slate-900">Reserve Allocation</h3>
-
-            <!-- X Close -->
-            <button
-              type="button"
-              onclick="this.closest('.fixed').classList.add('hidden')"
-              class="h-9 w-9 rounded-xl hover:bg-slate-100 grid place-items-center text-slate-500"
-              aria-label="Close"
-            >
-              ✕
-            </button>
-          </div>
-
-          <!-- Reserve form (separate from Save) -->
-          <form method="post" action="{% url 'app:reserve_material' %}" class="space-y-4">
-            {% csrf_token %}
-            <input type="hidden" name="material_id" value="{{ m.id }}">
-            <input type="hidden" name="tab" value="stocks">
-            <input type="hidden" name="sq" value="{{ sq|default:'' }}">
-            <input type="hidden" name="spage" value="{{ stock_page_obj.number|default:'' }}">
-
-            <!-- Customer row (flex-safe, no overflow) -->
-            <div class="flex items-center gap-3">
-              <label class="w-24 text-sm font-medium text-slate-700">Customer</label>
-              <div class="flex-1 min-w-0">
-                <select
-                  name="customer_id"
-                  required
-                  class="w-full h-10 px-3 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Select customer</option>
-                  {% for c in customers %}
-                    <option value="{{ c.id }}">{{ c.customer_name }}</option>
-                  {% endfor %}
-                </select>
-              </div>
-            </div>
-
-            <!-- Quantity row (flex-safe, no overflow) -->
-            <div class="flex items-center gap-3">
-              <label class="w-24 text-sm font-medium text-slate-700">Quantity</label>
-              <div class="flex-1 min-w-0">
-                <input
-                  type="number"
-                  name="qty_allocated"
-                  min="1"
-                  required
-                  placeholder="Enter quantity"
-                  class="w-full h-10 px-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-            </div>
-
-            <!-- Buttons -->
-            <div class="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onclick="this.closest('.fixed').classList.add('hidden')"
-                class="h-10 px-4 rounded-xl border border-slate-300 bg-white hover:bg-slate-50"
-              >
-                Cancel
-              </button>
-
-              <button
-                type="submit"
-                class="h-10 px-5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white"
-              >
-                Reserve
-              </button>
-            </div>
-
-          </form>
-        </div>
-      </div>
-    </div>
-
-  </div>
-</td>
-                  </tr>
-                  {% empty %}
-                  <tr>
-                    <td colspan="7" class="px-4 py-10 text-center text-slate-500">
-                      No materials found in master list.
-                    </td>
-                  </tr>
-                  {% endfor %}
-                </tbody>
-
-              </table>
-              {% if stock_page_obj and stock_page_obj.paginator.num_pages > 1 %}
-  <div class="px-5 py-4 border-t border-slate-200 flex items-center justify-between gap-3 flex-wrap">
-    <div class="text-sm text-slate-500">
-      Showing
-      <span class="font-medium text-slate-900">{{ stock_page_obj.start_index }}</span>–
-      <span class="font-medium text-slate-900">{{ stock_page_obj.end_index }}</span>
-      of
-      <span class="font-medium text-slate-900">{{ stock_page_obj.paginator.count }}</span>
-    </div>
-
-    <div class="flex items-center gap-2 flex-wrap">
-      {% if stock_page_obj.has_previous %}
-        <a class="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm"
-           href="?tab=stocks&sq={{ sq|urlencode }}&spage={{ stock_page_obj.previous_page_number }}">
-          ← Prev
-        </a>
-      {% else %}
-        <span class="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-400">
-          ← Prev
-        </span>
-      {% endif %}
-
-      {% for p in stock_page_obj.paginator.page_range %}
-        {% if p == stock_page_obj.number %}
-          <span class="px-3 py-2 rounded-xl bg-blue-600 text-white text-sm">{{ p }}</span>
-        {% elif p >= stock_page_obj.number|add:-2 and p <= stock_page_obj.number|add:2 %}
-          <a class="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm"
-             href="?tab=stocks&sq={{ sq|urlencode }}&spage={{ p }}">{{ p }}</a>
-        {% endif %}
-      {% endfor %}
-
-      {% if stock_page_obj.has_next %}
-        <a class="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm"
-           href="?tab=stocks&sq={{ sq|urlencode }}&spage={{ stock_page_obj.next_page_number }}">
-          Next →
-        </a>
-      {% else %}
-        <span class="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-400">
-          Next →
-        </span>
-      {% endif %}
-    </div>
-{% endif %}
-  </div>
-{% endif %}
-            </div>
-          </div>
-        </div>
-
-        {% endif %}
-
-
-        {% if tab == "users" %}
-
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-          <div class="lg:col-span-8">
-            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-x-hidden">
-
-              <div class="px-5 py-4 border-b border-slate-200 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <h2 class="text-lg font-semibold text-slate-900">User Management</h2>
-                </div>
-
-                <form method="get" class="flex items-center gap-2">
-                  <input type="hidden" name="tab" value="users">
-                  <input
-                    type="text"
-                    name="uq"
-                    value="{{ uq|default:'' }}"
-                    placeholder="Search employee_id / name / department..."
-                    class="h-10 w-80 max-w-full px-3 rounded-xl bg-white border border-slate-300 text-slate-900
-                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                  <button class="h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white" type="submit">
-                    Search
-                  </button>
-                </form>
-              </div>
-
-              <div class="px-5 py-3 border-b border-slate-200 text-sm text-slate-600 flex items-center justify-between gap-4 flex-wrap">
-                <div>Total: <span class="font-semibold text-slate-900">{{ user_total }}</span></div>
-                {% if users_page %}
-                <div class="text-slate-500">
-                  Page <span class="font-semibold text-slate-900">{{ users_page.number }}</span>
-                  of <span class="font-semibold text-slate-900">{{ users_page.paginator.num_pages }}</span>
-                </div>
-                {% endif %}
-              </div>
-
-              <div class="overflow-x-auto">
-                <table class="w-full min-w-[1160px] text-sm">
-                  <thead class="bg-slate-50 text-slate-700">
-                    <tr>
-                      <th class="px-4 py-3 text-left">Employee ID</th>
-                      <th class="px-4 py-3 text-left">Full Name</th>
-                      <th class="px-4 py-3 text-left">Department</th>
-                      <th class="px-4 py-3 text-left">Role</th>
-                      <th class="px-4 py-3 text-left">Status</th>
-                      <th class="px-4 py-3 text-right">Action</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {% for u in users_page %}
-                    <tr class="border-t border-slate-200 hover:bg-slate-50">
-                      <td class="px-4 py-3 font-medium">{{ u.username }}</td>
-
-                      <td class="px-4 py-3">
-                        {% if u.employeeprofile %}
-                          {{ u.employeeprofile.full_name }}
-                        {% else %}
-                          <span class="text-slate-400 italic">—</span>
-                        {% endif %}
-                      </td>
-
-                      <td class="px-4 py-3">
-                        {% if u.employeeprofile %}
-                          {{ u.employeeprofile.department }}
-                        {% else %}
-                          <span class="text-slate-400 italic">—</span>
-                        {% endif %}
-                      </td>
-
-                      <td class="px-4 py-3">
-                        {% if u.is_superuser %}
-                          <span class="px-2 py-1 rounded-lg text-xs bg-violet-100 text-violet-700">Admin</span>
-                        {% else %}
-                          <span class="px-2 py-1 rounded-lg text-xs bg-blue-100 text-blue-700">Staff</span>
-                        {% endif %}
-                      </td>
-
-                      <td class="px-4 py-3">
-                        {% if u.is_active %}
-                          <span class="px-2 py-1 rounded-lg text-xs bg-emerald-100 text-emerald-700">Active</span>
-                        {% else %}
-                          <span class="px-2 py-1 rounded-lg text-xs bg-rose-100 text-rose-700">Disabled</span>
-                        {% endif %}
-                      </td>
-
-                      <td class="px-4 py-3 text-right">
-                        {% if u.id == request.user.id %}
-                          <span class="text-slate-400 text-sm">Current</span>
-                        {% else %}
-                          <div class="inline-flex items-center gap-2 flex-wrap justify-end">
-
-                            <form method="post" class="inline">
-                              {% csrf_token %}
-                              <input type="hidden" name="action" value="toggle_user_active">
-                              <input type="hidden" name="user_id" value="{{ u.id }}">
-                              <button type="submit"
-                                      class="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700">
-                                Toggle Active
-                              </button>
-                            </form>
-
-                            <form method="post" class="inline"
-                                  onsubmit="return confirm(
-                                    'Change ADMIN role for {{ u.username }}?\n\n' +
-                                    '• Admin = full permissions\n' +
-                                    '• Staff = normal staff access\n\n' +
-                                    'Continue?'
-                                  );">
-                              {% csrf_token %}
-                              <input type="hidden" name="action" value="toggle_user_admin">
-                              <input type="hidden" name="user_id" value="{{ u.id }}">
-                              <button type="submit"
-                                      class="px-3 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white">
-                                {% if u.is_superuser %}Remove Admin{% else %}Make Admin{% endif %}
-                              </button>
-                            </form>
-
-                            <form method="post" class="inline"
-                                  onsubmit="return confirm(
-                                    'REMOVE STAFF = DELETE ACCOUNT\n\n' +
-                                    'User: {{ u.username }}\n\n' +
-                                    'This will PERMANENTLY:\n' +
-                                    '• Delete this user from the database\n' +
-                                    '• Delete employee profile (if exists)\n' +
-                                    '• Remove access immediately\n\n' +
-                                    'THIS CANNOT BE UNDONE.\n\n' +
-                                    'Continue?'
-                                  );">
-                              {% csrf_token %}
-                              <input type="hidden" name="action" value="remove_staff">
-                              <input type="hidden" name="user_id" value="{{ u.id }}">
-                              <button type="submit"
-                                      class="px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white">
-                                Remove Staff
-                              </button>
-                            </form>
-
-                          </div>
-                        {% endif %}
-                      </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                      <td colspan="6" class="px-4 py-10 text-center text-slate-500">
-                        No users found.
-                      </td>
-                    </tr>
-                    {% endfor %}
-                  </tbody>
-
-                </table>
-              </div>
-
-            </div>
-          </div>
-
-          <div class="lg:col-span-4">
-            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 lg:sticky lg:top-6">
-              <div>
-                <h3 class="text-base font-semibold text-slate-900">Add Employee</h3>
-              </div>
-
-              <form method="post" class="mt-4 space-y-3">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="add_employee">
-
-                <div>
-                  <label class="text-sm font-medium text-slate-700">Employee ID</label>
-                  <input type="text" name="employee_id" required
-                         class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
-                                focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                </div>
-
-                <div>
-                  <label class="text-sm font-medium text-slate-700">Full Name</label>
-                  <input type="text" name="full_name" required
-                         class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
-                                focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                </div>
-
-                <div>
-                  <label class="text-sm font-medium text-slate-700">Department</label>
-                  <input type="text" name="department" required
-                         class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
-                                focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                </div>
-
-                <div>
-                  <label class="text-sm font-medium text-slate-700">Password</label>
-                  <input type="password" name="password" required
-                         class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
-                                focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                </div>
-
-                <div class="pt-2">
-                  <button type="submit"
-                          class="w-full px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white">
-                    Create Employee
-                  </button>
-                </div>
-              </form>
-
-            </div>
-          </div>
-
-        </div>
-
-        {% endif %}
-
-          {% if tab == "forecast_run" %}
-
-{% now "Y-m" as now_month %}
-
-<div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-
-  <!-- HEADER -->
-  <div class="px-5 py-4 border-b border-slate-200">
-    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-
-      <!-- Left -->
-      <div class="min-w-0">
-        <div class="text-lg font-semibold text-slate-900">Forecast</div>
-        <div class="text-sm text-slate-500">
-          Latest run:
-          <span class="font-medium text-slate-700">
-            {% if forecast_latest %}{{ forecast_latest.created_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}
-          </span>
-        </div>
-      </div>
-
-      <!-- Right controls -->
-      <div class="w-full lg:w-auto">
-        <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-
-          <!-- Filters -->
-          <form method="get" class="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <input type="hidden" name="tab" value="forecast_run">
-
-            <input
-              type="month"
-              name="fmonth"
-              value="{{ fmonth|default:now_month }}"
-              class="h-10 w-full sm:w-[180px] px-3 rounded-xl border border-slate-300 bg-white text-slate-900
-                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-
-            <input
-              type="text"
-              name="fq"
-              value="{{ fq|default:'' }}"
-              placeholder="Search partcode / material / tep / customer…"
-              class="h-10 w-full sm:w-[360px] px-3 rounded-xl border border-slate-300 bg-white text-slate-900
-                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-
-            <button
-              type="submit"
-              class="h-10 w-full sm:w-auto px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white whitespace-nowrap"
-            >
-              Apply
-            </button>
-          </form>
-
-          <!-- Main action -->
-          <button
-            type="button"
-            onclick="openForecastModal()"
-            class="h-10 w-full sm:w-auto px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white whitespace-nowrap"
-          >
-            Register / Run Forecast
-          </button>
-
-        </div>
-      </div>
-
-    </div>
-  </div>
-
-  <!-- META ROW -->
-
-  <div class="px-5 py-3 border-b border-slate-200 flex items-center justify-between text-sm">
-    <div class="text-slate-600">
-      Total lines: <span class="font-semibold text-slate-900">{{ forecast_totals.lines }}</span>
-    </div>
-
-    {% if forecast_page %}
-      <div class="text-slate-500">
-        Page <span class="font-semibold text-slate-900">{{ forecast_page.number }}</span>
-        of <span class="font-semibold text-slate-900">{{ forecast_page.paginator.num_pages }}</span>
-      </div>
-    {% endif %}
-  </div>
-
-  <!-- TABLE -->
-  <div class="overflow-x-auto">
-    <table class="w-full min-w-[1100px] text-sm">
-      <thead class="bg-slate-50 text-slate-700">
-        <tr>
-          <th class="px-4 py-3 text-left font-semibold">Part Code</th>
-          <th class="px-4 py-3 text-right font-semibold">Forecast</th>
-          <th class="px-4 py-3 text-left font-semibold">Customer</th>
-          <th class="px-4 py-3 text-left font-semibold">TEP</th>
-          <th class="px-4 py-3 text-left font-semibold">Material</th>
-          <th class="px-4 py-3 text-right font-semibold">Per Unit</th>
-          <th class="px-4 py-3 text-right font-semibold">Required</th>
-          <th class="px-4 py-3 text-left font-semibold">Unit</th>
-        </tr>
-      </thead>
-
-      <tbody class="divide-y divide-slate-200">
-        {% for r in forecast_page %}
-          <tr class="hover:bg-slate-50 align-middle">
-            <td class="px-4 py-3 font-medium text-slate-900">{{ r.part_code }}</td>
-            <td class="px-4 py-3 text-right text-slate-900 tabular-nums">{{ r.forecast_qty }}</td>
-            <td class="px-4 py-3 text-slate-800">{{ r.customer_name|default:"—" }}</td>
-            <td class="px-4 py-3 text-slate-800">{{ r.tep_code|default:"—" }}</td>
-
-            <td class="px-4 py-3">
-              <div class="font-medium text-slate-900">{{ r.mat_partcode }}</div>
-              <div class="text-xs text-slate-500">
-                {{ r.mat_partname }}{% if r.mat_maker %} • {{ r.mat_maker }}{% endif %}
-              </div>
-            </td>
-
-            <td class="px-4 py-3 text-right text-slate-900 tabular-nums">{{ r.per_unit_total }}</td>
-            <td class="px-4 py-3 text-right font-semibold text-slate-900 tabular-nums">{{ r.required_qty }}</td>
-            <td class="px-4 py-3 text-slate-800">{{ r.unit }}</td>
-          </tr>
-        {% empty %}
-          <tr>
-            <td colspan="8" class="px-4 py-10 text-center text-slate-500">
-              No forecast output yet.
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-
-  <!-- PAGINATION -->
-  {% if forecast_page and forecast_page.paginator.num_pages > 1 %}
-    <div class="px-5 py-4 border-t border-slate-200 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div class="text-sm text-slate-500">
-        Showing
-        <span class="font-medium text-slate-900">{{ forecast_page.start_index }}</span>–
-        <span class="font-medium text-slate-900">{{ forecast_page.end_index }}</span>
-        of
-        <span class="font-medium text-slate-900">{{ forecast_page.paginator.count }}</span>
-      </div>
-
-      <div class="flex items-center gap-2 flex-wrap">
-        {% if forecast_page.has_previous %}
-          <a
-            class="h-10 inline-flex items-center px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm"
-            href="?tab=forecast_run&fq={{ fq|urlencode }}&fmonth={{ fmonth|urlencode }}&fpage={{ forecast_page.previous_page_number }}"
-          >
-            ← Prev
-          </a>
-        {% else %}
-          <span class="h-10 inline-flex items-center px-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-400">
-            ← Prev
-          </span>
-        {% endif %}
-
-        {% for p in forecast_page.paginator.page_range %}
-          {% if p == forecast_page.number %}
-            <span class="h-10 inline-flex items-center px-3 rounded-xl bg-blue-600 text-white text-sm">{{ p }}</span>
-          {% elif p >= forecast_page.number|add:-2 and p <= forecast_page.number|add:2 %}
-            <a
-              class="h-10 inline-flex items-center px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm"
-              href="?tab=forecast_run&fq={{ fq|urlencode }}&fmonth={{ fmonth|urlencode }}&fpage={{ p }}"
-            >
-              {{ p }}
-            </a>
-          {% endif %}
-        {% endfor %}
-
-        {% if forecast_page.has_next %}
-          <a
-            class="h-10 inline-flex items-center px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm"
-            href="?tab=forecast_run&fq={{ fq|urlencode }}&fmonth={{ fmonth|urlencode }}&fpage={{ forecast_page.next_page_number }}"
-          >
-            Next →
-          </a>
-        {% else %}
-          <span class="h-10 inline-flex items-center px-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-400">
-            Next →
-          </span>
-        {% endif %}
-      </div>
-    </div>
-  {% endif %}
-
-</div>
-
-
-<!-- MODAL (Register / Run Forecast) -->
-<div id="forecastModal" class="fixed inset-0 z-50 hidden" aria-hidden="true">
-  <!-- Backdrop -->
-  <div class="absolute inset-0 bg-slate-900/50" onclick="closeForecastModal()"></div>
-
-  <!-- Panel -->
-  <div class="relative w-full h-full flex items-start justify-center p-4 sm:p-6">
-    <div class="w-full max-w-xl mt-16 sm:mt-20">
-      <div class="rounded-2xl bg-white shadow-xl border border-slate-200 overflow-x-hidden">
-
-        <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
-          <div class="min-w-0">
-            <div class="text-base font-semibold text-slate-900">Register / Run Forecast</div>
-            <div class="text-xs text-slate-500">Enter part code, quantity, and month</div>
-          </div>
-
-          <button
-            type="button"
-            class="h-9 w-9 inline-flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-600"
-            onclick="closeForecastModal()"
-            aria-label="Close"
-          >
-            ✕
-          </button>
-        </div>
-
-        <!-- IMPORTANT: This matches your existing view exactly -->
-        <form method="post" class="p-5 space-y-4">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="run_prototype_forecast">
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label class="text-xs font-medium text-slate-600">Part code</label>
-              <input
-                type="text"
-                id="forecast-run-part-code"
-                name="part_code"
-                required
-                placeholder="e.g. LT3436-001 REV.D"
-                class="mt-1 h-10 w-full px-3 rounded-xl border border-slate-300 bg-white text-slate-900
-                       focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-              <div class="mt-1 text-xs text-slate-500">When a saved BOM exists for this part code, its registered materials will load automatically below.</div>
-            </div>
-
-            <div>
-              <label class="text-xs font-medium text-slate-600">Forecast qty</label>
-              <input
-                type="number"
-                id="forecast-run-qty"
-                name="forecast_qty"
-                min="0"
-                required
-                placeholder="0"
-                class="mt-1 h-10 w-full px-3 rounded-xl border border-slate-300 bg-white text-slate-900
-                       focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
-            <div class="sm:col-span-2">
-              <label class="text-xs font-medium text-slate-600">Month</label>
-              <input
-                type="month"
-                id="forecast-run-month"
-                name="schedule_month"
-                required
-                class="mt-1 h-10 w-full px-3 rounded-xl border border-slate-300 bg-white text-slate-900
-                       focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="{{ fmonth|default:now_month }}">
-            </div>
-
-            <div class="sm:col-span-2">
-              <div class="rounded-2xl border border-slate-200 bg-slate-50 overflow-hidden">
-                <div class="px-4 py-3 border-b border-slate-200 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <div class="text-sm font-semibold text-slate-900">Registered BOM Materials</div>
-                    <div class="text-xs text-slate-500">These materials are linked to the selected part code.</div>
+                    </div>
                   </div>
-                  <div id="forecast-bom-count" class="text-xs font-medium text-slate-600">0 materials</div>
+                  <div class="lg:col-span-4">
+                    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 lg:sticky lg:top-6">
+                      <div class="flex items-start justify-between gap-3">
+                        <div><h3 class="text-base font-semibold text-slate-900">Add Material</h3><p class="text-sm text-slate-500">Insert directly into MaterialList.</p></div>
+                        <button type="button" id="open-csv-upload" class="h-10 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white whitespace-nowrap">CSV Upload</button>
+                      </div>
+                      <form method="post" class="mt-4 space-y-3">
+                        {% csrf_token %}<input type="hidden" name="action" value="add_material">
+                        <div><label class="text-sm font-medium text-slate-700">Part Code</label><input type="text" name="mat_partcode" required class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></div>
+                        <div><label class="text-sm font-medium text-slate-700">Part Name</label><input type="text" name="mat_partname" class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></div>
+                        <div><label class="text-sm font-medium text-slate-700">Maker</label><input type="text" name="mat_maker" class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></div>
+                        <div><label class="text-sm font-medium text-slate-700">Unit</label><select name="unit" class="mt-1 w-full ui-select"><option value="pc">pc</option><option value="pcs">pcs</option><option value="m">m</option><option value="g">g</option><option value="kg">kg</option></select></div>
+                        <div class="pt-2"><button type="submit" class="w-full px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white">Save</button></div>
+                      </form>
+                    </div>
+                  </div>
                 </div>
+              {% endif %}
 
-                <div id="forecast-bom-status" class="px-4 py-3 text-sm text-slate-500">
-                  Type a part code to load its registered BOM materials.
+              {% if tab == "stocks" %}
+                <div class="grid grid-cols-1 gap-6">
+                  <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-x-hidden">
+                    <div class="px-5 py-4 border-b border-slate-200 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <div><h2 class="text-lg font-semibold text-slate-900">Material Stocks (On Hand)</h2></div>
+                      <form method="get" class="flex items-center gap-2">
+                        <input type="hidden" name="tab" value="materials_bom"><input type="hidden" name="mbtab" value="stocks">
+                        <input type="text" name="sq" value="{{ sq|default:'' }}" placeholder="Search partcode / name / maker..." class="h-10 w-80 max-w-full px-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                        <button class="h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white" type="submit">Search</button>
+                      </form>
+                    </div>
+                    <div class="overflow-x-auto">
+                      <table class="w-full min-w-[1100px] table-fixed text-sm">
+                        <colgroup><col class="w-[250px]"><col class="w-[110px]"><col class="w-[110px]"><col class="w-[110px]"><col class="w-[160px]"><col class="w-[110px]"><col class="w-[140px]"></colgroup>
+                        <thead class="bg-slate-50 text-slate-700 sticky top-0 z-10">
+                          <tr><th class="px-4 py-3 text-left font-semibold">Material</th><th class="px-4 py-3 text-right font-semibold tabular-nums whitespace-nowrap">On Hand</th><th class="px-4 py-3 text-right font-semibold tabular-nums whitespace-nowrap">Reserved</th><th class="px-4 py-3 text-right font-semibold tabular-nums whitespace-nowrap pr-8">Available</th><th class="px-4 py-3 text-left font-semibold whitespace-nowrap pl-8">Last Updated</th><th class="px-4 py-3 text-left font-semibold whitespace-nowrap">By</th><th class="px-4 py-3 text-right font-semibold whitespace-nowrap">Action</th></tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200">
+                          {% for m in materials_stock_list %}
+                          <tr class="hover:bg-slate-50 align-middle">
+                            <td class="px-4 py-3"><div class="leading-tight"><div class="font-semibold text-slate-900 truncate">{{ m.mat_partcode }} <span class="font-normal text-slate-500">•</span> {{ m.mat_partname }}</div><div class="text-xs text-slate-500 truncate mt-1">{{ m.mat_maker|default:"—" }} • Unit: {{ m.unit|default:"—" }}</div></div></td>
+                            <td class="px-4 py-3 text-right tabular-nums whitespace-nowrap"><input form="stock-form-{{ m.id }}" type="number" min="0" name="on_hand_qty" value="{{ m.on_hand_qty|default:0 }}" class="h-9 w-[92px] text-right px-2 rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" /></td>
+                            <td class="px-4 py-3 text-right tabular-nums whitespace-nowrap"><span class="font-medium text-amber-600">{{ m.reserved_qty|default:0 }}</span></td>
+                            <td class="px-4 py-3 text-right tabular-nums whitespace-nowrap pr-8"><span class="font-semibold {% if m.available_qty <= 0 %}text-rose-600{% else %}text-slate-900{% endif %}">{{ m.available_qty|default:0 }}</span></td>
+                            <td class="px-4 py-3 whitespace-nowrap text-slate-700 pl-8">{% if m.last_updated_at %}{{ m.last_updated_at|date:"Y-m-d H:i" }}{% else %}<span class="text-slate-400">—</span>{% endif %}</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-slate-700">{% if m.last_updated_by %}{{ m.last_updated_by }}{% else %}<span class="text-slate-400">—</span>{% endif %}</td>
+                            <td class="px-4 py-3 text-right whitespace-nowrap">
+                              <div class="inline-flex items-center justify-end gap-2">
+                                <form id="stock-form-{{ m.id }}" method="post" action="{% url 'app:update_material_stock' %}" class="inline-flex items-center justify-end">
+                                  {% csrf_token %}<input type="hidden" name="material_id" value="{{ m.id }}"><input type="hidden" name="tab" value="stocks"><input type="hidden" name="sq" value="{{ sq|default:'' }}"><input type="hidden" name="spage" value="{{ stock_page_obj.number|default:'' }}"><button type="submit" class="h-9 px-4 rounded-lg button-gradient">Save</button>
+                                </form>
+                                <div class="inline-block">
+                                  <button type="button" onclick="this.nextElementSibling.classList.remove('hidden')" class="h-9 px-4 rounded-lg bg-blue-600 hover:bg-blue-500 text-white">Reserve</button>
+                                  <div class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                                    <div class="bg-white w-full max-w-md rounded-2xl shadow-xl p-6 relative">
+                                      <div class="flex items-start justify-between gap-3 mb-4"><h3 class="text-lg font-semibold text-slate-900">Reserve Allocation</h3><button type="button" onclick="this.closest('.fixed').classList.add('hidden')" class="h-9 w-9 rounded-xl hover:bg-slate-100 grid place-items-center text-slate-500" aria-label="Close">✕</button></div>
+                                      <form method="post" action="{% url 'app:reserve_material' %}" class="space-y-4">
+                                        {% csrf_token %}<input type="hidden" name="material_id" value="{{ m.id }}"><input type="hidden" name="tab" value="stocks"><input type="hidden" name="sq" value="{{ sq|default:'' }}"><input type="hidden" name="spage" value="{{ stock_page_obj.number|default:'' }}">
+                                        <div class="flex items-center gap-3"><label class="w-24 text-sm font-medium text-slate-700">Customer</label><div class="flex-1 min-w-0"><select name="customer_id" required class="w-full h-10 px-3 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"><option value="">Select customer</option>{% for c in customers %}<option value="{{ c.id }}">{{ c.customer_name }}</option>{% endfor %}</select></div></div>
+                                        <div class="flex items-center gap-3"><label class="w-24 text-sm font-medium text-slate-700">Quantity</label><div class="flex-1 min-w-0"><input type="number" name="qty_allocated" min="1" required placeholder="Enter quantity" class="w-full h-10 px-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" /></div></div>
+                                        <div class="flex justify-end gap-2 pt-2"><button type="button" onclick="this.closest('.fixed').classList.add('hidden')" class="h-10 px-4 rounded-xl border border-slate-300 bg-white hover:bg-slate-50">Cancel</button><button type="submit" class="h-10 px-5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white">Reserve</button></div>
+                                      </form>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                          {% empty %}<tr><td colspan="7" class="px-4 py-10 text-center text-slate-500">No materials found in master list.</td></tr>{% endfor %}
+                        </tbody>
+                      </table>
+                      {% if stock_page_obj and stock_page_obj.paginator.num_pages > 1 %}
+                      <div class="px-5 py-4 border-t border-slate-200 flex items-center justify-between gap-3 flex-wrap">
+                        <div class="text-sm text-slate-500">Showing <span class="font-medium text-slate-900">{{ stock_page_obj.start_index }}</span>–<span class="font-medium text-slate-900">{{ stock_page_obj.end_index }}</span> of <span class="font-medium text-slate-900">{{ stock_page_obj.paginator.count }}</span></div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                          {% if stock_page_obj.has_previous %}<a class="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm" href="?tab=stocks&sq={{ sq|urlencode }}&spage={{ stock_page_obj.previous_page_number }}">← Prev</a>{% else %}<span class="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-400">← Prev</span>{% endif %}
+                          {% for p in stock_page_obj.paginator.page_range %}{% if p == stock_page_obj.number %}<span class="px-3 py-2 rounded-xl bg-blue-600 text-white text-sm">{{ p }}</span>{% elif p >= stock_page_obj.number|add:-2 and p <= stock_page_obj.number|add:2 %}<a class="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm" href="?tab=stocks&sq={{ sq|urlencode }}&spage={{ p }}">{{ p }}</a>{% endif %}{% endfor %}
+                          {% if stock_page_obj.has_next %}<a class="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm" href="?tab=stocks&sq={{ sq|urlencode }}&spage={{ stock_page_obj.next_page_number }}">Next →</a>{% else %}<span class="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-400">Next →</span>{% endif %}
+                        </div>
+                      </div>
+                      {% endif %}
+                    </div>
+                  </div>
                 </div>
+              {% endif %}
+            </div>
+          </div>
+        {% endif %}
 
-                <div id="forecast-bom-wrap" class="hidden overflow-x-auto">
-                  <table class="w-full min-w-[620px] text-sm">
-                    <thead class="bg-white text-slate-700">
-                      <tr>
-                        <th class="px-4 py-3 text-left font-semibold">Material</th>
-                        <th class="px-4 py-3 text-left font-semibold">Name</th>
-                        <th class="px-4 py-3 text-right font-semibold">Dim / Qty</th>
-                        <th class="px-4 py-3 text-right font-semibold">Loss %</th>
-                        <th class="px-4 py-3 text-right font-semibold">Total</th>
-                        <th class="px-4 py-3 text-left font-semibold">Unit</th>
-                      </tr>
+        <!-- USERS TAB -->
+        {% if tab == "users" %}
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div class="lg:col-span-8">
+              <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-x-hidden">
+                <div class="px-5 py-4 border-b border-slate-200 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div><h2 class="text-lg font-semibold text-slate-900">User Management</h2></div>
+                  <form method="get" class="flex items-center gap-2">
+                    <input type="hidden" name="tab" value="users">
+                    <input type="text" name="uq" value="{{ uq|default:'' }}" placeholder="Search employee_id / name / department..." class="h-10 w-80 max-w-full px-3 rounded-xl bg-white border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                    <button class="h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white" type="submit">Search</button>
+                  </form>
+                </div>
+                <div class="px-5 py-3 border-b border-slate-200 text-sm text-slate-600 flex items-center justify-between gap-4 flex-wrap">
+                  <div>Total: <span class="font-semibold text-slate-900">{{ user_total }}</span></div>
+                  {% if users_page %}<div class="text-slate-500">Page <span class="font-semibold text-slate-900">{{ users_page.number }}</span> of <span class="font-semibold text-slate-900">{{ users_page.paginator.num_pages }}</span></div>{% endif %}
+                </div>
+                <div class="overflow-x-auto">
+                  <table class="w-full min-w-[1160px] text-sm">
+                    <thead class="bg-slate-50 text-slate-700">
+                      <tr><th class="px-4 py-3 text-left">Employee ID</th><th class="px-4 py-3 text-left">Full Name</th><th class="px-4 py-3 text-left">Department</th><th class="px-4 py-3 text-left">Role</th><th class="px-4 py-3 text-left">Status</th><th class="px-4 py-3 text-right">Action</th></tr>
                     </thead>
-                    <tbody id="forecast-bom-body" class="divide-y divide-slate-200 bg-white"></tbody>
+                    <tbody>
+                      {% for u in users_page %}
+                      <tr class="border-t border-slate-200 hover:bg-slate-50">
+                        <td class="px-4 py-3 font-medium">{{ u.username }}</td>
+                        <td class="px-4 py-3">{% if u.employeeprofile %}{{ u.employeeprofile.full_name }}{% else %}<span class="text-slate-400 italic">—</span>{% endif %}</td>
+                        <td class="px-4 py-3">{% if u.employeeprofile %}{{ u.employeeprofile.department }}{% else %}<span class="text-slate-400 italic">—</span>{% endif %}</td>
+                        <td class="px-4 py-3">{% if u.is_superuser %}<span class="px-2 py-1 rounded-lg text-xs bg-violet-100 text-violet-700">Admin</span>{% else %}<span class="px-2 py-1 rounded-lg text-xs bg-blue-100 text-blue-700">Staff</span>{% endif %}</td>
+                        <td class="px-4 py-3">{% if u.is_active %}<span class="px-2 py-1 rounded-lg text-xs bg-emerald-100 text-emerald-700">Active</span>{% else %}<span class="px-2 py-1 rounded-lg text-xs bg-rose-100 text-rose-700">Disabled</span>{% endif %}</td>
+                        <td class="px-4 py-3 text-right">
+                          {% if u.id == request.user.id %}<span class="text-slate-400 text-sm">Current</span>{% else %}
+                          <div class="inline-flex items-center gap-2 flex-wrap justify-end">
+                            <form method="post" class="inline">{% csrf_token %}<input type="hidden" name="action" value="toggle_user_active"><input type="hidden" name="user_id" value="{{ u.id }}"><button type="submit" class="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700">Toggle Active</button></form>
+                            <form method="post" class="inline" onsubmit="return confirm('Change ADMIN role for {{ u.username }}?\n\n• Admin = full permissions\n• Staff = normal staff access\n\nContinue?');">{% csrf_token %}<input type="hidden" name="action" value="toggle_user_admin"><input type="hidden" name="user_id" value="{{ u.id }}"><button type="submit" class="px-3 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white">{% if u.is_superuser %}Remove Admin{% else %}Make Admin{% endif %}</button></form>
+                            <form method="post" class="inline" onsubmit="return confirm('REMOVE STAFF = DELETE ACCOUNT\n\nUser: {{ u.username }}\n\nThis will PERMANENTLY:\n• Delete this user from the database\n• Delete employee profile (if exists)\n• Remove access immediately\n\nTHIS CANNOT BE UNDONE.\n\nContinue?');">{% csrf_token %}<input type="hidden" name="action" value="remove_staff"><input type="hidden" name="user_id" value="{{ u.id }}"><button type="submit" class="px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white">Remove Staff</button></form>
+                          </div>
+                          {% endif %}
+                        </td>
+                      </tr>
+                      {% empty %}<tr><td colspan="6" class="px-4 py-10 text-center text-slate-500">No users found.</td></tr>{% endfor %}
+                    </tbody>
                   </table>
                 </div>
               </div>
             </div>
+            <div class="lg:col-span-4">
+              <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 lg:sticky lg:top-6">
+                <div><h3 class="text-base font-semibold text-slate-900">Add Employee</h3></div>
+                <form method="post" class="mt-4 space-y-3">
+                  {% csrf_token %}<input type="hidden" name="action" value="add_employee">
+                  <div><label class="text-sm font-medium text-slate-700">Employee ID</label><input type="text" name="employee_id" required class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></div>
+                  <div><label class="text-sm font-medium text-slate-700">Full Name</label><input type="text" name="full_name" required class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></div>
+                  <div><label class="text-sm font-medium text-slate-700">Department</label><input type="text" name="department" required class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></div>
+                  <div><label class="text-sm font-medium text-slate-700">Password</label><input type="password" name="password" required class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></div>
+                  <div class="pt-2"><button type="submit" class="w-full px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white">Create Employee</button></div>
+                </form>
+              </div>
+            </div>
+          </div>
+        {% endif %}
+
+        <!-- FORECAST RUN TAB -->
+        {% if tab == "forecast_run" %}
+          {% now "Y-m" as now_month %}
+          <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-200">
+              <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div class="min-w-0">
+                  <div class="text-lg font-semibold text-slate-900">Forecast</div>
+                  <div class="text-sm text-slate-500">Latest run: <span class="font-medium text-slate-700">{% if forecast_latest %}{{ forecast_latest.created_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}</span></div>
+                </div>
+                <div class="w-full lg:w-auto">
+                  <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                    <form method="get" class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                      <input type="hidden" name="tab" value="forecast_run">
+                      <input type="month" name="fmonth" value="{{ fmonth|default:now_month }}" class="h-10 w-full sm:w-[180px] px-3 rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                      <input type="text" name="fq" value="{{ fq|default:'' }}" placeholder="Search partcode / material / tep / customer…" class="h-10 w-full sm:w-[360px] px-3 rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                      <button type="submit" class="h-10 w-full sm:w-auto px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white whitespace-nowrap">Apply</button>
+                    </form>
+                    <button type="button" onclick="openForecastModal()" class="h-10 w-full sm:w-auto px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white whitespace-nowrap">Register / Run Forecast</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="px-5 py-3 border-b border-slate-200 flex items-center justify-between text-sm">
+              <div class="text-slate-600">Total lines: <span class="font-semibold text-slate-900">{{ forecast_totals.lines }}</span></div>
+              {% if forecast_page %}<div class="text-slate-500">Page <span class="font-semibold text-slate-900">{{ forecast_page.number }}</span> of <span class="font-semibold text-slate-900">{{ forecast_page.paginator.num_pages }}</span></div>{% endif %}
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full min-w-[1100px] text-sm">
+                <thead class="bg-slate-50 text-slate-700">
+                  <tr><th class="px-4 py-3 text-left font-semibold">Part Code</th><th class="px-4 py-3 text-right font-semibold">Forecast</th><th class="px-4 py-3 text-left font-semibold">Customer</th><th class="px-4 py-3 text-left font-semibold">TEP</th><th class="px-4 py-3 text-left font-semibold">Material</th><th class="px-4 py-3 text-right font-semibold">Per Unit</th><th class="px-4 py-3 text-right font-semibold">Required</th><th class="px-4 py-3 text-left font-semibold">Unit</th></tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                  {% for r in forecast_page %}
+                    <tr class="hover:bg-slate-50 align-middle">
+                      <td class="px-4 py-3 font-medium text-slate-900">{{ r.part_code }}</td>
+                      <td class="px-4 py-3 text-right text-slate-900 tabular-nums">{{ r.forecast_qty }}</td>
+                      <td class="px-4 py-3 text-slate-800">{{ r.customer_name|default:"—" }}</td>
+                      <td class="px-4 py-3 text-slate-800">{{ r.tep_code|default:"—" }}</td>
+                      <td class="px-4 py-3"><div class="font-medium text-slate-900">{{ r.mat_partcode }}</div><div class="text-xs text-slate-500">{{ r.mat_partname }}{% if r.mat_maker %} • {{ r.mat_maker }}{% endif %}</div></td>
+                      <td class="px-4 py-3 text-right text-slate-900 tabular-nums">{{ r.per_unit_total }}</td>
+                      <td class="px-4 py-3 text-right font-semibold text-slate-900 tabular-nums">{{ r.required_qty }}</td>
+                      <td class="px-4 py-3 text-slate-800">{{ r.unit }}</td>
+                    </tr>
+                  {% empty %}<tr><td colspan="8" class="px-4 py-10 text-center text-slate-500">No forecast output yet.</td></tr>{% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% if forecast_page and forecast_page.paginator.num_pages > 1 %}
+            <div class="px-5 py-4 border-t border-slate-200 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div class="text-sm text-slate-500">Showing <span class="font-medium text-slate-900">{{ forecast_page.start_index }}</span>–<span class="font-medium text-slate-900">{{ forecast_page.end_index }}</span> of <span class="font-medium text-slate-900">{{ forecast_page.paginator.count }}</span></div>
+              <div class="flex items-center gap-2 flex-wrap">
+                {% if forecast_page.has_previous %}<a class="h-10 inline-flex items-center px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm" href="?tab=forecast_run&fq={{ fq|urlencode }}&fmonth={{ fmonth|urlencode }}&fpage={{ forecast_page.previous_page_number }}">← Prev</a>{% else %}<span class="h-10 inline-flex items-center px-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-400">← Prev</span>{% endif %}
+                {% for p in forecast_page.paginator.page_range %}{% if p == forecast_page.number %}<span class="h-10 inline-flex items-center px-3 rounded-xl bg-blue-600 text-white text-sm">{{ p }}</span>{% elif p >= forecast_page.number|add:-2 and p <= forecast_page.number|add:2 %}<a class="h-10 inline-flex items-center px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm" href="?tab=forecast_run&fq={{ fq|urlencode }}&fmonth={{ fmonth|urlencode }}&fpage={{ p }}">{{ p }}</a>{% endif %}{% endfor %}
+                {% if forecast_page.has_next %}<a class="h-10 inline-flex items-center px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm" href="?tab=forecast_run&fq={{ fq|urlencode }}&fmonth={{ fmonth|urlencode }}&fpage={{ forecast_page.next_page_number }}">Next →</a>{% else %}<span class="h-10 inline-flex items-center px-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-400">Next →</span>{% endif %}
+              </div>
+            </div>
+            {% endif %}
           </div>
 
-          <div class="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onclick="closeForecastModal()"
-              class="h-10 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
-            >
-              Cancel
-            </button>
-
-            <button
-              type="submit"
-              class="h-10 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-medium"
-            >
-              Run Forecast
-            </button>
+          <!-- Forecast Run Modal -->
+          <div id="forecastModal" class="fixed inset-0 z-50 hidden" aria-hidden="true">
+            <div class="absolute inset-0 bg-slate-900/50" onclick="closeForecastModal()"></div>
+            <div class="relative w-full h-full flex items-start justify-center p-4 sm:p-6">
+              <div class="w-full max-w-xl mt-16 sm:mt-20">
+                <div class="rounded-2xl bg-white shadow-xl border border-slate-200 overflow-x-hidden">
+                  <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+                    <div class="min-w-0"><div class="text-base font-semibold text-slate-900">Register / Run Forecast</div><div class="text-xs text-slate-500">Enter part code, quantity, and month</div></div>
+                    <button type="button" class="h-9 w-9 inline-flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-600" onclick="closeForecastModal()" aria-label="Close">✕</button>
+                  </div>
+                  <form method="post" class="p-5 space-y-4">
+                    {% csrf_token %}<input type="hidden" name="action" value="run_prototype_forecast">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div><label class="text-xs font-medium text-slate-600">Part code</label><input type="text" id="forecast-run-part-code" name="part_code" required placeholder="e.g. LT3436-001 REV.D" class="mt-1 h-10 w-full px-3 rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" /><div class="mt-1 text-xs text-slate-500">When a saved BOM exists for this part code, its registered materials will load automatically below.</div></div>
+                      <div><label class="text-xs font-medium text-slate-600">Forecast qty</label><input type="number" id="forecast-run-qty" name="forecast_qty" min="0" required placeholder="0" class="mt-1 h-10 w-full px-3 rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" /></div>
+                      <div class="sm:col-span-2"><label class="text-xs font-medium text-slate-600">Month</label><input type="month" id="forecast-run-month" name="schedule_month" required class="mt-1 h-10 w-full px-3 rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="{{ fmonth|default:now_month }}"></div>
+                      <div class="sm:col-span-2">
+                        <div class="rounded-2xl border border-slate-200 bg-slate-50 overflow-hidden">
+                          <div class="px-4 py-3 border-b border-slate-200 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                            <div><div class="text-sm font-semibold text-slate-900">Registered BOM Materials</div><div class="text-xs text-slate-500">These materials are linked to the selected part code.</div></div>
+                            <div id="forecast-bom-count" class="text-xs font-medium text-slate-600">0 materials</div>
+                          </div>
+                          <div id="forecast-bom-status" class="px-4 py-3 text-sm text-slate-500">Type a part code to load its registered BOM materials.</div>
+                          <div id="forecast-bom-wrap" class="hidden overflow-x-auto">
+                            <table class="w-full min-w-[620px] text-sm">
+                              <thead class="bg-white text-slate-700"><tr><th class="px-4 py-3 text-left font-semibold">Material</th><th class="px-4 py-3 text-left font-semibold">Name</th><th class="px-4 py-3 text-right font-semibold">Dim / Qty</th><th class="px-4 py-3 text-right font-semibold">Loss %</th><th class="px-4 py-3 text-right font-semibold">Total</th><th class="px-4 py-3 text-left font-semibold">Unit</th></tr></thead>
+                              <tbody id="forecast-bom-body" class="divide-y divide-slate-200 bg-white"></tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 pt-2">
+                      <button type="button" onclick="closeForecastModal()" class="h-10 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700">Cancel</button>
+                      <button type="submit" class="h-10 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-medium">Run Forecast</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
           </div>
-        </form>
+        {% endif %}
+
+        <!-- ================================================== -->
+        <!-- FORECAST PAGES - NOW INSIDE MAIN CONTAINER -->
+        <!-- ================================================== -->
+        
+        {% if tab == "forecast" %}
+          {% include "admin/forecast_pages.html" with tab="forecast" %}
+        {% endif %}
+
+        {% if tab == "previous_forecast" %}
+          {% include "admin/forecast_pages.html" with tab="previous_forecast" %}
+        {% endif %}    
+        
+        {% if tab == "forecast_summary" %}
+          {% include "admin/forecast_pages.html" with tab="forecast_summary" %}
+        {% endif %}
+
+        {% if tab == "actual_delivered" %}
+          {% include "admin/forecast_pages.html" with tab="actual_delivered" %}
+        {% endif %}
+        <!-- ================================================== -->
 
       </div>
     </div>
-  </div>
-</div>
 
-<script>
-  function openForecastModal() {
-    const el = document.getElementById("forecastModal");
-    el.classList.remove("hidden");
-    el.setAttribute("aria-hidden", "false");
-    document.body.classList.add("overflow-x-hidden");
-  }
+  </div> <!-- End main-wrap -->
 
-  function closeForecastModal() {
-    const el = document.getElementById("forecastModal");
-    el.classList.add("hidden");
-    el.setAttribute("aria-hidden", "true");
-    document.body.classList.remove("overflow-x-hidden");
-  }
-
-  document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape") closeForecastModal();
-  });
-</script>
-
-{% endif %}
-      </div>
-    </div>
-
-  </div>
-
+  <!-- All modals and panels go here (outside main-wrap) -->
   <div id="panel-backdrop" class="hidden fixed inset-0 bg-black/50 z-40"></div>
 
-<div id="detail-panel"
-     class="fixed top-0 right-0 h-full w-full sm:w-[860px]
-            bg-white text-slate-900 border-l border-slate-200 z-50
-            translate-x-full transition-transform duration-200 flex flex-col">
-
-  <div class="p-4 border-b border-slate-200 flex justify-between items-center">
-    <div class="font-semibold text-blue-700">Customer Details</div>
-
-    <div class="flex items-center gap-2">
-
-      <button id="panel-history"
-              type="button"
-              class="px-3 py-2 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-slate-700">
-        History
-      </button>
-
-      <form id="panel-revise-form"
-            method="post"
-            action="{% url 'app:admin_dashboard' %}"
-            class="inline">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="revise_tep">
-        <input type="hidden" name="tep_id" id="panel-revise-tep-id" value="">
-        <button id="panel-revise"
-                type="button"
-                class="px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white">
-          Revise TEP
-        </button>
-      </form>
-
-      <button id="panel-close"
-              type="button"
-              class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200">
-        Close
-      </button>
+  <div id="detail-panel"
+       class="fixed top-0 right-0 h-full w-full sm:w-[860px]
+              bg-white text-slate-900 border-l border-slate-200 z-50
+              translate-x-full transition-transform duration-200 flex flex-col">
+    <div class="p-4 border-b border-slate-200 flex justify-between items-center">
+      <div class="font-semibold text-blue-700">Customer Details</div>
+      <div class="flex items-center gap-2">
+        <button id="panel-history" type="button" class="px-3 py-2 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-slate-700">History</button>
+        <form id="panel-revise-form" method="post" action="{% url 'app:admin_dashboard' %}" class="inline">
+          {% csrf_token %}<input type="hidden" name="action" value="revise_tep"><input type="hidden" name="tep_id" id="panel-revise-tep-id" value=""><button id="panel-revise" type="button" class="px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white">Revise TEP</button>
+        </form>
+        <button id="panel-close" type="button" class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200">Close</button>
+      </div>
     </div>
+    <div id="panel-content" class="flex-1 overflow-y-auto p-4"><div class="text-slate-500 text-sm">Select a customer and click View</div></div>
   </div>
-
-  <div id="panel-content" class="flex-1 overflow-y-auto p-4">
-    <div class="text-slate-500 text-sm">Select a customer and click View</div>
-  </div>
-
-</div>
 
   <div id="csv-backdrop" class="hidden fixed inset-0 bg-black/50 z-40"></div>
 
   <div id="csv-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
     <div class="w-full max-w-xl bg-white rounded-2xl shadow-xl border border-slate-200 overflow-x-hidden">
       <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
-        <div>
-          <div class="font-semibold text-slate-900">Upload CSV</div>
-          <div class="text-xs text-slate-500">Masterlist</div>
-        </div>
-        <button type="button" id="csv-close"
-                class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200">
-          Close
-        </button>
+        <div><div class="font-semibold text-slate-900">Upload CSV</div><div class="text-xs text-slate-500">Masterlist</div></div>
+        <button type="button" id="csv-close" class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200">Close</button>
       </div>
-      <form method="post"
-            action="{% url 'app:admin_csv_upload' %}"
-            enctype="multipart/form-data"
-            class="p-5 space-y-4">
-        {% csrf_token %}
-        <input type="hidden" name="next" value="{% url 'app:admin_dashboard' %}?tab=materials&mq={{ mq|urlencode }}">
-        <div>
-          <label class="text-sm font-medium text-slate-700">CSV File</label>
-          <input type="file" name="csv_file" required
-                 class="mt-2 w-full rounded-xl border border-slate-300 p-2 bg-white">
-        </div>
-        <div class="flex justify-end gap-2">
-          <button type="button" id="csv-cancel"
-                  class="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50">
-            Cancel
-          </button>
-          <button type="submit"
-                  class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white">
-            Upload
-          </button>
-        </div>
+      <form method="post" action="{% url 'app:admin_csv_upload' %}" enctype="multipart/form-data" class="p-5 space-y-4">
+        {% csrf_token %}<input type="hidden" name="next" value="{% url 'app:admin_dashboard' %}?tab=materials&mq={{ mq|urlencode }}">
+        <div><label class="text-sm font-medium text-slate-700">CSV File</label><input type="file" name="csv_file" required class="mt-2 w-full rounded-xl border border-slate-300 p-2 bg-white"></div>
+        <div class="flex justify-end gap-2"><button type="button" id="csv-cancel" class="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50">Cancel</button><button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white">Upload</button></div>
       </form>
     </div>
   </div>
@@ -2237,41 +1115,28 @@ function closeMaterialModal(){
   <div id="forecast-csv-backdrop" class="hidden fixed inset-0 bg-black/50 z-40"></div>
 
   <div id="forecast-csv-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="w-full max-w-xl bg-white rounded-2xl shadow-xl border border-slate-200 overflow-x-hidden">
-      <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
-        <div>
-          <div class="font-semibold text-slate-900">Upload Forecast CSV</div>
-          <div class="text-xs text-slate-500">Create / update forecast records</div>
-        </div>
-        <button type="button" id="forecast-csv-close"
-                class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200">
-          Close
-        </button>
+    <div class="w-full max-w-xl bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+      <div class="px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-700 flex items-center justify-between">
+        <div><div class="font-semibold text-white text-lg">Upload Forecast CSV</div><div class="text-xs text-blue-100">Import forecast data from CSV file</div></div>
+        <button type="button" id="forecast-csv-close" class="text-white hover:text-blue-200 transition-colors p-1 rounded-full hover:bg-white/10"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
       </div>
-      <form method="post"
-            action="{% url 'app:admin_forecast_csv_upload' %}"
-            enctype="multipart/form-data"
-            class="p-5 space-y-4">
-        {% csrf_token %}
-        <input type="hidden" name="next" value="{% url 'app:admin_dashboard' %}?tab=forecast">
+      <form method="post" action="{% url 'app:admin_forecast_csv_upload' %}" enctype="multipart/form-data" class="p-6 space-y-5">
+        {% csrf_token %}<input type="hidden" name="next" value="{% url 'app:admin_dashboard' %}?tab=forecast">
         <div>
-          <label class="text-sm font-medium text-slate-700">CSV File</label>
-          <input type="file" name="csv_file" required
-                 class="mt-2 w-full rounded-xl border border-slate-300 p-2 bg-white">
+          <label class="text-sm font-semibold text-slate-700 block mb-2">CSV File</label>
+          <div class="relative">
+            <input type="file" name="csv_file" id="csv-file-input" required class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" accept=".csv, text/csv">
+            <div class="border-2 border-dashed border-slate-300 rounded-xl p-6 bg-slate-50 hover:bg-slate-100 transition-colors text-center">
+              <div class="flex flex-col items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg><span class="text-sm font-medium text-slate-600">Drop your CSV file here or <span class="text-blue-600">browse</span></span><span class="text-xs text-slate-400">Supports: .csv files up to 10MB</span></div>
+            </div>
+          </div>
+          <div id="selected-file-name" class="mt-2 text-sm text-slate-600 hidden">Selected: <span class="font-medium"></span></div>
         </div>
-        <p class="text-xs text-slate-500">
-          Required columns per row: customer_name, part_number, part_name, date (or month+year), unit_price, quantity.
-        </p>
-        <div class="flex justify-end gap-2">
-          <button type="button" id="forecast-csv-cancel"
-                  class="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50">
-            Cancel
-          </button>
-          <button type="submit"
-                  class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white">
-            Upload
-          </button>
+        <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <h4 class="font-medium text-blue-800 mb-2 flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>CSV Format Instructions</h4>
+          <div class="text-xs text-blue-700 space-y-1"><p>Required columns per row:</p><ul class="list-disc pl-4 space-y-0.5"><li><span class="font-medium">customer_name, part_number, part_name</span></li><li><span class="font-medium">date</span> (or month+year combination)</li><li><span class="font-medium">unit_price, quantity</span></li></ul><p class="mt-2 text-blue-600">Example: J-CASH, P123, Product Name, January-2026, 10.50, 100</p></div>
         </div>
+        <div class="flex justify-end gap-3 pt-2"><button type="button" id="forecast-csv-cancel" class="px-4 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-medium transition-colors">Cancel</button><button type="submit" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm transition-colors flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>Upload CSV</button></div>
       </form>
     </div>
   </div>
@@ -2281,170 +1146,41 @@ function closeMaterialModal(){
   <div id="edit-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
     <div class="w-full max-w-xl bg-white rounded-2xl shadow-xl border border-slate-200 overflow-x-hidden">
       <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
-        <div>
-          <div class="font-semibold text-slate-900">Edit Material</div>
-          <div class="text-xs text-slate-500">Update fields then save</div>
-        </div>
-        <button type="button" id="edit-close"
-                class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200">
-          Close
-        </button>
+        <div><div class="font-semibold text-slate-900">Edit Material</div><div class="text-xs text-slate-500">Update fields then save</div></div>
+        <button type="button" id="edit-close" class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200">Close</button>
       </div>
       <form method="post" class="p-5 space-y-4">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="update_material">
-        <input type="hidden" name="mat_id" id="edit-mat-id">
-        <div>
-          <label class="text-sm font-medium text-slate-700">Part Code</label>
-          <input type="text" name="mat_partcode" id="edit-partcode" required
-                 class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
-                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-        </div>
-        <div>
-          <label class="text-sm font-medium text-slate-700">Part Name</label>
-          <input type="text" name="mat_partname" id="edit-partname"
-                 class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
-                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-        </div>
-        <div>
-          <label class="text-sm font-medium text-slate-700">Maker</label>
-          <input type="text" name="mat_maker" id="edit-maker"
-                 class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
-                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-        </div>
-        <div>
-          <label class="text-sm font-medium text-slate-700">Unit</label>
-          <select name="unit" id="edit-unit"
-                  class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
-                         focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-            <option value="pc">pc</option>
-            <option value="pcs">pcs</option>
-            <option value="m">m</option>
-            <option value="g">g</option>
-            <option value="kg">kg</option>
-          </select>
-        </div>
-        <div class="flex justify-end gap-2">
-          <button type="button" id="edit-cancel"
-                  class="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50">
-            Cancel
-          </button>
-          <button type="submit"
-                  class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white">
-            Save Changes
-          </button>
-        </div>
+        {% csrf_token %}<input type="hidden" name="action" value="update_material"><input type="hidden" name="mat_id" id="edit-mat-id">
+        <div><label class="text-sm font-medium text-slate-700">Part Code</label><input type="text" name="mat_partcode" id="edit-partcode" required class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></div>
+        <div><label class="text-sm font-medium text-slate-700">Part Name</label><input type="text" name="mat_partname" id="edit-partname" class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></div>
+        <div><label class="text-sm font-medium text-slate-700">Maker</label><input type="text" name="mat_maker" id="edit-maker" class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></div>
+        <div><label class="text-sm font-medium text-slate-700">Unit</label><select name="unit" id="edit-unit" class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"><option value="pc">pc</option><option value="pcs">pcs</option><option value="m">m</option><option value="g">g</option><option value="kg">kg</option></select></div>
+        <div class="flex justify-end gap-2"><button type="button" id="edit-cancel" class="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50">Cancel</button><button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white">Save Changes</button></div>
       </form>
     </div>
   </div>
 
-  <!-- Forecast Panel - Add this AFTER the edit-modal div -->
+  <!-- Forecast Panel -->
   <div id="forecast-backdrop" class="hidden fixed inset-0 bg-black/50 z-40"></div>
 
   <div id="forecast-panel"
        class="fixed top-0 right-0 h-full w-full sm:w-[500px]
               bg-white text-slate-900 border-l border-slate-200 z-50
               translate-x-full transition-transform duration-200 flex flex-col">
-
     <div class="p-4 border-b border-slate-200 flex justify-between items-center">
-      <div>
-        <div class="font-semibold text-blue-700">Add Forecast</div>
-        <div class="text-xs text-slate-500">Create new forecast record</div>
-      </div>
-      <button id="forecast-close"
-              class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200">
-        Close
-      </button>
+      <div><div class="font-semibold text-blue-700">Add Forecast</div><div class="text-xs text-slate-500">Create new forecast record</div></div>
+      <button id="forecast-close" class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200">Close</button>
     </div>
-
     <div id="forecast-content" class="flex-1 overflow-y-auto p-6">
       <form method="post" class="space-y-5" id="forecast-form">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="add_forecast">
-
-        <div>
-          <label class="text-sm font-medium text-slate-700">Customer Name</label>
-          <input type="text" name="customer_name" id="forecast-customer-name" required
-                 class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
-                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                 placeholder="Enter customer name">
-        </div>
-
-        <div>
-          <label class="text-sm font-medium text-slate-700">Part Name</label>
-          <input type="text" name="part_name" id="forecast-part-name" required
-                 class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
-                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                 placeholder="Enter part name">
-        </div>
-
-        <div>
-          <label class="text-sm font-medium text-slate-700">Part Number</label>
-          <input type="text" name="part_number" id="forecast-part-number" required
-                 class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
-                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                 placeholder="Enter part number">
-        </div>
-
-        <div>
-          <label class="text-sm font-medium text-slate-700">Month/Year</label>
-          <div class="grid grid-cols-2 gap-3">
-            <select name="month" id="forecast-month" required
-                    class="px-3 py-2 rounded-xl border border-slate-300 bg-white
-                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-              <option value="">Select Month</option>
-              <option value="January">January</option>
-              <option value="February">February</option>
-              <option value="March">March</option>
-              <option value="April">April</option>
-              <option value="May">May</option>
-              <option value="June">June</option>
-              <option value="July">July</option>
-              <option value="August">August</option>
-              <option value="September">September</option>
-              <option value="October">October</option>
-              <option value="November">November</option>
-              <option value="December">December</option>
-            </select>
-            <select name="year" id="forecast-year" required
-                    class="px-3 py-2 rounded-xl border border-slate-300 bg-white
-                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-              <option value="">Select Year</option>
-              <option value="2024">2024</option>
-              <option value="2025">2025</option>
-              <option value="2026">2026</option>
-              <option value="2027">2027</option>
-              <option value="2028">2028</option>
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <label class="text-sm font-medium text-slate-700">Unit Price ($)</label>
-          <input type="number" name="unit_price" id="forecast-unit-price" step="any" min="0" required
-                 class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
-                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                 placeholder="0.00">
-        </div>
-
-        <div>
-          <label class="text-sm font-medium text-slate-700">Quantity</label>
-          <input type="number" name="quantity" id="forecast-quantity" min="1" required
-                 class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
-                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                 placeholder="Enter quantity">
-        </div>
-
-        <div class="pt-4 border-t border-slate-200 flex justify-end gap-2">
-          <button type="button" id="forecast-cancel"
-                  class="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50">
-            Cancel
-          </button>
-          <button type="submit"
-                  class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white">
-            Save Forecast
-          </button>
-        </div>
+        {% csrf_token %}<input type="hidden" name="action" value="add_forecast">
+        <div><label class="text-sm font-medium text-slate-700">Customer Name</label><input type="text" name="customer_name" id="forecast-customer-name" required class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter customer name"></div>
+        <div><label class="text-sm font-medium text-slate-700">Part Name</label><input type="text" name="part_name" id="forecast-part-name" required class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter part name"></div>
+        <div><label class="text-sm font-medium text-slate-700">Part Number</label><input type="text" name="part_number" id="forecast-part-number" required class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter part number"></div>
+        <div><label class="text-sm font-medium text-slate-700">Month/Year</label><div class="grid grid-cols-2 gap-3"><select name="month" id="forecast-month" required class="px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"><option value="">Select Month</option><option value="January">January</option><option value="February">February</option><option value="March">March</option><option value="April">April</option><option value="May">May</option><option value="June">June</option><option value="July">July</option><option value="August">August</option><option value="September">September</option><option value="October">October</option><option value="November">November</option><option value="December">December</option></select><select name="year" id="forecast-year" required class="px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"><option value="">Select Year</option><option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option></select></div></div>
+        <div><label class="text-sm font-medium text-slate-700">Unit Price ($)</label><input type="number" name="unit_price" id="forecast-unit-price" step="any" min="0" required class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="0.00"></div>
+        <div><label class="text-sm font-medium text-slate-700">Quantity</label><input type="number" name="quantity" id="forecast-quantity" min="1" required class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter quantity"></div>
+        <div class="pt-4 border-t border-slate-200 flex justify-end gap-2"><button type="button" id="forecast-cancel" class="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50">Cancel</button><button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white">Save Forecast</button></div>
       </form>
     </div>
   </div>
@@ -2456,145 +1192,21 @@ function closeMaterialModal(){
        class="fixed top-0 right-0 h-full w-full sm:w-[500px]
               bg-white text-slate-900 border-l border-slate-200 z-50
               translate-x-full transition-transform duration-200 flex flex-col">
-
     <div class="p-4 border-b border-slate-200 flex justify-between items-center">
-      <div>
-        <div class="font-semibold text-blue-700">Edit Forecast</div>
-        <div class="text-xs text-slate-500">Update forecast record</div>
-      </div>
-      <button id="edit-forecast-close"
-              class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200">
-        Close
-      </button>
+      <div><div class="font-semibold text-blue-700">Edit Forecast</div><div class="text-xs text-slate-500">Update forecast record</div></div>
+      <button id="edit-forecast-close" class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200">Close</button>
     </div>
-
     <div id="edit-forecast-content" class="flex-1 overflow-y-auto p-6">
       <form method="post" class="space-y-5" id="edit-forecast-form">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="update_forecast">
-        <input type="hidden" name="original_customer_name" id="edit-original-customer" value="">
-        <input type="hidden" name="original_part_number" id="edit-original-part-number" value="">
-
-        <div>
-          <label class="text-sm font-medium text-slate-700">Customer Name</label>
-          <input type="text" name="customer_name" id="edit-customer-name" required
-                 class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
-                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                 placeholder="Enter customer name">
-        </div>
-
-        <div>
-          <label class="text-sm font-medium text-slate-700">Part Name</label>
-          <input type="text" name="part_name" id="edit-part-name" required
-                 class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
-                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                 placeholder="Enter part name">
-        </div>
-
-        <div>
-          <label class="text-sm font-medium text-slate-700">Part Number</label>
-          <input type="text" name="part_number" id="edit-part-number" required
-                 class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
-                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                 placeholder="Enter part number">
-        </div>
-
-        <div>
-          <label class="text-sm font-medium text-slate-700">Month/Year</label>
-          <div class="grid grid-cols-2 gap-3">
-            <select name="month" id="edit-month" required
-                    class="px-3 py-2 rounded-xl border border-slate-300 bg-white
-                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-              <option value="">Select Month</option>
-              <option value="January">January</option>
-              <option value="February">February</option>
-              <option value="March">March</option>
-              <option value="April">April</option>
-              <option value="May">May</option>
-              <option value="June">June</option>
-              <option value="July">July</option>
-              <option value="August">August</option>
-              <option value="September">September</option>
-              <option value="October">October</option>
-              <option value="November">November</option>
-              <option value="December">December</option>
-            </select>
-            <select name="year" id="edit-year" required
-                    class="px-3 py-2 rounded-xl border border-slate-300 bg-white
-                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-              <option value="">Select Year</option>
-              <option value="2024">2024</option>
-              <option value="2025">2025</option>
-              <option value="2026">2026</option>
-              <option value="2027">2027</option>
-              <option value="2028">2028</option>
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <label class="text-sm font-medium text-slate-700">Unit Price ($)</label>
-          <input type="number" name="unit_price" id="edit-unit-price" step="any" min="0" required
-                 class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
-                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                 placeholder="0.00">
-        </div>
-
-        <div>
-          <label class="text-sm font-medium text-slate-700">Quantity</label>
-          <input type="number" name="quantity" id="edit-quantity" min="1" required
-                 class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
-                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                 placeholder="Enter quantity">
-        </div>
-
-        <div class="pt-4 border-t border-slate-200 flex justify-end gap-2">
-          <button type="button" id="edit-forecast-cancel"
-                  class="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50">
-            Cancel
-          </button>
-          <button type="submit"
-                  class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white">
-            Update Forecast
-          </button>
-        </div>
+        {% csrf_token %}<input type="hidden" name="action" value="update_forecast"><input type="hidden" name="original_customer_name" id="edit-original-customer" value=""><input type="hidden" name="original_part_number" id="edit-original-part-number" value="">
+        <div><label class="text-sm font-medium text-slate-700">Customer Name</label><input type="text" name="customer_name" id="edit-customer-name" required class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter customer name"></div>
+        <div><label class="text-sm font-medium text-slate-700">Part Name</label><input type="text" name="part_name" id="edit-part-name" required class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter part name"></div>
+        <div><label class="text-sm font-medium text-slate-700">Part Number</label><input type="text" name="part_number" id="edit-part-number" required class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter part number"></div>
+        <div><label class="text-sm font-medium text-slate-700">Month/Year</label><div class="grid grid-cols-2 gap-3"><select name="month" id="edit-month" required class="px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"><option value="">Select Month</option><option value="January">January</option><option value="February">February</option><option value="March">March</option><option value="April">April</option><option value="May">May</option><option value="June">June</option><option value="July">July</option><option value="August">August</option><option value="September">September</option><option value="October">October</option><option value="November">November</option><option value="December">December</option></select><select name="year" id="edit-year" required class="px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"><option value="">Select Year</option><option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option></select></div></div>
+        <div><label class="text-sm font-medium text-slate-700">Unit Price ($)</label><input type="number" name="unit_price" id="edit-unit-price" step="any" min="0" required class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="0.00"></div>
+        <div><label class="text-sm font-medium text-slate-700">Quantity</label><input type="number" name="quantity" id="edit-quantity" min="1" required class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter quantity"></div>
+        <div class="pt-4 border-t border-slate-200 flex justify-end gap-2"><button type="button" id="edit-forecast-cancel" class="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50">Cancel</button><button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white">Update Forecast</button></div>
       </form>
-    </div>
-  </div>
-  
-  <meta charset="UTF-8">
-  <title>Admin Dashboard - Forecast</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-
-  
-
-
-
-
-  <!-- Forecast Tab Navigation removed per request -->
-
-  {% if tab == "forecast" %}
-    <!-- Forecast Records tab content -->
-    {% include "admin/forecast_pages.html" with tab="forecast" %}
-  {% endif %}
-
-  {% if tab == "previous_forecast" %}
-    <!-- Previous Forecast tab content -->
-    {% include "admin/forecast_pages.html" with tab="previous_forecast" %}
-  {% endif %}    
-  
-  {% if tab == "forecast_summary" %}
-    <!-- Forecast Summary tab content -->
-    {% include "admin/forecast_pages.html" with tab="forecast_summary" %}
-  {% endif %}
-
-  {% if tab == "actual_delivered" %}
-    <!-- Actual Delivered tab content -->
-    {% include "admin/forecast_pages.html" with tab="actual_delivered" %}
-  {% endif %}
-
-
-
     </div>
   </div>
 
@@ -2637,7 +1249,6 @@ function closeMaterialModal(){
       document.getElementById("edit-quantity").value = "";
       document.getElementById("edit-original-customer").value = "";
       document.getElementById("edit-original-part-number").value = "";
-      document.getElementById("edit-original-date").value = "";
     }
 
     function fillEditForm(data) {
@@ -2648,7 +1259,6 @@ function closeMaterialModal(){
       document.getElementById("edit-part-number").value = decodeUnicode(data.part_number);
       document.getElementById("edit-original-customer").value = decodeUnicode(data.original_customer || data.customer);
       document.getElementById("edit-original-part-number").value = decodeUnicode(data.original_part_number || data.part_number);
-      document.getElementById("edit-original-date").value = data.original_date || "";
       
       // Set unit price and quantity from the data attributes
       document.getElementById("edit-unit-price").value = data.unit_price || 0;
@@ -2666,7 +1276,6 @@ function closeMaterialModal(){
       
       if (editForecastBtns.length > 0) {
         editForecastBtns.forEach(btn => {
-          // Remove any existing listeners to avoid duplicates
           btn.removeEventListener("click", handleEditClick);
           btn.addEventListener("click", handleEditClick);
         });
@@ -2704,7 +1313,6 @@ function closeMaterialModal(){
         quantity: quantity,
         original_customer: customer,
         original_part_number: partNumber,
-        original_date: dateStr,
         month: month,
         year: year
       });
@@ -2718,7 +1326,7 @@ function closeMaterialModal(){
       attachEditButtonListeners();
     });
 
-    // Also attach listeners after any AJAX content loads (if applicable)
+    // Also attach listeners after any AJAX content loads
     setTimeout(attachEditButtonListeners, 500);
 
     if (editForecastClose) editForecastClose.addEventListener("click", closeEditForecastPanel);
@@ -2872,34 +1480,35 @@ function closeMaterialModal(){
       });
     });
 
-if (panelContent) {
-  panelContent.addEventListener("submit", async (e) => {
-    const form = e.target;
-    if (!form || form.tagName !== "FORM") return;
+    if (panelContent) {
+      panelContent.addEventListener("submit", async (e) => {
+        const form = e.target;
+        if (!form || form.tagName !== "FORM") return;
 
-    if (!form.action.includes("{% url 'app:add_material_to_tep' %}")) return;
+        if (!form.action.includes("{% url 'app:add_material_to_tep' %}")) return;
 
-    e.preventDefault();
+        e.preventDefault();
 
-    const tepId = form.querySelector('input[name="tep_id"]')?.value;
-    if (!tepId) return;
+        const tepId = form.querySelector('input[name="tep_id"]')?.value;
+        if (!tepId) return;
 
-    const fd = new FormData(form);
+        const fd = new FormData(form);
 
-    const res = await fetch(form.action, {
-      method: "POST",
-      body: fd,
-      headers: { "X-Requested-With": "XMLHttpRequest" },
-    });
+        const res = await fetch(form.action, {
+          method: "POST",
+          body: fd,
+          headers: { "X-Requested-With": "XMLHttpRequest" },
+        });
 
-    if (res.ok) {
-      await loadPanel(tepId); 
-    } else {
-      const txt = await res.text();
-      panelContent.innerHTML = txt;
+        if (res.ok) {
+          await loadPanel(tepId); 
+        } else {
+          const txt = await res.text();
+          panelContent.innerHTML = txt;
+        }
+      });
     }
-  });
-}
+
     if (btnHistory) {
       btnHistory.addEventListener("click", () => {
         const box = panelContent.querySelector("#revision-history");
@@ -2935,6 +1544,7 @@ if (panelContent) {
         reviseForm.submit();
       });
     }
+
     const openCSV = document.getElementById("open-csv-upload");
     const csvModal = document.getElementById("csv-modal");
     const csvBackdrop = document.getElementById("csv-backdrop");
@@ -3127,168 +1737,312 @@ if (panelContent) {
     const forecastForm = document.getElementById("forecast-form");
     if (forecastForm) {
       forecastForm.addEventListener("submit", function(e) {
-
+        // Form submission handled normally
       });
+    }
+
+    // Forecast Run Modal functions
+    function openForecastModal() {
+      const el = document.getElementById("forecastModal");
+      el.classList.remove("hidden");
+      el.setAttribute("aria-hidden", "false");
+      document.body.classList.add("overflow-x-hidden");
+    }
+
+    function closeForecastModal() {
+      const el = document.getElementById("forecastModal");
+      el.classList.add("hidden");
+      el.setAttribute("aria-hidden", "true");
+      document.body.classList.remove("overflow-x-hidden");
+    }
+
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") closeForecastModal();
+    });
+  </script>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const partInput = document.getElementById("forecast-run-part-code");
+      const monthInput = document.getElementById("forecast-run-month");
+      const qtyInput = document.getElementById("forecast-run-qty");
+
+      const bomCount = document.getElementById("forecast-bom-count");
+      const bomStatus = document.getElementById("forecast-bom-status");
+      const bomWrap = document.getElementById("forecast-bom-wrap");
+      const bomBody = document.getElementById("forecast-bom-body");
+
+      function setBomIdle(message) {
+        if (bomCount) bomCount.textContent = "0 materials";
+        if (bomStatus) {
+          bomStatus.textContent = message || "Type a part code to load its registered BOM materials.";
+          bomStatus.classList.remove("hidden");
+        }
+        if (bomWrap) bomWrap.classList.add("hidden");
+        if (bomBody) bomBody.innerHTML = "";
+      }
+
+      function renderBomRows(rows) {
+        if (!bomBody || !bomWrap || !bomStatus || !bomCount) return;
+
+        if (!Array.isArray(rows) || rows.length === 0) {
+          setBomIdle("No registered BOM materials found for this part code.");
+          return;
+        }
+
+        bomCount.textContent = `${rows.length} material${rows.length === 1 ? "" : "s"}`;
+        bomStatus.classList.add("hidden");
+        bomWrap.classList.remove("hidden");
+
+        bomBody.innerHTML = rows.map((row) => {
+          const matCode = row.mat_partcode || row.material_code || "—";
+          const matName = row.mat_partname || row.material_name || "—";
+          const dimQty = row.dim_qty ?? row.per_unit_qty ?? "—";
+          const loss = row.loss_percent ?? row.loss_pct ?? "—";
+          const total = row.total ?? row.per_unit_total ?? "—";
+          const unit = row.unit || "—";
+
+          return `
+            <tr>
+              <td class="px-4 py-3 font-medium text-slate-900">${escapeHtml(String(matCode))}</td>
+              <td class="px-4 py-3 text-slate-700">${escapeHtml(String(matName))}</td>
+              <td class="px-4 py-3 text-right text-slate-700 tabular-nums">${escapeHtml(String(dimQty))}</td>
+              <td class="px-4 py-3 text-right text-slate-700 tabular-nums">${escapeHtml(String(loss))}</td>
+              <td class="px-4 py-3 text-right font-medium text-slate-900 tabular-nums">${escapeHtml(String(total))}</td>
+              <td class="px-4 py-3 text-slate-700">${escapeHtml(String(unit))}</td>
+            </tr>
+          `;
+        }).join("");
+      }
+
+      function escapeHtml(value) {
+        return value
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      async function loadForecastQty() {
+        if (!partInput || !monthInput || !qtyInput) return;
+
+        const part = partInput.value.trim();
+        const month = monthInput.value.trim();
+
+        if (!part || !month) return;
+
+        const url = `/api/forecast-qty/?part_number=${encodeURIComponent(part)}&schedule_month=${encodeURIComponent(month)}`;
+
+        try {
+          const res = await fetch(url, {
+            headers: { "X-Requested-With": "XMLHttpRequest" }
+          });
+          const data = await res.json();
+
+          if (data.ok) {
+            qtyInput.value = data.quantity || 0;
+          }
+        } catch (e) {
+          console.log("forecast lookup failed", e);
+        }
+      }
+
+      async function loadBomPreview() {
+        if (!partInput) return;
+
+        const part = partInput.value.trim();
+        if (!part) {
+          setBomIdle("Type a part code to load its registered BOM materials.");
+          return;
+        }
+
+        if (bomStatus) {
+          bomStatus.textContent = "Loading registered BOM materials…";
+          bomStatus.classList.remove("hidden");
+        }
+        if (bomWrap) bomWrap.classList.add("hidden");
+        if (bomBody) bomBody.innerHTML = "";
+        if (bomCount) bomCount.textContent = "Loading…";
+
+        const urls = [
+          `/api/part-bom/?part_code=${encodeURIComponent(part)}`,
+          `/api/part-bom/?part_number=${encodeURIComponent(part)}`,
+        ];
+
+        let data = null;
+        for (const url of urls) {
+          try {
+            const res = await fetch(url, {
+              headers: { "X-Requested-With": "XMLHttpRequest" }
+            });
+            data = await res.json();
+            if (data) break;
+          } catch (e) {
+            console.log("bom lookup failed", e);
+          }
+        }
+
+        if (!data || data.ok === false) {
+          setBomIdle((data && data.message) ? data.message : "No registered BOM materials found for this part code.");
+          return;
+        }
+
+        const rows = data.rows || data.materials || data.items || [];
+        renderBomRows(rows);
+      }
+
+      let bomTimer = null;
+
+      if (partInput) {
+        partInput.addEventListener("input", function () {
+          clearTimeout(bomTimer);
+          bomTimer = setTimeout(() => {
+            loadBomPreview();
+          }, 250);
+        });
+
+        partInput.addEventListener("change", function () {
+          loadBomPreview();
+          loadForecastQty();
+        });
+
+        partInput.addEventListener("blur", function () {
+          loadBomPreview();
+          loadForecastQty();
+        });
+      }
+
+      if (monthInput) {
+        monthInput.addEventListener("change", loadForecastQty);
+      }
+
+      setBomIdle("Type a part code to load its registered BOM materials.");
+    });
+
+    // Customer modal functions
+    let currentStep = 1;
+    const totalSteps = 3;
+
+    function openCustomerModal() {
+      document.getElementById('customerModal').classList.remove('hidden');
+      document.getElementById('customerModal').classList.add('flex');
+      if (!window.PART_MASTER_MAP || !Object.keys(window.PART_MASTER_MAP).length) {
+        window.PART_MASTER_MAP = buildPartMasterMapFromDatalist();
+      }
+      showStep(currentStep);
+    }
+
+    function closeCustomerModal() {
+      document.getElementById('customerModal').classList.add('hidden');
+      document.getElementById('customerForm').reset();
+      const hint = document.getElementById('customerPartCodeHint');
+      if (hint) {
+        hint.textContent = 'Type a part code and pick from the suggestions. Part codes are maintained in BOM Master.';
+        hint.className = 'text-xs text-slate-500 -mt-1 mb-2';
+      }
+      currentStep = 1;
+      showStep(currentStep);
+    }
+
+    function showStep(step) {
+      document.querySelectorAll('.step').forEach(s => s.classList.add('hidden'));
+      document.getElementById('step'+step).classList.remove('hidden');
+      document.getElementById('prevBtn').style.display = step===1?'none':'inline-block';
+      document.getElementById('nextBtn').style.display = step===totalSteps?'none':'inline-block';
+      document.getElementById('saveBtn').classList.toggle('hidden', step!==totalSteps);
+      document.getElementById('progressBar').style.width = ((step/totalSteps)*100)+'%';
+      updateSummary();
+      validateStep();
+    }
+
+    function nextStep(){ if(currentStep<totalSteps) currentStep++; showStep(currentStep);}
+    function prevStep(){ if(currentStep>1) currentStep--; showStep(currentStep);}
+    
+    function updateSummary(){
+      const getVal = name => document.querySelector(`[name="${name}"]`)?.value || '-';
+      document.getElementById('summary_name').innerText = getVal('customer_name');
+      document.getElementById('summary_part_code').innerText = getVal('part_code');
+      document.getElementById('summary_part_name').innerText = getVal('part_name');
+      document.getElementById('summary_tep_code').innerText = getVal('tep_code');
+    }
+
+    window.PART_MASTER_MAP = (function () {
+      try {
+        return {{ part_master_json|default:'{}'|safe }};
+      } catch (e) {
+        return {};
+      }
+    })();
+
+    function buildPartMasterMapFromDatalist() {
+      const out = {};
+      const dl = document.getElementById('customerPartCodeList');
+      if (!dl) return out;
+
+      dl.querySelectorAll('option').forEach(opt => {
+        const code = (opt.value || '').trim();
+        const name = (opt.getAttribute('data-part-name') || opt.textContent || '').trim();
+        if (!code) return;
+
+        const cleanedName = name.startsWith(code + ' - ')
+          ? name.slice((code + ' - ').length).trim()
+          : name;
+
+        if (!out[code]) {
+          out[code] = cleanedName;
+        }
+      });
+
+      return out;
+    }
+
+    function syncPartMasterSelection(){
+      const input = document.getElementById('customerPartCode');
+      const partName = document.getElementById('customerPartName');
+      const hint = document.getElementById('customerPartCodeHint');
+      if (!input || !partName) return;
+
+      let map = window.PART_MASTER_MAP || {};
+      if (!Object.keys(map).length) {
+        map = buildPartMasterMapFromDatalist();
+        window.PART_MASTER_MAP = map;
+      }
+
+      const code = (input.value || '').trim();
+      const foundName = map[code] || '';
+
+      partName.value = foundName;
+
+      if (hint) {
+        if (!code) {
+          hint.textContent = 'Type a part code and pick from the suggestions. Part codes are maintained in BOM Master.';
+          hint.className = 'text-xs text-slate-500 -mt-1 mb-2';
+        } else if (foundName) {
+          hint.textContent = 'Selected from BOM Master.';
+          hint.className = 'text-xs text-emerald-600 -mt-1 mb-2';
+        } else {
+          hint.textContent = 'Part code not found in BOM Master. Please choose an existing part code.';
+          hint.className = 'text-xs text-rose-600 -mt-1 mb-2';
+        }
+      }
+    }
+
+    function validateStep(){
+      const stepFields = document.querySelectorAll('#step'+currentStep+' [required]');
+      let allFilled = Array.from(stepFields).every(f=>f.value.trim()!=='');
+
+      if (currentStep === 2) {
+        const code = (document.getElementById('customerPartCode')?.value || '').trim();
+        const name = (document.getElementById('customerPartName')?.value || '').trim();
+        allFilled = allFilled && !!code && !!name;
+      }
+
+      document.getElementById('prevBtn').disabled=false;
+      if(currentStep<totalSteps) document.getElementById('nextBtn').disabled=!allFilled;
+      else document.getElementById('saveBtn').disabled=!allFilled;
     }
   </script>
-  <script>
-document.addEventListener("DOMContentLoaded", function () {
-  const partInput = document.getElementById("forecast-run-part-code");
-  const monthInput = document.getElementById("forecast-run-month");
-  const qtyInput = document.getElementById("forecast-run-qty");
 
-  const bomCount = document.getElementById("forecast-bom-count");
-  const bomStatus = document.getElementById("forecast-bom-status");
-  const bomWrap = document.getElementById("forecast-bom-wrap");
-  const bomBody = document.getElementById("forecast-bom-body");
-
-  function setBomIdle(message) {
-    if (bomCount) bomCount.textContent = "0 materials";
-    if (bomStatus) {
-      bomStatus.textContent = message || "Type a part code to load its registered BOM materials.";
-      bomStatus.classList.remove("hidden");
-    }
-    if (bomWrap) bomWrap.classList.add("hidden");
-    if (bomBody) bomBody.innerHTML = "";
-  }
-
-  function renderBomRows(rows) {
-    if (!bomBody || !bomWrap || !bomStatus || !bomCount) return;
-
-    if (!Array.isArray(rows) || rows.length === 0) {
-      setBomIdle("No registered BOM materials found for this part code.");
-      return;
-    }
-
-    bomCount.textContent = `${rows.length} material${rows.length === 1 ? "" : "s"}`;
-    bomStatus.classList.add("hidden");
-    bomWrap.classList.remove("hidden");
-
-    bomBody.innerHTML = rows.map((row) => {
-      const matCode = row.mat_partcode || row.material_code || "—";
-      const matName = row.mat_partname || row.material_name || "—";
-      const dimQty = row.dim_qty ?? row.per_unit_qty ?? "—";
-      const loss = row.loss_percent ?? row.loss_pct ?? "—";
-      const total = row.total ?? row.per_unit_total ?? "—";
-      const unit = row.unit || "—";
-
-      return `
-        <tr>
-          <td class="px-4 py-3 font-medium text-slate-900">${escapeHtml(String(matCode))}</td>
-          <td class="px-4 py-3 text-slate-700">${escapeHtml(String(matName))}</td>
-          <td class="px-4 py-3 text-right text-slate-700 tabular-nums">${escapeHtml(String(dimQty))}</td>
-          <td class="px-4 py-3 text-right text-slate-700 tabular-nums">${escapeHtml(String(loss))}</td>
-          <td class="px-4 py-3 text-right font-medium text-slate-900 tabular-nums">${escapeHtml(String(total))}</td>
-          <td class="px-4 py-3 text-slate-700">${escapeHtml(String(unit))}</td>
-        </tr>
-      `;
-    }).join("");
-  }
-
-  function escapeHtml(value) {
-    return value
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#39;");
-  }
-
-  async function loadForecastQty() {
-    if (!partInput || !monthInput || !qtyInput) return;
-
-    const part = partInput.value.trim();
-    const month = monthInput.value.trim();
-
-    if (!part || !month) return;
-
-    const url = `/api/forecast-qty/?part_number=${encodeURIComponent(part)}&schedule_month=${encodeURIComponent(month)}`;
-
-    try {
-      const res = await fetch(url, {
-        headers: { "X-Requested-With": "XMLHttpRequest" }
-      });
-      const data = await res.json();
-
-      if (data.ok) {
-        qtyInput.value = data.quantity || 0;
-      }
-    } catch (e) {
-      console.log("forecast lookup failed", e);
-    }
-  }
-
-  async function loadBomPreview() {
-    if (!partInput) return;
-
-    const part = partInput.value.trim();
-    if (!part) {
-      setBomIdle("Type a part code to load its registered BOM materials.");
-      return;
-    }
-
-    if (bomStatus) {
-      bomStatus.textContent = "Loading registered BOM materials…";
-      bomStatus.classList.remove("hidden");
-    }
-    if (bomWrap) bomWrap.classList.add("hidden");
-    if (bomBody) bomBody.innerHTML = "";
-    if (bomCount) bomCount.textContent = "Loading…";
-
-    const urls = [
-      `/api/part-bom/?part_code=${encodeURIComponent(part)}`,
-      `/api/part-bom/?part_number=${encodeURIComponent(part)}`,
-    ];
-
-    let data = null;
-    for (const url of urls) {
-      try {
-        const res = await fetch(url, {
-          headers: { "X-Requested-With": "XMLHttpRequest" }
-        });
-        data = await res.json();
-        if (data) break;
-      } catch (e) {
-        console.log("bom lookup failed", e);
-      }
-    }
-
-    if (!data || data.ok === false) {
-      setBomIdle((data && data.message) ? data.message : "No registered BOM materials found for this part code.");
-      return;
-    }
-
-    const rows = data.rows || data.materials || data.items || [];
-    renderBomRows(rows);
-  }
-
-  let bomTimer = null;
-
-  if (partInput) {
-    partInput.addEventListener("input", function () {
-      clearTimeout(bomTimer);
-      bomTimer = setTimeout(() => {
-        loadBomPreview();
-      }, 250);
-    });
-
-    partInput.addEventListener("change", function () {
-      loadBomPreview();
-      loadForecastQty();
-    });
-
-    partInput.addEventListener("blur", function () {
-      loadBomPreview();
-      loadForecastQty();
-    });
-  }
-
-  if (monthInput) {
-    monthInput.addEventListener("change", loadForecastQty);
-  }
-
-  setBomIdle("Type a part code to load its registered BOM materials.");
-});
-</script>
 </body>
-</html>       
+</html>
