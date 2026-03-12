@@ -222,17 +222,6 @@
     font-weight: 500;
   }
 
-  /* Hide unit price column utility */
-  .hide-unit-price .unit-price-header,
-  .hide-unit-price .unit-price-cell {
-    display: none;
-  }
-  
-  /* Hide total amount row utility */
-  .hide-total-amount .total-amount-row {
-    display: none;
-  }
-  
   /* ============================================
      SINGLE MONTH VIEW ADJUSTMENTS
      Makes left columns wider when only one month is displayed
@@ -682,7 +671,6 @@
           <th class="px-4 py-3 text-left">Customer</th>
           <th class="px-4 py-3 text-left">Part Number</th>
           <th class="px-4 py-3 text-left">Part Name</th>
-          <th class="px-4 py-3 text-left unit-price-header">Unit Price</th>
           <th class="px-4 py-3 text-left">Month</th>
           <th class="px-4 py-3 text-left">Quantity</th>
           <th class="px-4 py-3 text-right">Action</th>
@@ -705,13 +693,6 @@
                 <td class="px-4 py-3 font-medium">{{ forecast.customer.customer_name }}</td>
                 <td class="px-4 py-3">{{ forecast.part_number }}</td>
                 <td class="px-4 py-3">{{ forecast.part_name }}</td>
-                <td class="px-4 py-3 unit-price-cell">
-                  {% if m.unit_price is not None %}
-                    {{ m.unit_price|floatformat:5 }}
-                  {% else %}
-                    {{ forecast.unit_price_display|floatformat:5 }}
-                  {% endif %}
-                </td>
                 <td class="px-4 py-3">{{ m.date }}</td>
                 <td class="px-4 py-3">{{ m.quantity|default:0|floatformat:0|intcomma }}</td>
                 <td class="px-4 py-3 text-right">
@@ -727,7 +708,6 @@
                        data-date="{{ m.date }}">
                       Edit
                     </button>
-                    <!-- Delete button removed -->
                   </div>
                 </td>
               </tr>
@@ -738,7 +718,6 @@
                 <td class="px-4 py-3 font-medium">{{ forecast.customer.customer_name }}</td>
                 <td class="px-4 py-3">{{ forecast.part_number }}</td>
                 <td class="px-4 py-3">{{ forecast.part_name }}</td>
-                <td class="px-4 py-3 unit-price-cell">{{ forecast.unit_price_display|floatformat:5 }}</td>
                 <td class="px-4 py-3">—</td>
                 <td class="px-4 py-3">0</td>
                 <td class="px-4 py-3 text-right">
@@ -749,7 +728,7 @@
           {% endwith %}
         {% empty %}
         <tr>
-          <td colspan="8" class="px-4 py-10 text-center text-slate-500">
+          <td colspan="7" class="px-4 py-10 text-center text-slate-500">
             No current forecast records found. Click "+ Add Forecast" to create one.
           </td>
         </tr>
@@ -768,7 +747,7 @@
     </div>
     <div class="flex items-center gap-1">
       {% if forecasts_list.has_previous %}
-      <a href="?tab=forecast&page={{ forecasts_list.previous_page_number }}{% if fcustomer %}&fcustomer={{ fcustomer }}{% endif %}{% if fmonth %}&fmonth={{ fmonth }}{% endif %}{% if fq %}&fq={{ fq }}{% endif %}" 
+      <a href="?tab=forecast&page={{ forecasts_list.previous_page_number }}{% if fcustomer %}&fcustomer={{ fcustomer }}{% endif %}{% if fmonth %}&fmonth={{ fmonth }}{% endif %}{% if fq %}&fq={{ fq }{% endif %}" 
          class="px-3 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-sm font-medium">
         ← Prev
       </a>
@@ -814,8 +793,8 @@
   <!-- Header with filters -->
   <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
     <div>
-      <h2 class="text-lg font-semibold text-slate-900">Previous Forecast Details</h2>
-      <p class="text-sm text-slate-500">{{ fs_prev_year|default:"Previous Year" }} monthly forecast by part number</p>
+      <h2 class="text-lg font-semibold text-slate-900">Previous Forecast</h2>
+      <p class="text-sm text-slate-500">{{ fs_prev_year|default:"Previous Year" }}</p>
     </div>
 
     <form method="get" class="flex flex-wrap gap-2 items-center">
@@ -862,92 +841,76 @@
     </form>
   </div>
 
-  <!-- Previous Forecast Table -->
+  <!-- Previous Forecast Table — empty ghost column REMOVED -->
   <div class="fs-table-wrap">
     <table class="fs-table">
       <thead>
         <tr>
+          <!-- FIX: Only CUSTOMER is sticky; PART NUMBER and PART NAME are normal columns -->
           <th class="fs-col-header sticky-left" style="left:0; padding: 8px 10px;">CUSTOMER</th>
-          <th class="fs-col-header sticky-left" style="left:140px; padding: 8px 10px;">PART NUMBER</th>
+          <th class="fs-col-header" style="padding: 8px 10px;">PART NUMBER</th>
           <th class="fs-col-header" style="padding: 8px 10px;">PART NAME</th>
-          <th class="fs-col-header unit-price-header" style="padding: 8px 10px;">UNIT PRICE</th>
 
-          <th class="fs-section-prev" colspan="{% if pf_month %}1{% else %}{{ fs_prev_months|length }}{% endif %}" style="padding: 8px 4px;">
-            PREVIOUS FORECAST ({{ fs_prev_year|default:"Previous Year" }}){% if pf_month %} — {{ pf_month }}{% endif %}
-          </th>
+          {% if not pf_month %}
+            {% for month in fs_prev_months %}
+              <th class="fs-col-header prev-month" style="padding: 6px 10px;">{{ month }}</th>
+            {% endfor %}
+          {% else %}
+            <th class="fs-col-header prev-month" style="padding: 6px 10px;">{{ pf_month }}</th>
+          {% endif %}
         </tr>
-
-        {% if not pf_month %}
-        <tr>
-          <th class="fs-col-header sticky-left" style="padding: 6px 4px;"></th>
-          <th class="fs-col-header sticky-left" style="padding: 6px 4px;"></th>
-          <th class="fs-col-header" style="padding: 6px 4px;"></th>
-          <th class="fs-col-header unit-price-header" style="padding: 6px 4px;"></th>
-
-          {% for month in fs_prev_months %}
-            <th class="fs-col-header prev-month" style="padding: 6px 10px;">{{ month }}</th>
-          {% endfor %}
-        </tr>
-        {% endif %}
       </thead>
 
       <tbody>
         {% for row in prev_rows %}
         <tr class="data-row">
+          <!-- FIX: Only CUSTOMER is sticky; PART NUMBER is a normal cell -->
           <td class="sticky-left" style="left:0; padding: 8px 6px; text-align: left;">{{ row.customer }}</td>
-          <td class="sticky-left font-mono" style="left:140px; padding: 8px 6px; text-align: left;">{{ row.part_number }}</td>
+          <td class="font-mono" style="padding: 8px 6px; text-align: left;">{{ row.part_number }}</td>
           <td style="padding: 8px 6px; text-align: left;">{{ row.part_name }}</td>
-          <td class="unit-price-cell" style="padding: 8px 6px; text-align: right;">{{ row.unit_price|floatformat:4 }}</td>
 
-          {% for month in fs_prev_months %}
-            {% if not pf_month or pf_month == month %}
-            <td style="padding: 8px 4px; text-align: center; {% if pf_month == month %}background-color: #eff6ff; font-weight:600;{% endif %}">
+          {% if not pf_month %}
+            {% for month in fs_prev_months %}
+            <td style="padding: 8px 4px; text-align: center;">
               {% with val=row.months|get_item:month %}
                 {% if val %}{{ val|floatformat:0|intcomma }}{% else %}-{% endif %}
               {% endwith %}
             </td>
-            {% endif %}
-          {% endfor %}
+            {% endfor %}
+          {% else %}
+            <td style="padding: 8px 4px; text-align: center; background-color: #eff6ff; font-weight:600;">
+              {% with val=row.months|get_item:pf_month %}
+                {% if val %}{{ val|floatformat:0|intcomma }}{% else %}-{% endif %}
+              {% endwith %}
+            </td>
+          {% endif %}
         </tr>
         {% empty %}
         <tr>
-          <td colspan="{% if pf_month %}5{% else %}16{% endif %}" class="px-6 py-12 text-center text-slate-400 text-sm">
+          <td colspan="{% if pf_month %}4{% else %}{{ fs_prev_months|length|add:3 }}{% endif %}" class="px-6 py-12 text-center text-slate-400 text-sm">
             No previous forecast records found.
           </td>
         </tr>
         {% endfor %}
 
-        <!-- Total QTY row -->
+        <!-- TOTAL QTY row — FIX: no second sticky cell -->
         {% if prev_rows %}
         <tr class="total-row">
           <td class="sticky-left" style="left:0;"></td>
-          <td class="sticky-left" style="left:140px;"></td>
+          <td></td>
           <td class="text-left font-bold text-slate-700" style="padding: 8px 6px;">TOTAL QTY</td>
-          <td class="unit-price-cell"></td>
 
-          {% for month in fs_prev_months %}
-            {% if not pf_month or pf_month == month %}
-            <td style="padding: 8px 4px; text-align: center; {% if pf_month == month %}background-color: #eff6ff; font-weight:600;{% endif %}">
+          {% if not pf_month %}
+            {% for month in fs_prev_months %}
+            <td style="padding: 8px 4px; text-align: center;">
               {{ prev_total_qty|get_item:month|default:"—"|intcomma }}
             </td>
-            {% endif %}
-          {% endfor %}
-        </tr>
-
-        <!-- TOTAL AMOUNT row -->
-        <tr class="total-amount-row">
-          <td class="sticky-left" style="left:0;"></td>
-          <td class="sticky-left" style="left:140px;"></td>
-          <td class="text-left font-bold text-slate-700" style="padding: 8px 6px;">TOTAL AMOUNT</td>
-          <td class="unit-price-cell"></td>
-
-          {% for month in fs_prev_months %}
-            {% if not pf_month or pf_month == month %}
-            <td style="padding: 8px 4px; text-align: center; {% if pf_month == month %}background-color: #eff6ff; font-weight:600;{% endif %}">
-              {{ prev_total_amt|get_item:month|default:"—"|floatformat:0|intcomma }}
+            {% endfor %}
+          {% else %}
+            <td style="padding: 8px 4px; text-align: center; background-color: #eff6ff; font-weight:600;">
+              {{ prev_total_qty|get_item:pf_month|default:"—"|intcomma }}
             </td>
-            {% endif %}
-          {% endfor %}
+          {% endif %}
         </tr>
         {% endif %}
       </tbody>
@@ -1027,11 +990,8 @@
       <thead>
         <tr>
           <th class="fs-col-header sticky-left" style="left:0; padding: 8px 10px; text-align: left;">CUSTOMER</th>
-          <th class="fs-col-header sticky-left" style="left:160px; padding: 8px 10px; text-align: left;">PART NAME</th>
+          <th class="fs-col-header" style="padding: 8px 10px; text-align: left;">PART NAME</th>
           <th class="fs-col-header" style="padding: 8px 10px; text-align: left;">PART NUMBER</th>
-          <!-- UNIT PRICE COLUMN COMMENTED OUT
-          <th class="fs-col-header unit-price-header" style="padding: 8px 10px;">UNIT PRICE</th>
-          -->
 
           <!-- All 12 months as columns -->
           <th class="fs-col-header fore-month month-header" data-month="JAN" style="padding: 6px 10px;">JAN</th>
@@ -1053,11 +1013,8 @@
         {% for row in fs_rows %}
         <tr class="data-row">
           <td class="sticky-left" style="left:0; padding: 8px 6px; text-align: left;">{{ row.customer }}</td>
-          <td class="sticky-left" style="left:160px; padding: 8px 6px; text-align: left;">{{ row.part_name }}</td>
+          <td style="padding: 8px 6px; text-align: left;">{{ row.part_name }}</td>
           <td class="font-mono" style="padding: 8px 6px; text-align: left;">{{ row.part_number }}</td>
-          <!-- UNIT PRICE DATA COMMENTED OUT
-          <td class="unit-price-cell" style="padding: 8px 6px; text-align: right;">{{ row.unit_price|floatformat:4 }}</td>
-          -->
 
           <!-- Data for each month -->
           <td class="month-data" data-month="JAN" style="padding: 8px 4px; text-align: center;">{% with val=row.fore|get_item:'JAN' %}{% if val %}{{ val|floatformat:0|intcomma }}{% else %}0{% endif %}{% endwith %}</td>
@@ -1081,13 +1038,12 @@
         </tr>
         {% endfor %}
 
-        <!-- Total QTY row -->
+        <!-- TOTAL QTY row -->
         {% if fs_rows %}
         <tr class="total-row">
           <td class="sticky-left" style="left:0;"></td>
-          <td class="sticky-left" style="left:160px;"></td>
+          <td></td>
           <td class="text-left font-bold text-slate-700" style="padding: 8px 6px;">TOTAL QTY</td>
-          <!-- UNIT PRICE CELL COMMENTED OUT -->
 
           <td class="month-data" data-month="JAN" style="padding: 8px 4px; text-align: center;">{{ fs_total_fore_qty|get_item:'JAN'|default:"—"|intcomma }}</td>
           <td class="month-data" data-month="FEB" style="padding: 8px 4px; text-align: center;">{{ fs_total_fore_qty|get_item:'FEB'|default:"—"|intcomma }}</td>
@@ -1102,8 +1058,6 @@
           <td class="month-data" data-month="NOV" style="padding: 8px 4px; text-align: center;">{{ fs_total_fore_qty|get_item:'NOV'|default:"—"|intcomma }}</td>
           <td class="month-data" data-month="DEC" style="padding: 8px 4px; text-align: center;">{{ fs_total_fore_qty|get_item:'DEC'|default:"—"|intcomma }}</td>
         </tr>
-
-        <!-- TOTAL AMOUNT ROW COMMENTED OUT -->
         {% endif %}
       </tbody>
     </table>
@@ -1122,66 +1076,51 @@
       const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
       return months[monthIndex];
     } catch (e) {
-      // Fallback to local time if timezone fails
       const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
       return months[new Date().getMonth()];
     }
   }
 
-  // Get URL parameters
   const urlParams = new URLSearchParams(window.location.search);
-  const selectedMonth = urlParams.get("fsq_month"); // null if missing, empty string if present with no value
+  const selectedMonth = urlParams.get("fsq_month");
   const currentMonth = getCurrentMonth();
   
-  // Set the month selector
   const monthSelector = document.getElementById('month-selector');
   if (monthSelector) {
     if (selectedMonth === null) {
-      // No month parameter at all -> default to current month
       monthSelector.value = currentMonth;
-      // Update URL to include current month without reload
       const url = new URL(window.location.href);
       url.searchParams.set('fsq_month', currentMonth);
       window.history.replaceState({}, '', url);
     } else if (selectedMonth === "") {
-      // Parameter present but empty -> All Months selected
       monthSelector.value = "";
     } else {
-      // Specific month selected
       monthSelector.value = selectedMonth;
     }
   }
   
-  // Function to show/hide month columns based on selected month
   function filterMonths(month) {
     const monthHeaders = document.querySelectorAll('th.month-header');
     const monthData = document.querySelectorAll('td.month-data');
     const table = document.getElementById('fs-table');
     
-    // Check if month is empty or null (All Months)
     if (!month || month === "") {
-      // Show all months
       monthHeaders.forEach(el => {
         el.style.display = "";
-        el.style.backgroundColor = ''; // Reset background
+        el.style.backgroundColor = '';
       });
       monthData.forEach(el => {
         el.style.display = "";
         el.style.backgroundColor = '';
         el.style.fontWeight = '';
       });
-      
-      // Remove one-month class
       if (table) table.classList.remove('one-month-view');
-      
-      // Reset header
       const headerCells = document.querySelectorAll(".fs-section-fore");
       headerCells.forEach(header => {
         header.setAttribute("colspan", "12");
         header.textContent = "FORECAST ({{ fs_fore_year|default:'Current Year' }})";
       });
     } else {
-      // Hide all months first
       monthHeaders.forEach(el => {
         el.style.display = "none";
         el.style.backgroundColor = '';
@@ -1191,15 +1130,12 @@
         el.style.backgroundColor = '';
         el.style.fontWeight = '';
       });
-      
-      // Show only the selected month
       monthHeaders.forEach(el => {
         if (el.getAttribute('data-month') === month) {
           el.style.display = "";
           el.style.backgroundColor = '#dbeafe';
         }
       });
-      
       monthData.forEach(el => {
         if (el.getAttribute('data-month') === month) {
           el.style.display = "";
@@ -1207,11 +1143,7 @@
           el.style.fontWeight = '600';
         }
       });
-      
-      // Add one-month class for wider left columns
       if (table) table.classList.add('one-month-view');
-      
-      // Update header
       const headerCells = document.querySelectorAll(".fs-section-fore");
       headerCells.forEach(header => {
         header.setAttribute("colspan", "1");
@@ -1225,39 +1157,20 @@
     }
   }
   
-  // Initial filtering based on selected month (after possibly updating URL)
   filterMonths(selectedMonth === null ? currentMonth : selectedMonth);
   
-  // Reset button functionality - redirect to current month
   const resetButton = document.getElementById('reset-to-current');
   if (resetButton) {
     resetButton.addEventListener('click', function(e) {
       e.preventDefault();
-      
-      // Create URL with current month
       const url = new URL(window.location.href);
       url.searchParams.set('tab', 'forecast_summary');
       url.searchParams.set('fsq_month', currentMonth);
-      
-      // Remove other filter parameters if you want a full reset
       url.searchParams.delete('fsq_customer');
       url.searchParams.delete('fsq');
-      
-      // Navigate to the new URL
       window.location.href = url.toString();
     });
   }
-  
-  // Add form submit handler to ensure empty month value is handled correctly
-  const filterForm = document.getElementById('fs-filter-form');
-  if (filterForm) {
-    filterForm.addEventListener('submit', function(e) {
-      // No need to prevent default - let the form submit naturally
-      // The month selector value will be sent as fsq_month parameter
-      // If "All Months" is selected, value will be empty string
-    });
-  }
-  
 })();
 </script>
 {% endif %}
@@ -1325,9 +1238,8 @@
       <thead>
         <tr>
           <th class="fs-col-header sticky-left" style="left:0; padding: 8px 10px;">CUSTOMER</th>
-          <th class="fs-col-header sticky-left" style="left:140px; padding: 8px 10px;">PART NUMBER</th>
+          <th class="fs-col-header" style="padding: 8px 10px;">PART NUMBER</th>
           <th class="fs-col-header" style="padding: 8px 10px;">PART NAME</th>
-          <th class="fs-col-header unit-price-header" style="padding: 8px 10px;">UNIT PRICE</th>
 
           <th class="fs-section-prev" colspan="{% if ad_month %}1{% else %}{{ ad_months|length }}{% endif %}" style="padding: 8px 4px;">
             ACTUAL DELIVERED ({{ ad_year|default:"Current Year" }}){% if ad_month %} — {{ ad_month }}{% endif %}
@@ -1337,9 +1249,8 @@
         {% if not ad_month %}
         <tr>
           <th class="fs-col-header sticky-left" style="padding: 6px 4px;"></th>
-          <th class="fs-col-header sticky-left" style="padding: 6px 4px;"></th>
           <th class="fs-col-header" style="padding: 6px 4px;"></th>
-          <th class="fs-col-header unit-price-header" style="padding: 6px 4px;"></th>
+          <th class="fs-col-header" style="padding: 6px 4px;"></th>
 
           {% for month in ad_months %}
             <th class="fs-col-header prev-month" style="padding: 6px 10px;">{{ month }}</th>
@@ -1352,9 +1263,8 @@
         {% for row in ad_rows %}
         <tr class="data-row">
           <td class="sticky-left" style="left:0; padding: 8px 6px; text-align: left;">{{ row.customer }}</td>
-          <td class="sticky-left font-mono" style="left:140px; padding: 8px 6px; text-align: left;">{{ row.part_number }}</td>
+          <td class="font-mono" style="padding: 8px 6px; text-align: left;">{{ row.part_number }}</td>
           <td style="padding: 8px 6px; text-align: left;">{{ row.part_name }}</td>
-          <td class="unit-price-cell" style="padding: 8px 6px; text-align: right;">{{ row.unit_price|floatformat:4 }}</td>
 
           {% for month in ad_months %}
             {% if not ad_month or ad_month == month %}
@@ -1368,40 +1278,23 @@
         </tr>
         {% empty %}
         <tr>
-          <td colspan="{% if ad_month %}5{% else %}16{% endif %}" class="px-6 py-12 text-center text-slate-400 text-sm">
+          <td colspan="{% if ad_month %}4{% else %}15{% endif %}" class="px-6 py-12 text-center text-slate-400 text-sm">
             No actual delivered records found.
           </td>
         </tr>
         {% endfor %}
 
-        <!-- Total QTY row -->
+        <!-- TOTAL QTY row -->
         {% if ad_rows %}
         <tr class="total-row">
           <td class="sticky-left" style="left:0;"></td>
-          <td class="sticky-left" style="left:140px;"></td>
+          <td></td>
           <td class="text-left font-bold text-slate-700" style="padding: 8px 6px;">TOTAL QTY</td>
-          <td class="unit-price-cell"></td>
 
           {% for month in ad_months %}
             {% if not ad_month or ad_month == month %}
             <td style="padding: 8px 4px; text-align: center; {% if ad_month == month %}background-color: #eff6ff; font-weight:600;{% endif %}">
               {{ ad_total_qty|get_item:month|default:"—"|intcomma }}
-            </td>
-            {% endif %}
-          {% endfor %}
-        </tr>
-
-        <!-- TOTAL AMOUNT row -->
-        <tr class="total-amount-row">
-          <td class="sticky-left" style="left:0;"></td>
-          <td class="sticky-left" style="left:140px;"></td>
-          <td class="text-left font-bold text-slate-700" style="padding: 8px 6px;">TOTAL AMOUNT</td>
-          <td class="unit-price-cell"></td>
-
-          {% for month in ad_months %}
-            {% if not ad_month or ad_month == month %}
-            <td style="padding: 8px 4px; text-align: center; {% if ad_month == month %}background-color: #eff6ff; font-weight:600;{% endif %}">
-              {{ ad_total_amt|get_item:month|default:"—"|floatformat:0|intcomma }}
             </td>
             {% endif %}
           {% endfor %}
@@ -1735,14 +1628,6 @@
       </div>
 
       <div>
-        <label class="text-sm font-medium text-slate-700">Unit Price ($)</label>
-        <input type="number" name="unit_price" id="actual-unit-price" step="0.01" min="0" required
-               class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
-                      focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-               placeholder="0.00">
-      </div>
-
-      <div>
         <label class="text-sm font-medium text-slate-700">Quantity</label>
         <input type="number" name="quantity" id="actual-quantity" min="1" required
                class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
@@ -1923,8 +1808,7 @@
     // Clear form fields
     const fields = [
       "actual-customer-name", "actual-part-name", "actual-part-number",
-      "actual-month", "actual-year", "actual-unit-price", 
-      "actual-quantity", "actual-delivery-date"
+      "actual-month", "actual-year", "actual-quantity", "actual-delivery-date"
     ];
     fields.forEach(id => {
       const el = document.getElementById(id);
@@ -2096,4 +1980,4 @@
       bulkForm.submit();
     });
   }
-</script>
+</script>   
