@@ -297,6 +297,105 @@ def _build_bom_display_rows(tep):
     return list(Material.objects.filter(tep_code=tep).order_by("mat_partname", "id"))
 
 
+def _format_schedule_month_label(schedule_month: str) -> str:
+    schedule_month = (schedule_month or "").strip()
+    if not schedule_month:
+        return "No month"
+
+    try:
+        return datetime.strptime(schedule_month, "%Y-%m").strftime("%B %Y")
+    except Exception:
+        return schedule_month
+
+
+def _build_forecast_grouped(forecast_page):
+    """
+    Group the currently displayed ForecastLine page by customer and part code.
+
+    Keep runs separated so older runs for the same customer / part / month
+    do not get merged into the latest run.
+    """
+    if not forecast_page:
+        return []
+
+    grouped = {}
+
+    for line in getattr(forecast_page, "object_list", []):
+        customer_name = (getattr(line, "customer_name", "") or "—").strip() or "—"
+        part_code = (getattr(line, "part_code", "") or "—").strip() or "—"
+        part_name = (getattr(line, "part_name", "") or "").strip()
+        if not part_name and part_code and part_code != "—":
+            part_name = _get_part_name_for_code(part_code)
+
+        run_obj = getattr(line, "run", None)
+        line_schedule_month = (getattr(line, "schedule_month", "") or "").strip()
+        run_schedule_month = (getattr(run_obj, "schedule_month", "") or "").strip()
+        schedule_month = line_schedule_month or run_schedule_month
+        run_id = getattr(run_obj, "id", "") or ""
+
+        part_key = f"{run_id}||{part_code}||{schedule_month}"
+
+        customer_entry = grouped.setdefault(customer_name, {
+            "customer_name": customer_name,
+            "_parts": {},
+        })
+
+        run_label = "—"
+        try:
+            created_at = getattr(run_obj, "created_at", None)
+            if created_at:
+                run_label = timezone.localtime(created_at).strftime("%Y-%m-%d %H:%M")
+        except Exception:
+            pass
+
+        forecast_qty = getattr(line, "forecast_qty", 0)
+        try:
+            forecast_qty = int(float(forecast_qty or 0))
+        except Exception:
+            forecast_qty = 0
+
+        part_entry = customer_entry["_parts"].setdefault(part_key, {
+            "part_code": part_code,
+            "part_name": part_name,
+            "forecast_qty": forecast_qty,
+            "month_label": _format_schedule_month_label(schedule_month),
+            "run_label": run_label,
+            "materials": [],
+        })
+
+        if not part_entry.get("part_name") and part_name:
+            part_entry["part_name"] = part_name
+        if not part_entry.get("forecast_qty") and forecast_qty:
+            part_entry["forecast_qty"] = forecast_qty
+
+        required_qty = getattr(line, "required_qty", 0)
+        try:
+            required_qty = float(required_qty or 0)
+        except Exception:
+            required_qty = 0.0
+
+        part_entry["materials"].append({
+            "tep_code": getattr(line, "tep_code", "") or "",
+            "mat_partcode": getattr(line, "mat_partcode", "") or "",
+            "mat_partname": getattr(line, "mat_partname", "") or "",
+            "mat_maker": getattr(line, "mat_maker", "") or "",
+            "unit": getattr(line, "unit", "") or "",
+            "required_qty": required_qty,
+        })
+
+    output = []
+    for customer_entry in grouped.values():
+        parts = list(customer_entry["_parts"].values())
+        parts.sort(key=lambda p: (p.get("run_label", ""), p.get("part_code", "")), reverse=True)
+        output.append({
+            "customer_name": customer_entry["customer_name"],
+            "parts": parts,
+        })
+
+    output.sort(key=lambda c: c.get("customer_name", ""))
+    return output
+
+
 def _preferred_tep_for_part_code(part_code: str):
     """
     Return the best source TEP for a shared BOM part code.
@@ -838,43 +937,6 @@ def _build_actual_summary(adq: str = "", ad_customer: str = "", ad_month: str = 
     }
 
 
-def _allocate_material_name(tep, base_name: str, exclude_partcode: str = "") -> str:
-    """Legacy function for Material model naming - kept for backward compatibility"""
-    base = (base_name or "").strip() or "UNKNOWN"
-    exclude_partcode = (exclude_partcode or "").strip()
-
-    qs = Material.objects.filter(
-        tep_code=tep,
-        mat_partname__iregex=rf"^{re.escape(base)}( \d+)?$"
-    )
-    if exclude_partcode:
-        qs = qs.exclude(mat_partcode=exclude_partcode)
-
-    existing_names = list(qs.values_list("mat_partname", flat=True))
-    if not existing_names:
-        return base
-
-    numbers = []
-    for n in existing_names:
-        m = re.match(rf"^{re.escape(base)}(?: (\d+))?$", (n or "").strip(), flags=re.IGNORECASE)
-        if m and m.group(1):
-            numbers.append(int(m.group(1)))
-
-    if not numbers:
-        existing_base = Material.objects.filter(tep_code=tep, mat_partname__iexact=base)
-        if exclude_partcode:
-            existing_base = existing_base.exclude(mat_partcode=exclude_partcode)
-
-        first = existing_base.order_by("id").first()
-        if first:
-            first.mat_partname = f"{base} 1"
-            first.save(update_fields=["mat_partname"])
-
-        return f"{base} 2"
-
-    return f"{base} {max(numbers) + 1}"
-
-
 def _next_tep_code(existing_tep_code: str) -> str:
     """
     "same prefix, increment last number"
@@ -986,9 +1048,25 @@ def admin_dashboard(request):
         action = (request.POST.get("action") or "").strip()
 
         if action == "run_prototype_forecast":
+            customer_id_raw = (request.POST.get("customer_id") or "").strip()
             part_code = (request.POST.get("part_code") or "").strip()
             forecast_qty_raw = (request.POST.get("forecast_qty") or "").strip()
             schedule_month = (request.POST.get("schedule_month") or "").strip()
+
+            if not customer_id_raw:
+                messages.error(request, "Customer is required.")
+                return redirect(reverse("app:admin_dashboard") + "?tab=forecast_run")
+
+            try:
+                customer_id = int(customer_id_raw)
+            except Exception:
+                messages.error(request, "Invalid customer selected.")
+                return redirect(reverse("app:admin_dashboard") + "?tab=forecast_run")
+
+            customer = Customer.objects.filter(id=customer_id).first()
+            if not customer:
+                messages.error(request, "Selected customer was not found.")
+                return redirect(reverse("app:admin_dashboard") + "?tab=forecast_run")
 
             if not part_code:
                 messages.error(request, "Part code is required.")
@@ -1009,7 +1087,6 @@ def admin_dashboard(request):
                 )
                 return redirect(reverse("app:admin_dashboard") + "?tab=forecast_run")
 
-            # Basic YYYY-MM validation
             if schedule_month:
                 try:
                     datetime.strptime(schedule_month, "%Y-%m")
@@ -1022,6 +1099,8 @@ def admin_dashboard(request):
 
             inputs = [
                 ForecastInput(
+                    customer_id=customer.id,
+                    customer_name=customer.customer_name,
                     part_code=part_code,
                     forecast_qty=forecast_qty,
                     schedule_month=schedule_month,
@@ -1031,14 +1110,15 @@ def admin_dashboard(request):
             run = run_forecast_and_save(
                 inputs,
                 created_by=request.user,
-                note=f"Manual forecast for {part_code} ({schedule_month or 'no month'})",
+                note=f"Manual forecast for {customer.customer_name} / {part_code} ({schedule_month or 'no month'})",
             )
 
             messages.success(
                 request,
-                f"Forecast run #{run.id} created for part {part_code} (qty={forecast_qty}).",
+                f"Forecast run #{run.id} created for {customer.customer_name} - {part_code} (qty={forecast_qty}).",
             )
             return redirect(reverse("app:admin_dashboard") + "?tab=forecast_run")
+
 
         if action == "reserve_from_latest_run":
             allow_partial = (request.POST.get("allow_partial") == "1")
@@ -2159,15 +2239,21 @@ def admin_dashboard(request):
     fmonth = (request.GET.get("fmonth") or "").strip()  # "YYYY-MM"
 
     # Forecast Run tab (ForecastRun / ForecastLine)
-    forecast_runs = ForecastRun.objects.all()
+    # Show all matching runs, not only the latest one.
+    forecast_runs = ForecastRun.objects.all().order_by("-id")
     if fmonth:
         forecast_runs = forecast_runs.filter(schedule_month=fmonth)
 
-    forecast_latest = forecast_runs.order_by("-id").first()
+    forecast_latest = forecast_runs.first()
 
     forecast_lines_qs = ForecastLine.objects.none()
-    if forecast_latest:
-        forecast_lines_qs = forecast_latest.lines.all().order_by("part_code", "mat_partcode")
+    if forecast_runs.exists():
+        forecast_lines_qs = (
+            ForecastLine.objects
+            .filter(run__in=forecast_runs)
+            .select_related("run")
+            .order_by("-run_id", "customer_name", "part_code", "mat_partcode", "id")
+        )
         if fq:
             forecast_lines_qs = forecast_lines_qs.filter(
                 Q(part_code__icontains=fq) |
@@ -2177,9 +2263,10 @@ def admin_dashboard(request):
                 Q(customer_name__icontains=fq)
             )
 
-    forecast_paginator = Paginator(forecast_lines_qs, 10)
+    forecast_paginator = Paginator(forecast_lines_qs, 50)
     fpage = request.GET.get("fpage")
     forecast_page = forecast_paginator.get_page(fpage)
+    forecast_grouped = _build_forecast_grouped(forecast_page)
 
     forecast_totals = {
         "lines": forecast_lines_qs.count()
@@ -2530,6 +2617,7 @@ def admin_dashboard(request):
         "fmonth_forecast": fmonth_forecast,
         "forecast_latest": forecast_latest,
         "forecast_page": forecast_page,
+        "forecast_grouped": forecast_grouped,
         "forecast_totals": forecast_totals,
         "forecasts_list": forecasts_page,
         "forecasts_total": forecasts_total,
@@ -2650,12 +2738,21 @@ def material_lookup(request):
 def forecast_qty_lookup(request):
     part_number = (request.GET.get("part_number") or "").strip()
     schedule_month = (request.GET.get("schedule_month") or "").strip()
+    customer_id = (request.GET.get("customer_id") or "").strip()
 
     if not part_number or not schedule_month:
         return JsonResponse({"ok": False, "quantity": 0})
 
     month_key = _parse_schedule_month_key(schedule_month)
     forecasts = Forecast.objects.filter(part_number__iexact=part_number)
+    
+    # Filter by customer if provided
+    if customer_id:
+        try:
+            customer_id_int = int(customer_id)
+            forecasts = forecasts.filter(customer_id=customer_id_int)
+        except ValueError:
+            pass
 
     total_qty = 0.0
 
