@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 import io, csv, re
 from decimal import Decimal, ROUND_CEILING
 from django.db import transaction
@@ -24,8 +24,10 @@ except Exception:
 
 @dataclass
 class ForecastInput:
-    part_code: str
-    forecast_qty: int
+    customer_id: Optional[int] = None
+    customer_name: str = ""
+    part_code: str = ""
+    forecast_qty: int = 0
     schedule_month: str = ""
 
 
@@ -285,6 +287,29 @@ def _get_active_tep_for_partcode(part_code: str):
     return qs.order_by("id").first()
 
 
+def _get_active_tep_for_customer_partcode(customer_id: int, part_code: str):
+
+    part_code = _normalize_partcode(part_code)
+
+    if not customer_id or not part_code:
+        return None
+
+    qs = TEPCode.objects.filter(
+        customer_id=customer_id,
+        part_code=part_code,
+    )
+
+    try:
+        active = qs.filter(is_active=True).order_by("id").first()
+
+        if active:
+            return active
+    except Exception:
+        pass
+
+    return qs.order_by("id").first()
+
+
 def _get_bom_rows_for_tep(tep):
 
     if not tep:
@@ -302,15 +327,29 @@ def _get_bom_rows_for_tep(tep):
 
     return Material.objects.filter(tep_code=tep)
 
+def _get_row_total(row) -> Decimal:
+    raw_total = getattr(row, "total", None)
+
+    try:
+        total = Decimal(str(raw_total))
+        if total > 0:
+            return total
+    except Exception:
+        pass
+
+    dim_qty = _to_decimal(getattr(row, "dim_qty", 0))
+    loss_percent = _to_decimal(getattr(row, "loss_percent", 0))
+
+    computed_total = dim_qty + (dim_qty * loss_percent / Decimal("100"))
+    return computed_total
 
 def _material_row_to_dict(row):
-
     return {
-        "mat_partcode": getattr(row, "mat_partcode", ""),
-        "mat_partname": getattr(row, "mat_partname", ""),
-        "mat_maker": getattr(row, "mat_maker", ""),
-        "unit": getattr(row, "unit", ""),
-        "per_unit_total": _to_decimal(getattr(row, "total", 0)),
+        "mat_partcode": getattr(row, "mat_partcode", "") or "",
+        "mat_partname": getattr(row, "mat_partname", "") or "",
+        "mat_maker": getattr(row, "mat_maker", "") or "",
+        "unit": getattr(row, "unit", "") or "",
+        "per_unit_total": _get_row_total(row),
     }
 
 def get_registered_materials_for_partcode(part_code: str) -> Tuple[Any, List[Dict[str, Any]]]:
@@ -339,7 +378,7 @@ def get_registered_materials_for_partcode(part_code: str) -> Tuple[Any, List[Dic
             "unit": getattr(row, "unit", "") or "",
             "dim_qty": getattr(row, "dim_qty", 0) or 0,
             "loss_percent": getattr(row, "loss_percent", 0) or 0,
-            "total": getattr(row, "total", 0) or 0,
+            "total": _get_row_total(row),
         })
 
     return tep, rows
@@ -371,7 +410,7 @@ def get_shared_bom_rows_for_partcode(part_code: str) -> List[Dict[str, Any]]:
                     "unit": getattr(row, "unit", "") or getattr(master, "unit", "") or "",
                     "dim_qty": getattr(row, "dim_qty", 0) or 0,
                     "loss_percent": getattr(row, "loss_percent", 0) or 0,
-                    "total": getattr(row, "total", 0) or 0,
+                    "total": _get_row_total(row),
                 })
             return rows
 
@@ -385,19 +424,19 @@ def get_shared_bom_rows_for_partcode(part_code: str) -> List[Dict[str, Any]]:
             "unit": getattr(row, "unit", "") or "",
             "dim_qty": getattr(row, "dim_qty", 0) or 0,
             "loss_percent": getattr(row, "loss_percent", 0) or 0,
-            "total": getattr(row, "total", 0) or 0,
+            "total": _get_row_total(row),
         })
 
     return rows
 
 def compute_material_requirements_for_partcode(
+    customer_id: int,
     part_code: str,
     forecast_qty: int,
 ):
-
     part_code = _normalize_partcode(part_code)
 
-    tep = _get_active_tep_for_partcode(part_code)
+    tep = _get_active_tep_for_customer_partcode(customer_id, part_code)
 
     if not tep:
         return None, []
@@ -405,7 +444,6 @@ def compute_material_requirements_for_partcode(
     grouped: Dict[str, Dict[str, Any]] = {}
 
     for row in _get_bom_rows_for_tep(tep):
-
         item = _material_row_to_dict(row)
 
         mat_code = item["mat_partcode"].strip()
@@ -414,13 +452,12 @@ def compute_material_requirements_for_partcode(
             continue
 
         if mat_code not in grouped:
-
             grouped[mat_code] = {
                 "mat_partcode": mat_code,
                 "mat_partname": item["mat_partname"],
                 "mat_maker": item["mat_maker"],
                 "unit": item["unit"],
-                "per_unit_total": Decimal("0.0000"),
+                "per_unit_total": Decimal("0"),
             }
 
         grouped[mat_code]["per_unit_total"] += item["per_unit_total"]
@@ -428,10 +465,8 @@ def compute_material_requirements_for_partcode(
     out = []
 
     for row in grouped.values():
-
         per_unit = row["per_unit_total"]
-
-        required = per_unit * Decimal(str(forecast_qty))
+        required = (per_unit * Decimal(str(forecast_qty))).quantize(Decimal("0.00001"))
 
         out.append({
             "mat_partcode": row["mat_partcode"],
@@ -445,25 +480,25 @@ def compute_material_requirements_for_partcode(
     return tep, out
 
 
-# =========================================================
-# FORECAST RUN
-# =========================================================
-
 @transaction.atomic
 def run_forecast_and_save(
     inputs: List[ForecastInput],
     created_by=None,
     note: str = "",
 ):
+    schedule_month = ""
+    if inputs:
+        schedule_month = (inputs[0].schedule_month or "").strip()
 
     run = ForecastRun.objects.create(
         note=note or "Prototype forecast run",
         created_by=created_by,
+        schedule_month=schedule_month,
     )
 
     for item in inputs:
-
         tep, rows = compute_material_requirements_for_partcode(
+            item.customer_id,
             item.part_code,
             item.forecast_qty,
         )
@@ -472,24 +507,32 @@ def run_forecast_and_save(
             continue
 
         for r in rows:
+            create_kwargs = {
+                "run": run,
+                "part_code": item.part_code,
+                "forecast_qty": item.forecast_qty,
+                "mat_partcode": r["mat_partcode"],
+                "mat_partname": r["mat_partname"],
+                "mat_maker": r["mat_maker"],
+                "unit": r["unit"],
+                "per_unit_total": r["per_unit_total"],
+                "required_qty": r["required_qty"],
+                "tep_code": tep.tep_code,
+                "customer_name": item.customer_name or tep.customer.customer_name,
+            }
 
-            ForecastLine.objects.create(
-                run=run,
-                part_code=item.part_code,
-                forecast_qty=item.forecast_qty,
-                mat_partcode=r["mat_partcode"],
-                mat_partname=r["mat_partname"],
-                mat_maker=r["mat_maker"],
-                unit=r["unit"],
-                per_unit_total=r["per_unit_total"],
-                required_qty=r["required_qty"],
-                tep_code=tep.tep_code,
-                customer_name=tep.customer.customer_name,
-            )
+            if hasattr(ForecastLine, "schedule_month"):
+                create_kwargs["schedule_month"] = item.schedule_month or run.schedule_month
+
+            ForecastLine.objects.create(**create_kwargs)
 
     return run
 
-
+@transaction.atomic
+def reserve_from_latest_forecast_run(created_by=None, allow_partial: bool = False) -> Dict[str, Any]:
+    """
+    Creates MaterialAllocation rows (status='reserved') from the latest ForecastRun.
+"""
 # =========================================================
 # BOM SAVE
 # =========================================================
