@@ -377,7 +377,7 @@
           <span class="inline-flex h-9 w-9 rounded-lg bg-white/5 items-center justify-center border border-white/10">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M12 11c1.657 0 3-1.343 3-3S13.657 5 12 5s-3 1.343-3 3 1.343 3 3 3zm0 2c-2.761 0-5 1.79-5 4v1h10v-1c0-2.21-2.239-4-5-4z" />
+                    d="M12 11c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm0 2c-2.761 0-5 1.79-5 4v1h10v-1c0-2.21-2.239-4-5-4z" />
             </svg>
           </span>
           <div class="nav-text">
@@ -396,7 +396,7 @@
             </svg>
           </span>
           <div class="nav-text">
-            <div class="font-medium">Forecast</div>
+            <div class="font-medium">Computations</div>
             <div class="text-xs text-slate-200/80">Prototype output</div>
           </div>
         </a>
@@ -853,7 +853,7 @@
                                       <div class="flex items-start justify-between gap-3 mb-4"><h3 class="text-lg font-semibold text-slate-900">Reserve Allocation</h3><button type="button" onclick="this.closest('.fixed').classList.add('hidden')" class="h-9 w-9 rounded-xl hover:bg-slate-100 grid place-items-center text-slate-500" aria-label="Close">✕</button></div>
                                       <form method="post" action="{% url 'app:reserve_material' %}" class="space-y-4">
                                         {% csrf_token %}<input type="hidden" name="material_id" value="{{ m.id }}"><input type="hidden" name="tab" value="stocks"><input type="hidden" name="sq" value="{{ sq|default:'' }}"><input type="hidden" name="spage" value="{{ stock_page_obj.number|default:'' }}">
-                                        <div class="flex items-center gap-3"><label class="w-24 text-sm font-medium text-slate-700">Customer</label><div class="flex-1 min-w-0"><select name="customer_id" required class="w-full h-10 px-3 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"><option value="">Select customer</option>{% for c in customers %}<option value="{{ c.id }}">{{ c.customer_name }}</option>{% endfor %}</select></div></div>
+                                        <div class="flex items-center gap-3"><label class="w-24 text-sm font-medium text-slate-700">Customer</label><div class="flex-1 min-w-0"><select name="customer_id" id="forecastCustomer" required class="w-full h-10 px-3 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"><option value="">Select customer</option>{% for c in customers %}<option value="{{ c.id }}">{{ c.customer_name }}</option>{% endfor %}</select></div></div>
                                         <div class="flex items-center gap-3"><label class="w-24 text-sm font-medium text-slate-700">Quantity</label><div class="flex-1 min-w-0"><input type="number" name="qty_allocated" min="1" required placeholder="Enter quantity" class="w-full h-10 px-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" /></div></div>
                                         <div class="flex justify-end gap-2 pt-2"><button type="button" onclick="this.closest('.fixed').classList.add('hidden')" class="h-10 px-4 rounded-xl border border-slate-300 bg-white hover:bg-slate-50">Cancel</button><button type="submit" class="h-10 px-5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white">Reserve</button></div>
                                       </form>
@@ -946,54 +946,156 @@
           </div>
         {% endif %}
 
-        <!-- FORECAST RUN TAB -->
+        <!-- FORECAST RUN TAB - UPDATED WITH NEW CONTENT -->
         {% if tab == "forecast_run" %}
           {% now "Y-m" as now_month %}
           <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+
+            <!-- HEADER -->
             <div class="px-5 py-4 border-b border-slate-200">
               <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+
                 <div class="min-w-0">
                   <div class="text-lg font-semibold text-slate-900">Forecast</div>
-                  <div class="text-sm text-slate-500">Latest run: <span class="font-medium text-slate-700">{% if forecast_latest %}{{ forecast_latest.created_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}</span></div>
-                </div>
-                <div class="w-full lg:w-auto">
-                  <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-                    <form method="get" class="flex flex-col gap-2 sm:flex-row sm:items-center">
-                      <input type="hidden" name="tab" value="forecast_run">
-                      <input type="month" name="fmonth" value="{{ fmonth|default:now_month }}" class="h-10 w-full sm:w-[180px] px-3 rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
-                      <input type="text" name="fq" value="{{ fq|default:'' }}" placeholder="Search partcode / material / tep / customer…" class="h-10 w-full sm:w-[360px] px-3 rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
-                      <button type="submit" class="h-10 w-full sm:w-auto px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white whitespace-nowrap">Apply</button>
-                    </form>
-                    <button type="button" onclick="openForecastModal()" class="h-10 w-full sm:w-auto px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white whitespace-nowrap">Register / Run Forecast</button>
+                  <div class="text-sm text-slate-500">
+                    Latest run:
+                    <span class="font-medium text-slate-700">
+                      {% if forecast_latest %}{{ forecast_latest.created_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}
+                    </span>
                   </div>
                 </div>
+
+                <!-- Right controls -->
+                <div class="w-full lg:w-auto">
+                  <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+
+                    <!-- Filters -->
+                    <form method="get" class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                      <input type="hidden" name="tab" value="forecast_run">
+
+                      <input
+                        type="month"
+                        name="fmonth"
+                        value="{{ fmonth|default:now_month }}"
+                        class="h-10 w-full sm:w-[180px] px-3 rounded-xl border border-slate-300 bg-white text-slate-900
+                               focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+
+                      <input
+                        type="text"
+                        name="fq"
+                        value="{{ fq|default:'' }}"
+                        placeholder="Search partcode / material / tep / customer…"
+                        class="h-10 w-full sm:w-[360px] px-3 rounded-xl border border-slate-300 bg-white text-slate-900
+                               focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+
+                      <button
+                        type="submit"
+                        class="h-10 w-full sm:w-auto px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white whitespace-nowrap"
+                      >
+                        Apply
+                      </button>
+                    </form>
+
+                    <!-- Main action -->
+                    <button
+                      type="button"
+                      onclick="openForecastModal()"
+                      class="h-10 w-full sm:w-auto px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white whitespace-nowrap"
+                    >
+                      Register / Run Forecast
+                    </button>
+
+                  </div>
+                </div>
+
               </div>
             </div>
+
+            <!-- META ROW -->
             <div class="px-5 py-3 border-b border-slate-200 flex items-center justify-between text-sm">
-              <div class="text-slate-600">Total lines: <span class="font-semibold text-slate-900">{{ forecast_totals.lines }}</span></div>
-              {% if forecast_page %}<div class="text-slate-500">Page <span class="font-semibold text-slate-900">{{ forecast_page.number }}</span> of <span class="font-semibold text-slate-900">{{ forecast_page.paginator.num_pages }}</span></div>{% endif %}
+              <div class="text-slate-600">
+                Total lines: <span class="font-semibold text-slate-900">{{ forecast_totals.lines }}</span>
+              </div>
+
+              {% if forecast_page %}
+                <div class="text-slate-500">
+                  Page <span class="font-semibold text-slate-900">{{ forecast_page.number }}</span>
+                  of <span class="font-semibold text-slate-900">{{ forecast_page.paginator.num_pages }}</span>
+                </div>
+              {% endif %}
             </div>
-            <div class="overflow-x-auto">
-              <table class="w-full min-w-[1100px] text-sm">
-                <thead class="bg-slate-50 text-slate-700">
-                  <tr><th class="px-4 py-3 text-left font-semibold">Part Code</th><th class="px-4 py-3 text-right font-semibold">Forecast</th><th class="px-4 py-3 text-left font-semibold">Customer</th><th class="px-4 py-3 text-left font-semibold">TEP</th><th class="px-4 py-3 text-left font-semibold">Material</th><th class="px-4 py-3 text-right font-semibold">Per Unit</th><th class="px-4 py-3 text-right font-semibold">Required</th><th class="px-4 py-3 text-left font-semibold">Unit</th></tr>
-                </thead>
-                <tbody class="divide-y divide-slate-200">
-                  {% for r in forecast_page %}
-                    <tr class="hover:bg-slate-50 align-middle">
-                      <td class="px-4 py-3 font-medium text-slate-900">{{ r.part_code }}</td>
-                      <td class="px-4 py-3 text-right text-slate-900 tabular-nums">{{ r.forecast_qty }}</td>
-                      <td class="px-4 py-3 text-slate-800">{{ r.customer_name|default:"—" }}</td>
-                      <td class="px-4 py-3 text-slate-800">{{ r.tep_code|default:"—" }}</td>
-                      <td class="px-4 py-3"><div class="font-medium text-slate-900">{{ r.mat_partcode }}</div><div class="text-xs text-slate-500">{{ r.mat_partname }}{% if r.mat_maker %} • {{ r.mat_maker }}{% endif %}</div></td>
-                      <td class="px-4 py-3 text-right text-slate-900 tabular-nums">{{ r.per_unit_total }}</td>
-                      <td class="px-4 py-3 text-right font-semibold text-slate-900 tabular-nums">{{ r.required_qty }}</td>
-                      <td class="px-4 py-3 text-slate-800">{{ r.unit }}</td>
-                    </tr>
-                  {% empty %}<tr><td colspan="8" class="px-4 py-10 text-center text-slate-500">No forecast output yet.</td></tr>{% endfor %}
-                </tbody>
-              </table>
+
+            <!-- TABLE -->
+            <div class="p-5 space-y-6">
+              {% if forecast_grouped %}
+                {% for customer in forecast_grouped %}
+                  <div class="border border-slate-200 rounded-2xl overflow-hidden bg-white">
+                    <div class="px-4 py-3 bg-slate-800 text-white">
+                      <div class="text-base font-semibold">
+                        {{ customer.customer_name }}{% if customer.parts %} — {{ customer.parts.0.month_label }}{% endif %}
+                      </div>
+                    </div>
+
+                    <div class="p-4 space-y-5">
+                      {% for part in customer.parts %}
+                        <div class="border border-slate-200 rounded-xl overflow-hidden bg-white">
+                          <div class="px-4 py-3 bg-slate-100 border-b border-slate-200 flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                            <div class="min-w-0">
+                              <div class="font-semibold text-slate-900 break-words">
+                                {{ part.part_code }}{% if part.part_name %} - {{ part.part_name }}{% endif %}
+                              </div>
+                              <div class="mt-1 text-sm text-slate-600">
+                                Forecast Qty Used:
+                                <span class="font-semibold text-slate-900 tabular-nums">{{ part.forecast_qty|default:"—"|intcomma }}</span>
+                                <span class="ml-3 text-sm font-normal text-slate-500">Run: {{ part.run_label }}</span>
+                              </div>
+                            </div>
+                            {% if part.materials.0.tep_code %}
+                              <div class="text-xs text-slate-500 md:text-right">
+                                TEP: {{ part.materials.0.tep_code }}
+                              </div>
+                            {% endif %}
+                          </div>
+
+                          <div class="overflow-x-auto">
+                            <table class="w-full min-w-[700px] text-sm">
+                              <thead class="bg-slate-50 text-slate-700">
+                                <tr>
+                                  <th class="px-4 py-3 text-left font-semibold">Material Part Code</th>
+                                  <th class="px-4 py-3 text-left font-semibold">Material Name</th>
+                                  <th class="px-4 py-3 text-left font-semibold">Maker</th>
+                                  <th class="px-4 py-3 text-right font-semibold">Required</th>
+                                  <th class="px-4 py-3 text-left font-semibold">Unit</th>
+                                </tr>
+                              </thead>
+                              <tbody class="divide-y divide-slate-200">
+                                {% for r in part.materials %}
+                                  <tr class="hover:bg-slate-50 align-middle">
+                                    <td class="px-4 py-3 text-slate-800">{{ r.mat_partcode|default:"—" }}</td>
+                                    <td class="px-4 py-3 text-slate-900 font-medium">{{ r.mat_partname|default:"—" }}</td>
+                                    <td class="px-4 py-3 text-slate-800">{{ r.mat_maker|default:"—" }}</td>
+                                    <td class="px-4 py-3 text-right font-semibold text-slate-900 tabular-nums">{{ r.required_qty|floatformat:2 }}</td>
+                                    <td class="px-4 py-3 text-slate-800">{{ r.unit|default:"—" }}</td>
+                                  </tr>
+                                {% endfor %}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      {% endfor %}
+                    </div>
+                  </div>
+                {% endfor %}
+              {% else %}
+                <div class="px-4 py-10 text-center text-slate-500 border border-slate-200 rounded-2xl bg-white">
+                  No forecast output yet.
+                </div>
+              {% endif %}
             </div>
+
+            <!-- PAGINATION -->
             {% if forecast_page and forecast_page.paginator.num_pages > 1 %}
             <div class="px-5 py-4 border-t border-slate-200 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div class="text-sm text-slate-500">Showing <span class="font-medium text-slate-900">{{ forecast_page.start_index }}</span>–<span class="font-medium text-slate-900">{{ forecast_page.end_index }}</span> of <span class="font-medium text-slate-900">{{ forecast_page.paginator.count }}</span></div>
@@ -1006,47 +1108,171 @@
             {% endif %}
           </div>
 
-          <!-- Forecast Run Modal -->
+          <!-- MODAL (Register / Run Forecast) -->
           <div id="forecastModal" class="fixed inset-0 z-50 hidden" aria-hidden="true">
+            <!-- Backdrop -->
             <div class="absolute inset-0 bg-slate-900/50" onclick="closeForecastModal()"></div>
-            <div class="relative w-full h-full flex items-start justify-center p-4 sm:p-6">
+
+            <!-- Panel -->
+            <div class="relative w-full h-full flex items-start justify-center p-4 sm:p-6 overflow-y-auto">
               <div class="w-full max-w-xl mt-16 sm:mt-20">
-                <div class="rounded-2xl bg-white shadow-xl border border-slate-200 overflow-x-hidden">
-                  <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
-                    <div class="min-w-0"><div class="text-base font-semibold text-slate-900">Register / Run Forecast</div><div class="text-xs text-slate-500">Enter part code, quantity, and month</div></div>
-                    <button type="button" class="h-9 w-9 inline-flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-600" onclick="closeForecastModal()" aria-label="Close">✕</button>
+                <div class="rounded-2xl bg-white shadow-xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+
+                  <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between shrink-0">
+                    <div class="min-w-0">
+                      <div class="text-base font-semibold text-slate-900">Register / Run Forecast</div>
+                      <div class="text-xs text-slate-500">Enter part code, quantity, and month</div>
+                    </div>
+
+                    <button
+                      type="button"
+                      class="h-9 w-9 inline-flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-600"
+                      onclick="closeForecastModal()"
+                      aria-label="Close"
+                    >
+                      ✕
+                    </button>
                   </div>
-                  <form method="post" class="p-5 space-y-4">
-                    {% csrf_token %}<input type="hidden" name="action" value="run_prototype_forecast">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div><label class="text-xs font-medium text-slate-600">Part code</label><input type="text" id="forecast-run-part-code" name="part_code" required placeholder="e.g. LT3436-001 REV.D" class="mt-1 h-10 w-full px-3 rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" /><div class="mt-1 text-xs text-slate-500">When a saved BOM exists for this part code, its registered materials will load automatically below.</div></div>
-                      <div><label class="text-xs font-medium text-slate-600">Forecast qty</label><input type="number" id="forecast-run-qty" name="forecast_qty" min="0" required placeholder="0" class="mt-1 h-10 w-full px-3 rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" /></div>
-                      <div class="sm:col-span-2"><label class="text-xs font-medium text-slate-600">Month</label><input type="month" id="forecast-run-month" name="schedule_month" required class="mt-1 h-10 w-full px-3 rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="{{ fmonth|default:now_month }}"></div>
-                      <div class="sm:col-span-2">
-                        <div class="rounded-2xl border border-slate-200 bg-slate-50 overflow-hidden">
-                          <div class="px-4 py-3 border-b border-slate-200 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                            <div><div class="text-sm font-semibold text-slate-900">Registered BOM Materials</div><div class="text-xs text-slate-500">These materials are linked to the selected part code.</div></div>
-                            <div id="forecast-bom-count" class="text-xs font-medium text-slate-600">0 materials</div>
-                          </div>
-                          <div id="forecast-bom-status" class="px-4 py-3 text-sm text-slate-500">Type a part code to load its registered BOM materials.</div>
-                          <div id="forecast-bom-wrap" class="hidden overflow-x-auto">
-                            <table class="w-full min-w-[620px] text-sm">
-                              <thead class="bg-white text-slate-700"><tr><th class="px-4 py-3 text-left font-semibold">Material</th><th class="px-4 py-3 text-left font-semibold">Name</th><th class="px-4 py-3 text-right font-semibold">Dim / Qty</th><th class="px-4 py-3 text-right font-semibold">Loss %</th><th class="px-4 py-3 text-right font-semibold">Total</th><th class="px-4 py-3 text-left font-semibold">Unit</th></tr></thead>
-                              <tbody id="forecast-bom-body" class="divide-y divide-slate-200 bg-white"></tbody>
-                            </table>
+
+                  <form method="post" class="flex flex-col flex-1 min-h-0">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="run_prototype_forecast">
+
+                    <div class="p-5 space-y-4 flex-1 min-h-0 overflow-y-auto">
+                      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label class="block text-sm font-medium text-slate-700 mb-2">Customer</label>
+                          <select
+                            name="customer_id"
+                            id="forecastCustomer"
+                            class="w-full px-4 py-3 rounded-2xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            required
+                          >
+                            <option value="">Select customer</option>
+                            {% for c in all_customers %}
+                              <option value="{{ c.id }}">{{ c.customer_name }}</option>
+                            {% endfor %}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label class="block text-sm font-medium text-slate-700 mb-2">Part code</label>
+                          <input
+                            type="text"
+                            id="forecast-run-partcode"
+                            name="part_code"
+                            class="w-full rounded-xl border border-slate-300 px-4 py-3"
+                            placeholder="e.g. LT3436-001 REV.D"
+                            required
+                          />
+                          <p class="mt-2 text-sm text-slate-500">
+                            Select customer first, then enter the part code.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label class="text-xs font-medium text-slate-600">Forecast qty</label>
+                          <input
+                            type="number"
+                            id="forecast-run-qty"
+                            name="forecast_qty"
+                            min="0"
+                            required
+                            placeholder="0"
+                            class="mt-1 h-10 w-full px-3 rounded-xl border border-slate-300 bg-white text-slate-900
+                                   focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+
+                        <div class="sm:col-span-2">
+                          <label class="text-xs font-medium text-slate-600">Month</label>
+                          <input
+                            type="month"
+                            id="forecast-run-month"
+                            name="schedule_month"
+                            required
+                            class="mt-1 h-10 w-full px-3 rounded-xl border border-slate-300 bg-white text-slate-900
+                                   focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            value="{{ fmonth|default:now_month }}"
+                          >
+                        </div>
+
+                        <div class="sm:col-span-2">
+                          <div class="rounded-2xl border border-slate-200 bg-slate-50 overflow-hidden flex flex-col max-h-[52vh]">
+                            <div class="px-4 py-3 border-b border-slate-200 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between shrink-0">
+                              <div>
+                                <div class="text-sm font-semibold text-slate-900">Registered BOM Materials</div>
+                                <div class="text-xs text-slate-500">These materials are linked to the selected part code.</div>
+                              </div>
+                              <div id="forecast-bom-count" class="text-xs font-medium text-slate-600">0 materials</div>
+                            </div>
+
+                            <div id="forecast-bom-status" class="px-4 py-3 text-sm text-slate-500 shrink-0">
+                              Type a part code to load its registered BOM materials.
+                            </div>
+
+                            <div id="forecast-bom-wrap" class="hidden flex-1 min-h-0 overflow-auto">
+                              <table class="w-full min-w-[420px] text-sm">
+                                <thead class="bg-white text-slate-700 sticky top-0">
+                                  <tr>
+                                    <th class="px-4 py-3 text-left font-semibold">Material</th>
+                                    <th class="px-4 py-3 text-left font-semibold">Name</th>
+                                    <th class="px-4 py-3 text-right font-semibold">Dim / Qty</th>
+                                    <th class="px-4 py-3 text-left font-semibold">Unit</th>
+                                  </tr>
+                                </thead>
+                                <tbody id="forecast-bom-body" class="divide-y divide-slate-200 bg-white"></tbody>
+                              </table>
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
-                    <div class="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 pt-2">
-                      <button type="button" onclick="closeForecastModal()" class="h-10 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700">Cancel</button>
-                      <button type="submit" class="h-10 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-medium">Run Forecast</button>
+
+                    <div class="shrink-0 border-t border-slate-200 px-5 py-4 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 bg-white">
+                      <button
+                        type="button"
+                        onclick="closeForecastModal()"
+                        class="h-10 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                      >
+                        Cancel
+                      </button>
+
+                      <button
+                        type="submit"
+                        class="h-10 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-medium"
+                      >
+                        Run Forecast
+                      </button>
                     </div>
                   </form>
+
                 </div>
               </div>
             </div>
           </div>
+
+          <script>
+            function openForecastModal() {
+              const el = document.getElementById("forecastModal");
+              el.classList.remove("hidden");
+              el.setAttribute("aria-hidden", "false");
+              document.body.classList.add("overflow-x-hidden");
+            }
+
+            function closeForecastModal() {
+              const el = document.getElementById("forecastModal");
+              el.classList.add("hidden");
+              el.setAttribute("aria-hidden", "true");
+              document.body.classList.remove("overflow-x-hidden");
+            }
+
+            document.addEventListener("keydown", function (e) {
+              if (e.key === "Escape") closeForecastModal();
+            });
+          </script>
         {% endif %}
 
         <!-- ================================================== -->
@@ -1111,7 +1337,7 @@
     </div>
   </div>
 
-<!-- Forecast CSV Upload Modal -->
+    <!-- Forecast CSV Upload Modal -->
 <div id="forecast-csv-backdrop" class="hidden fixed inset-0 bg-black/50 z-40"></div>
 
 <div id="forecast-csv-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -1288,27 +1514,113 @@
     </div>
   </div>
 
-  <!-- Forecast Panel -->
+  <!-- Forecast Panel - Add this AFTER the edit-modal div -->
   <div id="forecast-backdrop" class="hidden fixed inset-0 bg-black/50 z-40"></div>
 
   <div id="forecast-panel"
        class="fixed top-0 right-0 h-full w-full sm:w-[500px]
               bg-white text-slate-900 border-l border-slate-200 z-50
               translate-x-full transition-transform duration-200 flex flex-col">
+
     <div class="p-4 border-b border-slate-200 flex justify-between items-center">
-      <div><div class="font-semibold text-blue-700">Add Forecast</div><div class="text-xs text-slate-500">Create new forecast record</div></div>
-      <button id="forecast-close" class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200">Close</button>
+      <div>
+        <div class="font-semibold text-blue-700">Add Forecast</div>
+        <div class="text-xs text-slate-500">Create new forecast record</div>
+      </div>
+      <button id="forecast-close"
+              class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200">
+        Close
+      </button>
     </div>
+
     <div id="forecast-content" class="flex-1 overflow-y-auto p-6">
       <form method="post" class="space-y-5" id="forecast-form">
-        {% csrf_token %}<input type="hidden" name="action" value="add_forecast">
-        <div><label class="text-sm font-medium text-slate-700">Customer Name</label><input type="text" name="customer_name" id="forecast-customer-name" required class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter customer name"></div>
-        <div><label class="text-sm font-medium text-slate-700">Part Name</label><input type="text" name="part_name" id="forecast-part-name" required class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter part name"></div>
-        <div><label class="text-sm font-medium text-slate-700">Part Number</label><input type="text" name="part_number" id="forecast-part-number" required class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter part number"></div>
-        <div><label class="text-sm font-medium text-slate-700">Month/Year</label><div class="grid grid-cols-2 gap-3"><select name="month" id="forecast-month" required class="px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"><option value="">Select Month</option><option value="January">January</option><option value="February">February</option><option value="March">March</option><option value="April">April</option><option value="May">May</option><option value="June">June</option><option value="July">July</option><option value="August">August</option><option value="September">September</option><option value="October">October</option><option value="November">November</option><option value="December">December</option></select><select name="year" id="forecast-year" required class="px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"><option value="">Select Year</option><option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option></select></div></div>
-        <div><label class="text-sm font-medium text-slate-700">Unit Price ($)</label><input type="number" name="unit_price" id="forecast-unit-price" step="any" min="0" required class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="0.00"></div>
-        <div><label class="text-sm font-medium text-slate-700">Quantity</label><input type="number" name="quantity" id="forecast-quantity" min="1" required class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter quantity"></div>
-        <div class="pt-4 border-t border-slate-200 flex justify-end gap-2"><button type="button" id="forecast-cancel" class="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50">Cancel</button><button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white">Save Forecast</button></div>
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add_forecast">
+
+        <div>
+          <label class="text-sm font-medium text-slate-700">Customer Name</label>
+          <input type="text" name="customer_name" id="forecast-customer-name" required
+                 class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
+                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                 placeholder="Enter customer name">
+        </div>
+
+        <div>
+          <label class="text-sm font-medium text-slate-700">Part Name</label>
+          <input type="text" name="part_name" id="forecast-part-name" required
+                 class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
+                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                 placeholder="Enter part name">
+        </div>
+
+        <div>
+          <label class="text-sm font-medium text-slate-700">Part Number</label>
+          <input type="text" name="part_number" id="forecast-part-number" required
+                 class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
+                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                 placeholder="Enter part number">
+        </div>
+
+        <div>
+          <label class="text-sm font-medium text-slate-700">Month/Year</label>
+          <div class="grid grid-cols-2 gap-3">
+            <select name="month" id="forecast-month" required
+                    class="px-3 py-2 rounded-xl border border-slate-300 bg-white
+                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              <option value="">Select Month</option>
+              <option value="January">January</option>
+              <option value="February">February</option>
+              <option value="March">March</option>
+              <option value="April">April</option>
+              <option value="May">May</option>
+              <option value="June">June</option>
+              <option value="July">July</option>
+              <option value="August">August</option>
+              <option value="September">September</option>
+              <option value="October">October</option>
+              <option value="November">November</option>
+              <option value="December">December</option>
+            </select>
+            <select name="year" id="forecast-year" required
+                    class="px-3 py-2 rounded-xl border border-slate-300 bg-white
+                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              <option value="">Select Year</option>
+              <option value="2024">2024</option>
+              <option value="2025">2025</option>
+              <option value="2026">2026</option>
+              <option value="2027">2027</option>
+              <option value="2028">2028</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="text-sm font-medium text-slate-700">Unit Price ($)</label>
+          <input type="number" name="unit_price" id="forecast-unit-price" step="any" min="0" required
+                 class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
+                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                 placeholder="0.00">
+        </div>
+
+        <div>
+          <label class="text-sm font-medium text-slate-700">Quantity</label>
+          <input type="number" name="quantity" id="forecast-quantity" min="1" required
+                 class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
+                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                 placeholder="Enter quantity">
+        </div>
+
+        <div class="pt-4 border-t border-slate-200 flex justify-end gap-2">
+          <button type="button" id="forecast-cancel"
+                  class="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50">
+            Cancel
+          </button>
+          <button type="submit"
+                  class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white">
+            Save Forecast
+          </button>
+        </div>
       </form>
     </div>
   </div>
@@ -1320,20 +1632,108 @@
        class="fixed top-0 right-0 h-full w-full sm:w-[500px]
               bg-white text-slate-900 border-l border-slate-200 z-50
               translate-x-full transition-transform duration-200 flex flex-col">
+
     <div class="p-4 border-b border-slate-200 flex justify-between items-center">
-      <div><div class="font-semibold text-blue-700">Edit Forecast</div><div class="text-xs text-slate-500">Update forecast record</div></div>
-      <button id="edit-forecast-close" class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200">Close</button>
+      <div>
+        <div class="font-semibold text-blue-700">Edit Forecast</div>
+        <div class="text-xs text-slate-500">Update forecast record</div>
+      </div>
+      <button id="edit-forecast-close"
+              class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200">
+        Close
+      </button>
     </div>
+
     <div id="edit-forecast-content" class="flex-1 overflow-y-auto p-6">
       <form method="post" class="space-y-5" id="edit-forecast-form">
-        {% csrf_token %}<input type="hidden" name="action" value="update_forecast"><input type="hidden" name="original_customer_name" id="edit-original-customer" value=""><input type="hidden" name="original_part_number" id="edit-original-part-number" value="">
-        <div><label class="text-sm font-medium text-slate-700">Customer Name</label><input type="text" name="customer_name" id="edit-customer-name" required class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter customer name"></div>
-        <div><label class="text-sm font-medium text-slate-700">Part Name</label><input type="text" name="part_name" id="edit-part-name" required class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter part name"></div>
-        <div><label class="text-sm font-medium text-slate-700">Part Number</label><input type="text" name="part_number" id="edit-part-number" required class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter part number"></div>
-        <div><label class="text-sm font-medium text-slate-700">Month/Year</label><div class="grid grid-cols-2 gap-3"><select name="month" id="edit-month" required class="px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"><option value="">Select Month</option><option value="January">January</option><option value="February">February</option><option value="March">March</option><option value="April">April</option><option value="May">May</option><option value="June">June</option><option value="July">July</option><option value="August">August</option><option value="September">September</option><option value="October">October</option><option value="November">November</option><option value="December">December</option></select><select name="year" id="edit-year" required class="px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"><option value="">Select Year</option><option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option></select></div></div>
-        <div><label class="text-sm font-medium text-slate-700">Unit Price ($)</label><input type="number" name="unit_price" id="edit-unit-price" step="any" min="0" required class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="0.00"></div>
-        <div><label class="text-sm font-medium text-slate-700">Quantity</label><input type="number" name="quantity" id="edit-quantity" min="1" required class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter quantity"></div>
-        <div class="pt-4 border-t border-slate-200 flex justify-end gap-2"><button type="button" id="edit-forecast-cancel" class="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50">Cancel</button><button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white">Update Forecast</button></div>
+        {% csrf_token %}
+        <input type="hidden" name="action" value="update_forecast">
+        <input type="hidden" name="original_customer_name" id="edit-original-customer" value="">
+        <input type="hidden" name="original_part_number" id="edit-original-part-number" value="">
+
+        <div>
+          <label class="text-sm font-medium text-slate-700">Customer Name</label>
+          <input type="text" name="customer_name" id="edit-customer-name" required
+                 class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
+                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                 placeholder="Enter customer name">
+        </div>
+
+        <div>
+          <label class="text-sm font-medium text-slate-700">Part Name</label>
+          <input type="text" name="part_name" id="edit-part-name" required
+                 class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
+                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                 placeholder="Enter part name">
+        </div>
+
+        <div>
+          <label class="text-sm font-medium text-slate-700">Part Number</label>
+          <input type="text" name="part_number" id="edit-part-number" required
+                 class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
+                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                 placeholder="Enter part number">
+        </div>
+
+        <div>
+          <label class="text-sm font-medium text-slate-700">Month/Year</label>
+          <div class="grid grid-cols-2 gap-3">
+            <select name="month" id="edit-month" required
+                    class="px-3 py-2 rounded-xl border border-slate-300 bg-white
+                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              <option value="">Select Month</option>
+              <option value="January">January</option>
+              <option value="February">February</option>
+              <option value="March">March</option>
+              <option value="April">April</option>
+              <option value="May">May</option>
+              <option value="June">June</option>
+              <option value="July">July</option>
+              <option value="August">August</option>
+              <option value="September">September</option>
+              <option value="October">October</option>
+              <option value="November">November</option>
+              <option value="December">December</option>
+            </select>
+            <select name="year" id="edit-year" required
+                    class="px-3 py-2 rounded-xl border border-slate-300 bg-white
+                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              <option value="">Select Year</option>
+              <option value="2024">2024</option>
+              <option value="2025">2025</option>
+              <option value="2026">2026</option>
+              <option value="2027">2027</option>
+              <option value="2028">2028</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="text-sm font-medium text-slate-700">Unit Price ($)</label>
+          <input type="number" name="unit_price" id="edit-unit-price" step="any" min="0" required
+                 class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
+                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                 placeholder="0.00">
+        </div>
+
+        <div>
+          <label class="text-sm font-medium text-slate-700">Quantity</label>
+          <input type="number" name="quantity" id="edit-quantity" min="1" required
+                 class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-300 bg-white
+                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                 placeholder="Enter quantity">
+        </div>
+
+        <div class="pt-4 border-t border-slate-200 flex justify-end gap-2">
+          <button type="button" id="edit-forecast-cancel"
+                  class="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50">
+            Cancel
+          </button>
+          <button type="submit"
+                  class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white">
+            Update Forecast
+          </button>
+        </div>
       </form>
     </div>
   </div>
@@ -1869,185 +2269,6 @@
       });
     }
 
-    // Forecast Run Modal functions
-    function openForecastModal() {
-      const el = document.getElementById("forecastModal");
-      el.classList.remove("hidden");
-      el.setAttribute("aria-hidden", "false");
-      document.body.classList.add("overflow-x-hidden");
-    }
-
-    function closeForecastModal() {
-      const el = document.getElementById("forecastModal");
-      el.classList.add("hidden");
-      el.setAttribute("aria-hidden", "true");
-      document.body.classList.remove("overflow-x-hidden");
-    }
-
-    document.addEventListener("keydown", function (e) {
-      if (e.key === "Escape") closeForecastModal();
-    });
-  </script>
-
-  <script>
-    document.addEventListener("DOMContentLoaded", function () {
-      const partInput = document.getElementById("forecast-run-part-code");
-      const monthInput = document.getElementById("forecast-run-month");
-      const qtyInput = document.getElementById("forecast-run-qty");
-
-      const bomCount = document.getElementById("forecast-bom-count");
-      const bomStatus = document.getElementById("forecast-bom-status");
-      const bomWrap = document.getElementById("forecast-bom-wrap");
-      const bomBody = document.getElementById("forecast-bom-body");
-
-      function setBomIdle(message) {
-        if (bomCount) bomCount.textContent = "0 materials";
-        if (bomStatus) {
-          bomStatus.textContent = message || "Type a part code to load its registered BOM materials.";
-          bomStatus.classList.remove("hidden");
-        }
-        if (bomWrap) bomWrap.classList.add("hidden");
-        if (bomBody) bomBody.innerHTML = "";
-      }
-
-      function renderBomRows(rows) {
-        if (!bomBody || !bomWrap || !bomStatus || !bomCount) return;
-
-        if (!Array.isArray(rows) || rows.length === 0) {
-          setBomIdle("No registered BOM materials found for this part code.");
-          return;
-        }
-
-        bomCount.textContent = `${rows.length} material${rows.length === 1 ? "" : "s"}`;
-        bomStatus.classList.add("hidden");
-        bomWrap.classList.remove("hidden");
-
-        bomBody.innerHTML = rows.map((row) => {
-          const matCode = row.mat_partcode || row.material_code || "—";
-          const matName = row.mat_partname || row.material_name || "—";
-          const dimQty = row.dim_qty ?? row.per_unit_qty ?? "—";
-          const loss = row.loss_percent ?? row.loss_pct ?? "—";
-          const total = row.total ?? row.per_unit_total ?? "—";
-          const unit = row.unit || "—";
-
-          return `
-            <tr>
-              <td class="px-4 py-3 font-medium text-slate-900">${escapeHtml(String(matCode))}</td>
-              <td class="px-4 py-3 text-slate-700">${escapeHtml(String(matName))}</td>
-              <td class="px-4 py-3 text-right text-slate-700 tabular-nums">${escapeHtml(String(dimQty))}</td>
-              <td class="px-4 py-3 text-right text-slate-700 tabular-nums">${escapeHtml(String(loss))}</td>
-              <td class="px-4 py-3 text-right font-medium text-slate-900 tabular-nums">${escapeHtml(String(total))}</td>
-              <td class="px-4 py-3 text-slate-700">${escapeHtml(String(unit))}</td>
-            </tr>
-          `;
-        }).join("");
-      }
-
-      function escapeHtml(value) {
-        return value
-          .replaceAll("&", "&amp;")
-          .replaceAll("<", "&lt;")
-          .replaceAll(">", "&gt;")
-          .replaceAll('"', "&quot;")
-          .replaceAll("'", "&#39;");
-      }
-
-      async function loadForecastQty() {
-        if (!partInput || !monthInput || !qtyInput) return;
-
-        const part = partInput.value.trim();
-        const month = monthInput.value.trim();
-
-        if (!part || !month) return;
-
-        const url = `/api/forecast-qty/?part_number=${encodeURIComponent(part)}&schedule_month=${encodeURIComponent(month)}`;
-
-        try {
-          const res = await fetch(url, {
-            headers: { "X-Requested-With": "XMLHttpRequest" }
-          });
-          const data = await res.json();
-
-          if (data.ok) {
-            qtyInput.value = data.quantity || 0;
-          }
-        } catch (e) {
-          console.log("forecast lookup failed", e);
-        }
-      }
-
-      async function loadBomPreview() {
-        if (!partInput) return;
-
-        const part = partInput.value.trim();
-        if (!part) {
-          setBomIdle("Type a part code to load its registered BOM materials.");
-          return;
-        }
-
-        if (bomStatus) {
-          bomStatus.textContent = "Loading registered BOM materials…";
-          bomStatus.classList.remove("hidden");
-        }
-        if (bomWrap) bomWrap.classList.add("hidden");
-        if (bomBody) bomBody.innerHTML = "";
-        if (bomCount) bomCount.textContent = "Loading…";
-
-        const urls = [
-          `/api/part-bom/?part_code=${encodeURIComponent(part)}`,
-          `/api/part-bom/?part_number=${encodeURIComponent(part)}`,
-        ];
-
-        let data = null;
-        for (const url of urls) {
-          try {
-            const res = await fetch(url, {
-              headers: { "X-Requested-With": "XMLHttpRequest" }
-            });
-            data = await res.json();
-            if (data) break;
-          } catch (e) {
-            console.log("bom lookup failed", e);
-          }
-        }
-
-        if (!data || data.ok === false) {
-          setBomIdle((data && data.message) ? data.message : "No registered BOM materials found for this part code.");
-          return;
-        }
-
-        const rows = data.rows || data.materials || data.items || [];
-        renderBomRows(rows);
-      }
-
-      let bomTimer = null;
-
-      if (partInput) {
-        partInput.addEventListener("input", function () {
-          clearTimeout(bomTimer);
-          bomTimer = setTimeout(() => {
-            loadBomPreview();
-          }, 250);
-        });
-
-        partInput.addEventListener("change", function () {
-          loadBomPreview();
-          loadForecastQty();
-        });
-
-        partInput.addEventListener("blur", function () {
-          loadBomPreview();
-          loadForecastQty();
-        });
-      }
-
-      if (monthInput) {
-        monthInput.addEventListener("change", loadForecastQty);
-      }
-
-      setBomIdle("Type a part code to load its registered BOM materials.");
-    });
-
     // Customer modal functions
     let currentStep = 1;
     const totalSteps = 3;
@@ -2155,22 +2376,7 @@
         }
       }
     }
-const csvInput = document.getElementById("csv-file-input");
-const fileDisplay = document.getElementById("selected-file-name");
-const fileText = document.getElementById("file-name-text");
 
-if (csvInput) {
-  csvInput.addEventListener("change", function () {
-
-    if (this.files.length > 0) {
-      const file = this.files[0];
-
-      fileText.textContent = file.name;
-      fileDisplay.classList.remove("hidden");
-    }
-
-  });
-}
     function validateStep(){
       const stepFields = document.querySelectorAll('#step'+currentStep+' [required]');
       let allFilled = Array.from(stepFields).every(f=>f.value.trim()!=='');
@@ -2185,6 +2391,187 @@ if (csvInput) {
       if(currentStep<totalSteps) document.getElementById('nextBtn').disabled=!allFilled;
       else document.getElementById('saveBtn').disabled=!allFilled;
     }
+  </script>
+
+  <script>
+    // BOM preview functionality for forecast modal
+    document.addEventListener("DOMContentLoaded", function () {
+      const partInput = document.getElementById("forecast-run-partcode");
+      const monthInput = document.getElementById("forecast-run-month");
+      const qtyInput = document.getElementById("forecast-run-qty");
+      const customerSelect = document.getElementById("forecastCustomer");
+
+      const bomCount = document.getElementById("forecast-bom-count");
+      const bomStatus = document.getElementById("forecast-bom-status");
+      const bomWrap = document.getElementById("forecast-bom-wrap");
+      const bomBody = document.getElementById("forecast-bom-body");
+
+      function setBomIdle(message) {
+        if (bomCount) bomCount.textContent = "0 materials";
+        if (bomStatus) {
+          bomStatus.textContent = message || "Type a part code to load its registered BOM materials.";
+          bomStatus.classList.remove("hidden");
+        }
+        if (bomWrap) bomWrap.classList.add("hidden");
+        if (bomBody) bomBody.innerHTML = "";
+      }
+
+      function renderBomRows(rows) {
+        if (!bomBody || !bomWrap || !bomStatus || !bomCount) return;
+
+        if (!Array.isArray(rows) || rows.length === 0) {
+          setBomIdle("No registered BOM materials found for this part code.");
+          return;
+        }
+
+        bomCount.textContent = `${rows.length} material${rows.length === 1 ? "" : "s"}`;
+        bomStatus.classList.add("hidden");
+        bomWrap.classList.remove("hidden");
+
+        bomBody.innerHTML = rows.map((row) => {
+          const matCode = row.mat_partcode || row.material_code || "—";
+          const matName = row.mat_partname || row.material_name || "—";
+          const dimQty = row.dim_qty ?? row.per_unit_qty ?? "—";
+          const unit = row.unit || "—";
+
+          return `
+            <tr>
+              <td class="px-4 py-3 font-medium text-slate-900">${escapeHtml(String(matCode))}</td>
+              <td class="px-4 py-3 text-slate-700">${escapeHtml(String(matName))}</td>
+              <td class="px-4 py-3 text-right text-slate-700 tabular-nums">${escapeHtml(String(dimQty))}</td>
+              <td class="px-4 py-3 text-slate-700">${escapeHtml(String(unit))}</td>
+            </tr>
+          `;
+        }).join("");
+      }
+
+      function escapeHtml(value) {
+        return value
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      async function loadForecastQty() {
+        if (!partInput || !monthInput || !qtyInput || !customerSelect) return;
+
+        const part = partInput.value.trim();
+        const month = monthInput.value.trim();
+        const customerId = customerSelect.value.trim();
+
+        if (!part || !month) return;
+
+        const url = `/api/forecast-qty/?part_number=${encodeURIComponent(part)}&schedule_month=${encodeURIComponent(month)}&customer_id=${encodeURIComponent(customerId)}`;
+
+        try {
+          const res = await fetch(url, {
+            headers: { "X-Requested-With": "XMLHttpRequest" }
+          });
+          const data = await res.json();
+
+          if (data.ok) {
+            qtyInput.value = data.quantity || 0;
+          }
+        } catch (e) {
+          console.log("forecast lookup failed", e);
+        }
+      }
+
+      async function loadBomPreview() {
+        if (!partInput) return;
+
+        const part = partInput.value.trim();
+        if (!part) {
+          setBomIdle("Type a part code to load its registered BOM materials.");
+          return;
+        }
+
+        if (bomStatus) {
+          bomStatus.textContent = "Loading registered BOM materials…";
+          bomStatus.classList.remove("hidden");
+        }
+        if (bomWrap) bomWrap.classList.add("hidden");
+        if (bomBody) bomBody.innerHTML = "";
+        if (bomCount) bomCount.textContent = "Loading…";
+
+        const urls = [
+          `/api/part-bom/?part_code=${encodeURIComponent(part)}`,
+          `/api/part-bom/?part_number=${encodeURIComponent(part)}`,
+        ];
+
+        let data = null;
+        for (const url of urls) {
+          try {
+            const res = await fetch(url, {
+              headers: { "X-Requested-With": "XMLHttpRequest" }
+            });
+            data = await res.json();
+            if (data) break;
+          } catch (e) {
+            console.log("bom lookup failed", e);
+          }
+        }
+
+        if (!data || data.ok === false) {
+          setBomIdle((data && data.message) ? data.message : "No registered BOM materials found for this part code.");
+          return;
+        }
+
+        const rows = data.rows || data.materials || data.items || [];
+        renderBomRows(rows);
+      }
+
+      let bomTimer = null;
+
+      if (partInput) {
+        partInput.addEventListener("input", function () {
+          clearTimeout(bomTimer);
+          bomTimer = setTimeout(() => {
+            loadBomPreview();
+          }, 250);
+        });
+
+        partInput.addEventListener("change", function () {
+          loadBomPreview();
+          loadForecastQty();
+        });
+
+        partInput.addEventListener("blur", function () {
+          loadBomPreview();
+          loadForecastQty();
+        });
+      }
+
+      if (monthInput) {
+        monthInput.addEventListener("change", loadForecastQty);
+      }
+
+      if (customerSelect) {
+        customerSelect.addEventListener("change", loadForecastQty);
+      }
+
+      setBomIdle("Type a part code to load its registered BOM materials.");
+    });
+
+    // ADD THIS: File input display functionality for Forecast CSV modal
+    document.addEventListener("DOMContentLoaded", function() {
+      const fileInput = document.getElementById("csv-file-input");
+      const selectedFileDiv = document.getElementById("selected-file-name");
+      const fileNameSpan = document.getElementById("file-name-text");
+      
+      if (fileInput && selectedFileDiv && fileNameSpan) {
+        fileInput.addEventListener("change", function(e) {
+          if (this.files && this.files.length > 0) {
+            fileNameSpan.textContent = this.files[0].name;
+            selectedFileDiv.classList.remove("hidden");
+          } else {
+            selectedFileDiv.classList.add("hidden");
+          }
+        });
+      }
+    });
   </script>
 
 </body>
