@@ -49,6 +49,6 @@ urlpatterns = [
     path("api/bom-part-detail/", views.bom_part_detail_lookup, name="bom_part_detail_lookup"),
     path("api/part-master-lookup/", views.part_master_lookup, name="part_master_lookup"),
     
-    # Timezone detection
+    # Timezone detection - CRITICAL for forecast_pages.html
     path("set-timezone/", views.set_timezone, name="set_timezone"),
 ]
