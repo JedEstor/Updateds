@@ -3,7 +3,7 @@ from django import forms
 from django.contrib import admin
 from django.core.exceptions import ValidationError
 
-from .models import Customer, TEPCode, Material, MaterialList, MaterialStock, BOMMaterial, PartMaster
+from .models import Customer, TEPCode, Material, MaterialList, MaterialStock, BOMMaterial, PartMaster, ForecastRun, ForecastLine
 
 
 class TEPCodeInline(admin.TabularInline):
@@ -263,6 +263,7 @@ class MaterialListAdmin(admin.ModelAdmin):
 
 @admin.register(MaterialStock)
 class MaterialStockAdmin(admin.ModelAdmin):
+    # list page
     list_display = ("material", "on_hand_qty", "last_updated_at", "last_updated_by")
     search_fields = ("material__mat_partcode", "material__mat_partname", "material__mat_maker")
 
@@ -299,3 +300,83 @@ class BOMMaterialAdmin(admin.ModelAdmin):
     list_filter = ("unit", "source_tep")
     autocomplete_fields = ("material", "source_tep")
     list_editable = ("dim_qty", "loss_percent")
+
+class ForecastLineInline(admin.TabularInline):
+    model = ForecastLine
+    extra = 0
+    can_delete = False
+    show_change_link = True
+    readonly_fields = (
+        "part_code",
+        "forecast_qty",
+        "mat_partcode",
+        "mat_partname",
+        "mat_maker",
+        "unit",
+        "per_unit_total",
+        "required_qty",
+        "tep_code",
+        "customer_name",
+    )
+
+
+@admin.register(ForecastRun)
+class ForecastRunAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "schedule_month",
+        "note",
+        "created_by",
+        "created_at",
+    )
+    search_fields = (
+        "note",
+        "schedule_month",
+    )
+    list_filter = (
+        "schedule_month",
+        "created_at",
+    )
+    readonly_fields = (
+        "created_at",
+    )
+    inlines = [ForecastLineInline]
+
+
+@admin.register(ForecastLine)
+class ForecastLineAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "run",
+        "customer_name",
+        "part_code",
+        "mat_partcode",
+        "mat_partname",
+        "required_qty",
+        "unit",
+    )
+    search_fields = (
+        "customer_name",
+        "part_code",
+        "mat_partcode",
+        "mat_partname",
+        "tep_code",
+    )
+    list_filter = (
+        "customer_name",
+        "unit",
+        "run__schedule_month",
+    )
+    readonly_fields = (
+        "run",
+        "part_code",
+        "forecast_qty",
+        "mat_partcode",
+        "mat_partname",
+        "mat_maker",
+        "unit",
+        "per_unit_total",
+        "required_qty",
+        "tep_code",
+        "customer_name",
+    )
