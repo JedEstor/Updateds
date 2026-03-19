@@ -494,6 +494,7 @@ class Forecast(models.Model):
                     continue
         return total
 
+    
     @property
     def total_amount(self) -> float:
         total = 0.0
