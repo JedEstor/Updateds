@@ -247,6 +247,7 @@ def delete_customer(request, customer_id: int):
     Customer.objects.filter(id=customer_id).delete()
     return jresponse({"message": "Customer deleted"})
 
+@api.delete("/customers/{customer_id}")
 
 @api.get("/customers/{customer_id}/tep-codes", response=list[TEPCodeOut], tags=["TEP"])
 def list_tep_codes(request, customer_id: int, part_code: str = ""):
