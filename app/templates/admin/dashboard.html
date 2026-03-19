@@ -397,7 +397,7 @@
           </span>
           <div class="nav-text">
             <div class="font-medium">Computations</div>
-            <div class="text-xs text-slate-200/80">Prototype output</div>
+            <div class="text-xs text-slate-200/80">Required Quantity</div>
           </div>
         </a>
 
@@ -471,21 +471,6 @@
 
         <!-- Divider -->
         <div class="pt-2 border-t border-white/10"></div>
-
-        <!-- Customers Page Link (External) -->
-        <a href="{% url 'app:customer_list' %}"
-           class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition">
-          <span class="inline-flex h-9 w-9 rounded-lg bg-white/5 items-center justify-center border border-white/10">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M8 7V3h8v4M6 7h12M6 7v14h12V7" />
-            </svg>
-          </span>
-          <div class="nav-text">
-            <div class="font-medium">Customers Page</div>
-            <div class="text-xs text-slate-200/80">Go to customer list</div>
-          </div>
-        </a>
 
         <a href="{% url 'app:logout' %}"
            class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition">
@@ -853,7 +838,7 @@
                                       <div class="flex items-start justify-between gap-3 mb-4"><h3 class="text-lg font-semibold text-slate-900">Reserve Allocation</h3><button type="button" onclick="this.closest('.fixed').classList.add('hidden')" class="h-9 w-9 rounded-xl hover:bg-slate-100 grid place-items-center text-slate-500" aria-label="Close">✕</button></div>
                                       <form method="post" action="{% url 'app:reserve_material' %}" class="space-y-4">
                                         {% csrf_token %}<input type="hidden" name="material_id" value="{{ m.id }}"><input type="hidden" name="tab" value="stocks"><input type="hidden" name="sq" value="{{ sq|default:'' }}"><input type="hidden" name="spage" value="{{ stock_page_obj.number|default:'' }}">
-                                        <div class="flex items-center gap-3"><label class="w-24 text-sm font-medium text-slate-700">Customer</label><div class="flex-1 min-w-0"><select name="customer_id" id="forecastCustomer" required class="w-full h-10 px-3 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"><option value="">Select customer</option>{% for c in customers %}<option value="{{ c.id }}">{{ c.customer_name }}</option>{% endfor %}</select></div></div>
+                                        <div class="flex items-center gap-3"><label class="w-24 text-sm font-medium text-slate-700">Customer</label><div class="flex-1 min-w-0"><select name="customer_id" id="reserve-customer-select" required class="w-full h-10 px-3 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"><option value="">Select customer</option>{% for c in customers %}<option value="{{ c.id }}">{{ c.customer_name }}</option>{% endfor %}</select></div></div>
                                         <div class="flex items-center gap-3"><label class="w-24 text-sm font-medium text-slate-700">Quantity</label><div class="flex-1 min-w-0"><input type="number" name="qty_allocated" min="1" required placeholder="Enter quantity" class="w-full h-10 px-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" /></div></div>
                                         <div class="flex justify-end gap-2 pt-2"><button type="button" onclick="this.closest('.fixed').classList.add('hidden')" class="h-10 px-4 rounded-xl border border-slate-300 bg-white hover:bg-slate-50">Cancel</button><button type="submit" class="h-10 px-5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white">Reserve</button></div>
                                       </form>
@@ -956,7 +941,7 @@
               <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
 
                 <div class="min-w-0">
-                  <div class="text-lg font-semibold text-slate-900">Forecast</div>
+                  <div class="text-lg font-semibold text-slate-900">Computations</div>
                   <div class="text-sm text-slate-500">
                     Latest run:
                     <span class="font-medium text-slate-700">
@@ -972,6 +957,7 @@
                     <!-- Filters -->
                     <form method="get" class="flex flex-col gap-2 sm:flex-row sm:items-center">
                       <input type="hidden" name="tab" value="forecast_run">
+                      <input type="hidden" name="frtab" value="{{ frtab|default:'detailed' }}">
 
                       <input
                         type="month"
@@ -1013,13 +999,42 @@
               </div>
             </div>
 
+            <!-- SUB TABS -->
+            <div class="px-5 pt-4 border-b border-slate-200 bg-slate-50">
+              <div class="flex flex-wrap gap-2">
+                <a
+                  href="?tab=forecast_run&frtab=detailed&fq={{ fq|urlencode }}&fmonth={{ fmonth|urlencode }}"
+                  class="inline-flex items-center h-10 px-4 rounded-t-xl border border-b-0 text-sm font-medium {% if frtab != 'overall' %}bg-white text-slate-900 border-slate-200{% else %}bg-slate-100 text-slate-600 border-slate-200 hover:bg-white{% endif %}"
+                >
+                  Detailed Computation
+                </a>
+                <a
+                  href="?tab=forecast_run&frtab=overall&fq={{ fq|urlencode }}&fmonth={{ fmonth|urlencode }}"
+                  class="inline-flex items-center h-10 px-4 rounded-t-xl border border-b-0 text-sm font-medium {% if frtab == 'overall' %}bg-white text-slate-900 border-slate-200{% else %}bg-slate-100 text-slate-600 border-slate-200 hover:bg-white{% endif %}"
+                >
+                  Overall Required Qty
+                </a>
+              </div>
+            </div>
+
             <!-- META ROW -->
-            <div class="px-5 py-3 border-b border-slate-200 flex items-center justify-between text-sm">
-              <div class="text-slate-600">
-                Total lines: <span class="font-semibold text-slate-900">{{ forecast_totals.lines }}</span>
+            <div class="px-5 py-3 border-b border-slate-200 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-sm">
+              <div class="text-slate-600 flex flex-wrap items-center gap-x-4 gap-y-1">
+                {% if frtab == 'overall' %}
+                  <span>Summary rows: <span class="font-semibold text-slate-900">{{ forecast_totals.materials|intcomma }}</span></span>
+                  <span>Total required: <span class="font-semibold text-slate-900 tabular-nums">{{ forecast_totals.overall_required|floatformat:2|intcomma }}</span></span>
+                {% else %}
+                  <span>Total lines: <span class="font-semibold text-slate-900">{{ forecast_totals.lines|intcomma }}</span></span>
+                  <span>Summary rows: <span class="font-semibold text-slate-900">{{ forecast_totals.materials|intcomma }}</span></span>
+                {% endif %}
               </div>
 
-              {% if forecast_page %}
+              {% if frtab == 'overall' and forecast_overall_page %}
+                <div class="text-slate-500">
+                  Page <span class="font-semibold text-slate-900">{{ forecast_overall_page.number }}</span>
+                  of <span class="font-semibold text-slate-900">{{ forecast_overall_page.paginator.num_pages }}</span>
+                </div>
+              {% elif forecast_page %}
                 <div class="text-slate-500">
                   Page <span class="font-semibold text-slate-900">{{ forecast_page.number }}</span>
                   of <span class="font-semibold text-slate-900">{{ forecast_page.paginator.num_pages }}</span>
@@ -1027,101 +1042,158 @@
               {% endif %}
             </div>
 
-            <!-- TABLE -->
+            <!-- BODY -->
             <div class="p-5 space-y-6">
-              {% if forecast_grouped %}
-                {% for customer in forecast_grouped %}
+              {% if frtab == 'overall' %}
+                {% if forecast_overall_page and forecast_overall_page.object_list %}
                   <div class="border border-slate-200 rounded-2xl overflow-hidden bg-white">
-                    <div class="px-4 py-3 bg-slate-800 text-white">
-                      <div class="text-base font-semibold">
-                        {{ customer.customer_name }}{% if customer.parts %} — {{ customer.parts.0.month_label }}{% endif %}
-                      </div>
-                    </div>
-
-                    <div class="p-4 space-y-5">
-                      {% for part in customer.parts %}
-                        <div class="border border-slate-200 rounded-xl overflow-hidden bg-white">
-                          <div class="px-4 py-3 bg-slate-100 border-b border-slate-200 flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-                            <div class="min-w-0">
-                              <div class="font-semibold text-slate-900 break-words">
-                                {{ part.part_code }}{% if part.part_name %} - {{ part.part_name }}{% endif %}
-                              </div>
-                              <div class="mt-1 text-sm text-slate-600">
-                                Forecast Qty Used:
-                                <span class="font-semibold text-slate-900 tabular-nums">{{ part.forecast_qty|default:"—"|intcomma }}</span>
-                                <span class="ml-3 text-sm font-normal text-slate-500">Run: {{ part.run_label }}</span>
-                              </div>
-                            </div>
-                            {% if part.materials.0.tep_code %}
-                              <div class="text-xs text-slate-500 md:text-right">
-                                TEP: {{ part.materials.0.tep_code }}
-                              </div>
-                            {% endif %}
-                          </div>
-
-                          <div class="overflow-x-auto">
-                            <table class="w-full min-w-[700px] text-sm">
-                              <thead class="bg-slate-50 text-slate-700">
-                                <tr>
-                                  <th class="px-4 py-3 text-left font-semibold">Material Part Code</th>
-                                  <th class="px-4 py-3 text-left font-semibold">Material Name</th>
-                                  <th class="px-4 py-3 text-left font-semibold">Maker</th>
-                                  <th class="px-4 py-3 text-right font-semibold">Required</th>
-                                  <th class="px-4 py-3 text-left font-semibold">Unit</th>
-                                </tr>
-                              </thead>
-                              <tbody class="divide-y divide-slate-200">
-                                {% for r in part.materials %}
-                                  <tr class="hover:bg-slate-50 align-middle">
-                                    <td class="px-4 py-3 text-slate-800">{{ r.mat_partcode|default:"—" }}</td>
-                                    <td class="px-4 py-3 text-slate-900 font-medium">{{ r.mat_partname|default:"—" }}</td>
-                                    <td class="px-4 py-3 text-slate-800">{{ r.mat_maker|default:"—" }}</td>
-                                    <td class="px-4 py-3 text-right font-semibold text-slate-900 tabular-nums">{{ r.required_qty|floatformat:2 }}</td>
-                                    <td class="px-4 py-3 text-slate-800">{{ r.unit|default:"—" }}</td>
-                                  </tr>
-                                {% endfor %}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      {% endfor %}
+                    <div class="overflow-x-auto">
+                      <table class="w-full min-w-[820px] text-sm">
+                        <thead class="bg-slate-50 text-slate-700">
+                          <tr>
+                            <th class="px-4 py-3 text-left font-semibold">Material Part Code</th>
+                            <th class="px-4 py-3 text-left font-semibold">Material Name</th>
+                            <th class="px-4 py-3 text-left font-semibold">Maker</th>
+                            <th class="px-4 py-3 text-left font-semibold">Unit</th>
+                            <th class="px-4 py-3 text-right font-semibold">Total Required</th>
+                            <th class="px-4 py-3 text-right font-semibold">Source Runs</th>
+                          </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200">
+                          {% for r in forecast_overall_page.object_list %}
+                            <tr class="hover:bg-slate-50 align-middle">
+                              <td class="px-4 py-3 text-slate-800">{{ r.mat_partcode|default:"—" }}</td>
+                              <td class="px-4 py-3 text-slate-900 font-medium">{{ r.mat_partname|default:"—" }}</td>
+                              <td class="px-4 py-3 text-slate-800">{{ r.mat_maker|default:"—" }}</td>
+                              <td class="px-4 py-3 text-slate-800">{{ r.unit|default:"—" }}</td>
+                              <td class="px-4 py-3 text-right font-semibold text-slate-900 tabular-nums">{{ r.total_required|floatformat:2 }}</td>
+                              <td class="px-4 py-3 text-right text-slate-800 tabular-nums">{{ r.source_runs|default:0|intcomma }}</td>
+                            </tr>
+                          {% endfor %}
+                        </tbody>
+                        <tfoot class="bg-slate-50 border-t border-slate-200">
+                          <tr>
+                            <td colspan="4" class="px-4 py-3 text-right font-semibold text-slate-700">Grand Total</td>
+                            <td class="px-4 py-3 text-right font-bold text-slate-900 tabular-nums">{{ forecast_totals.overall_required|floatformat:2|intcomma }}</td>
+                            <td class="px-4 py-3"></td>
+                          </tr>
+                        </tfoot>
+                      </table>
                     </div>
                   </div>
-                {% endfor %}
+                {% else %}
+                  <div class="px-4 py-10 text-center text-slate-500 border border-slate-200 rounded-2xl bg-white">
+                    No summarized computation rows yet.
+                  </div>
+                {% endif %}
               {% else %}
-                <div class="px-4 py-10 text-center text-slate-500 border border-slate-200 rounded-2xl bg-white">
-                  No forecast output yet.
-                </div>
+                {% if forecast_grouped %}
+                  {% for customer in forecast_grouped %}
+                    <div class="border border-slate-200 rounded-2xl overflow-hidden bg-white">
+                      <div class="px-4 py-3 bg-slate-800 text-white">
+                        <div class="text-base font-semibold">
+                          {{ customer.customer_name }}{% if customer.parts %} — {{ customer.parts.0.month_label }}{% endif %}
+                        </div>
+                      </div>
+
+                      <div class="p-4 space-y-5">
+                        {% for part in customer.parts %}
+                          <div class="border border-slate-200 rounded-xl overflow-hidden bg-white">
+                            <div class="px-4 py-3 bg-slate-100 border-b border-slate-200 flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                              <div class="min-w-0">
+                                <div class="font-semibold text-slate-900 break-words">
+                                  {{ part.part_code }}{% if part.part_name %} - {{ part.part_name }}{% endif %}
+                                </div>
+                                <div class="mt-1 text-sm text-slate-600">
+                                  Forecast Qty Used:
+                                  <span class="font-semibold text-slate-900 tabular-nums">{{ part.forecast_qty|default:"—"|intcomma }}</span>
+                                  <span class="ml-3 text-sm font-normal text-slate-500">Run: {{ part.run_label }}</span>
+                                </div>
+                              </div>
+                              {% if part.materials.0.tep_code %}
+                                <div class="text-xs text-slate-500 md:text-right">
+                                  TEP: {{ part.materials.0.tep_code }}
+                                </div>
+                              {% endif %}
+                            </div>
+
+                            <div class="overflow-x-auto">
+                              <table class="w-full min-w-[700px] text-sm">
+                                <thead class="bg-slate-50 text-slate-700">
+                                  <tr>
+                                    <th class="px-4 py-3 text-left font-semibold">Material Part Code</th>
+                                    <th class="px-4 py-3 text-left font-semibold">Material Name</th>
+                                    <th class="px-4 py-3 text-left font-semibold">Maker</th>
+                                    <th class="px-4 py-3 text-right font-semibold">Required</th>
+                                    <th class="px-4 py-3 text-left font-semibold">Unit</th>
+                                  </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-200">
+                                  {% for r in part.materials %}
+                                    <tr class="hover:bg-slate-50 align-middle">
+                                      <td class="px-4 py-3 text-slate-800">{{ r.mat_partcode|default:"—" }}</td>
+                                      <td class="px-4 py-3 text-slate-900 font-medium">{{ r.mat_partname|default:"—" }}</td>
+                                      <td class="px-4 py-3 text-slate-800">{{ r.mat_maker|default:"—" }}</td>
+                                      <td class="px-4 py-3 text-right font-semibold text-slate-900 tabular-nums">{{ r.required_qty|floatformat:2 }}</td>
+                                      <td class="px-4 py-3 text-slate-800">{{ r.unit|default:"—" }}</td>
+                                    </tr>
+                                  {% endfor %}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        {% endfor %}
+                      </div>
+                    </div>
+                  {% endfor %}
+                {% else %}
+                  <div class="px-4 py-10 text-center text-slate-500 border border-slate-200 rounded-2xl bg-white">
+                    No forecast output yet.
+                  </div>
+                {% endif %}
               {% endif %}
             </div>
 
             <!-- PAGINATION -->
-            {% if forecast_page and forecast_page.paginator.num_pages > 1 %}
-            <div class="px-5 py-4 border-t border-slate-200 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div class="text-sm text-slate-500">Showing <span class="font-medium text-slate-900">{{ forecast_page.start_index }}</span>–<span class="font-medium text-slate-900">{{ forecast_page.end_index }}</span> of <span class="font-medium text-slate-900">{{ forecast_page.paginator.count }}</span></div>
-              <div class="flex items-center gap-2 flex-wrap">
-                {% if forecast_page.has_previous %}<a class="h-10 inline-flex items-center px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm" href="?tab=forecast_run&fq={{ fq|urlencode }}&fmonth={{ fmonth|urlencode }}&fpage={{ forecast_page.previous_page_number }}">← Prev</a>{% else %}<span class="h-10 inline-flex items-center px-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-400">← Prev</span>{% endif %}
-                {% for p in forecast_page.paginator.page_range %}{% if p == forecast_page.number %}<span class="h-10 inline-flex items-center px-3 rounded-xl bg-blue-600 text-white text-sm">{{ p }}</span>{% elif p >= forecast_page.number|add:-2 and p <= forecast_page.number|add:2 %}<a class="h-10 inline-flex items-center px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm" href="?tab=forecast_run&fq={{ fq|urlencode }}&fmonth={{ fmonth|urlencode }}&fpage={{ p }}">{{ p }}</a>{% endif %}{% endfor %}
-                {% if forecast_page.has_next %}<a class="h-10 inline-flex items-center px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm" href="?tab=forecast_run&fq={{ fq|urlencode }}&fmonth={{ fmonth|urlencode }}&fpage={{ forecast_page.next_page_number }}">Next →</a>{% else %}<span class="h-10 inline-flex items-center px-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-400">Next →</span>{% endif %}
+            {% if frtab == 'overall' %}
+              {% if forecast_overall_page and forecast_overall_page.paginator.num_pages > 1 %}
+              <div class="px-5 py-4 border-t border-slate-200 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div class="text-sm text-slate-500">Showing <span class="font-medium text-slate-900">{{ forecast_overall_page.start_index }}</span>–<span class="font-medium text-slate-900">{{ forecast_overall_page.end_index }}</span> of <span class="font-medium text-slate-900">{{ forecast_overall_page.paginator.count }}</span></div>
+                <div class="flex items-center gap-2 flex-wrap">
+                  {% if forecast_overall_page.has_previous %}<a class="h-10 inline-flex items-center px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm" href="?tab=forecast_run&frtab=overall&fq={{ fq|urlencode }}&fmonth={{ fmonth|urlencode }}&ffpage={{ forecast_overall_page.previous_page_number }}">← Prev</a>{% else %}<span class="h-10 inline-flex items-center px-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-400">← Prev</span>{% endif %}
+                  {% for p in forecast_overall_page.paginator.page_range %}{% if p == forecast_overall_page.number %}<span class="h-10 inline-flex items-center px-3 rounded-xl bg-blue-600 text-white text-sm">{{ p }}</span>{% elif p >= forecast_overall_page.number|add:-2 and p <= forecast_overall_page.number|add:2 %}<a class="h-10 inline-flex items-center px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm" href="?tab=forecast_run&frtab=overall&fq={{ fq|urlencode }}&fmonth={{ fmonth|urlencode }}&ffpage={{ p }}">{{ p }}</a>{% endif %}{% endfor %}
+                  {% if forecast_overall_page.has_next %}<a class="h-10 inline-flex items-center px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm" href="?tab=forecast_run&frtab=overall&fq={{ fq|urlencode }}&fmonth={{ fmonth|urlencode }}&ffpage={{ forecast_overall_page.next_page_number }}">Next →</a>{% else %}<span class="h-10 inline-flex items-center px-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-400">Next →</span>{% endif %}
+                </div>
               </div>
-            </div>
+              {% endif %}
+            {% else %}
+              {% if forecast_page and forecast_page.paginator.num_pages > 1 %}
+              <div class="px-5 py-4 border-t border-slate-200 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div class="text-sm text-slate-500">Showing <span class="font-medium text-slate-900">{{ forecast_page.start_index }}</span>–<span class="font-medium text-slate-900">{{ forecast_page.end_index }}</span> of <span class="font-medium text-slate-900">{{ forecast_page.paginator.count }}</span></div>
+                <div class="flex items-center gap-2 flex-wrap">
+                  {% if forecast_page.has_previous %}<a class="h-10 inline-flex items-center px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm" href="?tab=forecast_run&frtab=detailed&fq={{ fq|urlencode }}&fmonth={{ fmonth|urlencode }}&fpage={{ forecast_page.previous_page_number }}">← Prev</a>{% else %}<span class="h-10 inline-flex items-center px-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-400">← Prev</span>{% endif %}
+                  {% for p in forecast_page.paginator.page_range %}{% if p == forecast_page.number %}<span class="h-10 inline-flex items-center px-3 rounded-xl bg-blue-600 text-white text-sm">{{ p }}</span>{% elif p >= forecast_page.number|add:-2 and p <= forecast_page.number|add:2 %}<a class="h-10 inline-flex items-center px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm" href="?tab=forecast_run&frtab=detailed&fq={{ fq|urlencode }}&fmonth={{ fmonth|urlencode }}&fpage={{ p }}">{{ p }}</a>{% endif %}{% endfor %}
+                  {% if forecast_page.has_next %}<a class="h-10 inline-flex items-center px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm" href="?tab=forecast_run&frtab=detailed&fq={{ fq|urlencode }}&fmonth={{ fmonth|urlencode }}&fpage={{ forecast_page.next_page_number }}">Next →</a>{% else %}<span class="h-10 inline-flex items-center px-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-400">Next →</span>{% endif %}
+                </div>
+              </div>
+              {% endif %}
             {% endif %}
           </div>
 
-          <!-- MODAL (Register / Run Forecast) -->
+           <!-- MODAL (Register / Run Forecast) -->
           <div id="forecastModal" class="fixed inset-0 z-50 hidden" aria-hidden="true">
             <!-- Backdrop -->
             <div class="absolute inset-0 bg-slate-900/50" onclick="closeForecastModal()"></div>
 
             <!-- Panel -->
-            <div class="relative w-full h-full flex items-start justify-center p-4 sm:p-6 overflow-y-auto">
-              <div class="w-full max-w-xl mt-16 sm:mt-20">
-                <div class="rounded-2xl bg-white shadow-xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="relative w-full h-full flex items-center justify-center p-3 sm:p-6">
+              <div class="w-full max-w-5xl my-4">
+                <div class="rounded-2xl bg-white shadow-xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
 
-                  <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between shrink-0">
+                  <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between shrink-0 bg-white">
                     <div class="min-w-0">
                       <div class="text-base font-semibold text-slate-900">Register / Run Forecast</div>
-                      <div class="text-xs text-slate-500">Enter part code, quantity, and month</div>
+                      <div class="text-xs text-slate-500">Enter part code, quantity, and month. Existing month-specific computations can also be edited here</div>
                     </div>
 
                     <button
@@ -1134,7 +1206,7 @@
                     </button>
                   </div>
 
-                  <form method="post" class="flex flex-col flex-1 min-h-0">
+                  <form method="post" action="{% url 'app:admin_dashboard' %}" class="flex flex-col flex-1 min-h-0">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="run_prototype_forecast">
 
@@ -1144,7 +1216,7 @@
                           <label class="block text-sm font-medium text-slate-700 mb-2">Customer</label>
                           <select
                             name="customer_id"
-                            id="forecastCustomer"
+                            id="forecast-run-customer"
                             class="w-full px-4 py-3 rounded-2xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             required
                           >
@@ -1186,7 +1258,7 @@
                           />
                         </div>
 
-                        <div class="sm:col-span-2">
+                        <div>
                           <label class="text-xs font-medium text-slate-600">Month</label>
                           <input
                             type="month"
@@ -1200,26 +1272,38 @@
                         </div>
 
                         <div class="sm:col-span-2">
-                          <div class="rounded-2xl border border-slate-200 bg-slate-50 overflow-hidden flex flex-col max-h-[52vh]">
-                            <div class="px-4 py-3 border-b border-slate-200 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between shrink-0">
+                          <div class="rounded-2xl border border-slate-200 bg-slate-50 overflow-hidden flex flex-col min-h-[320px] max-h-[48vh]">
+                            <div class="px-4 py-3 border-b border-slate-200 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between shrink-0 bg-slate-50">
                               <div>
                                 <div class="text-sm font-semibold text-slate-900">Registered BOM Materials</div>
                                 <div class="text-xs text-slate-500">These materials are linked to the selected part code.</div>
                               </div>
-                              <div id="forecast-bom-count" class="text-xs font-medium text-slate-600">0 materials</div>
+                              <div class="flex items-center gap-2">
+                                <div id="forecast-bom-count" class="text-xs font-medium text-slate-600">0 materials</div>
+                                <button
+                                  type="button"
+                                  id="edit-bom-btn"
+                                  class="hidden h-8 w-8 inline-flex items-center justify-center rounded-lg hover:bg-slate-200 text-slate-600"
+                                  title="Edit BOM"
+                                >
+                                  ✏️
+                                </button>
+                              </div>
                             </div>
 
-                            <div id="forecast-bom-status" class="px-4 py-3 text-sm text-slate-500 shrink-0">
+                            <div id="forecast-bom-status" class="px-4 py-3 text-sm text-slate-500 shrink-0 bg-slate-50">
                               Type a part code to load its registered BOM materials.
                             </div>
 
-                            <div id="forecast-bom-wrap" class="hidden flex-1 min-h-0 overflow-auto">
-                              <table class="w-full min-w-[420px] text-sm">
-                                <thead class="bg-white text-slate-700 sticky top-0">
+                            <div id="forecast-bom-wrap" class="hidden flex-1 min-h-0 overflow-auto bg-white">
+                              <table class="w-full min-w-[760px] text-sm">
+                                <thead class="bg-white text-slate-700 sticky top-0 z-10">
                                   <tr>
                                     <th class="px-4 py-3 text-left font-semibold">Material</th>
                                     <th class="px-4 py-3 text-left font-semibold">Name</th>
+                                    <th class="px-4 py-3 text-left font-semibold">Maker</th>
                                     <th class="px-4 py-3 text-right font-semibold">Dim / Qty</th>
+                                    <th class="px-4 py-3 text-right font-semibold">Loss %</th>
                                     <th class="px-4 py-3 text-left font-semibold">Unit</th>
                                   </tr>
                                 </thead>
@@ -1231,7 +1315,7 @@
                       </div>
                     </div>
 
-                    <div class="shrink-0 border-t border-slate-200 px-5 py-4 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 bg-white">
+                    <div class="shrink-0 sticky bottom-0 border-t border-slate-200 px-5 py-4 flex flex-col-reverse sm:flex-row sm:flex-wrap sm:items-center sm:justify-end gap-2 bg-white shadow-[0_-6px_18px_rgba(15,23,42,0.06)]">
                       <button
                         type="button"
                         onclick="closeForecastModal()"
@@ -1242,10 +1326,29 @@
 
                       <button
                         type="submit"
+                        id="run-forecast-btn"
                         class="h-10 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-medium"
                       >
                         Run Forecast
                       </button>
+
+                      <div id="bom-edit-buttons" class="hidden flex flex-col-reverse sm:flex-row gap-2">
+                        <button
+                          type="button"
+                          id="cancel-bom-edit-btn"
+                          class="h-10 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                        >
+                          Cancel Edit
+                        </button>
+
+                        <button
+                          type="button"
+                          id="save-bom-changes-btn"
+                          class="h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-medium"
+                        >
+                          Save BOM Changes
+                        </button>
+                      </div>
                     </div>
                   </form>
 
@@ -1254,7 +1357,9 @@
             </div>
           </div>
 
+
           <script>
+            
             function openForecastModal() {
               const el = document.getElementById("forecastModal");
               el.classList.remove("hidden");
@@ -2394,17 +2499,37 @@
   </script>
 
   <script>
-    // BOM preview functionality for forecast modal
     document.addEventListener("DOMContentLoaded", function () {
+      const form = document.querySelector("#forecastModal form");
       const partInput = document.getElementById("forecast-run-partcode");
       const monthInput = document.getElementById("forecast-run-month");
       const qtyInput = document.getElementById("forecast-run-qty");
-      const customerSelect = document.getElementById("forecastCustomer");
+      const customerSelect = document.getElementById("forecast-run-customer");
 
       const bomCount = document.getElementById("forecast-bom-count");
       const bomStatus = document.getElementById("forecast-bom-status");
       const bomWrap = document.getElementById("forecast-bom-wrap");
       const bomBody = document.getElementById("forecast-bom-body");
+
+      const editBomBtn = document.getElementById("edit-bom-btn");
+      const editButtons = document.getElementById("bom-edit-buttons");
+      const cancelBomEditBtn = document.getElementById("cancel-bom-edit-btn");
+      const saveBomChangesBtn = document.getElementById("save-bom-changes-btn");
+      const runForecastBtn = document.getElementById("run-forecast-btn");
+
+      let bomTimer = null;
+      let bomEditMode = false;
+      let loadedSource = "bom";
+      let loadedRunId = "";
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+      }
 
       function setBomIdle(message) {
         if (bomCount) bomCount.textContent = "0 materials";
@@ -2414,44 +2539,317 @@
         }
         if (bomWrap) bomWrap.classList.add("hidden");
         if (bomBody) bomBody.innerHTML = "";
+        loadedSource = "bom";
+        loadedRunId = "";
+        if (editBomBtn) editBomBtn.classList.add("hidden");
+        if (editButtons) editButtons.classList.add("hidden");
+        if (runForecastBtn) runForecastBtn.disabled = false;
+        bomEditMode = false;
       }
 
-      function renderBomRows(rows) {
-        if (!bomBody || !bomWrap || !bomStatus || !bomCount) return;
+      function setInputEditable(input, editable) {
+        if (!input) return;
+        if (editable) {
+          input.removeAttribute("readonly");
+          input.removeAttribute("disabled");
+          input.style.pointerEvents = "auto";
+          input.classList.remove("border-transparent", "bg-transparent", "cursor-not-allowed", "text-slate-500");
+          input.classList.add("border-slate-300", "bg-yellow-50", "text-slate-900");
+        } else {
+          input.setAttribute("readonly", "readonly");
+          input.removeAttribute("disabled");
+          input.style.pointerEvents = "auto";
+          input.classList.remove("border-slate-300", "bg-yellow-50");
+          input.classList.add("border-transparent", "bg-transparent");
+        }
+      }
+
+      function setBomRowEditability(rowEl, editable) {
+        if (!rowEl) return;
+
+        const codeInput = rowEl.querySelector(".bom-mat-code");
+        const nameInput = rowEl.querySelector(".bom-mat-name");
+        const makerInput = rowEl.querySelector(".bom-mat-maker");
+        const dimInput = rowEl.querySelector("input[name='bom_dim_qty']");
+        const lossInput = rowEl.querySelector("input[name='bom_loss_percent']");
+        const unitInput = rowEl.querySelector(".bom-mat-unit");
+        const matchSelect = rowEl.querySelector("select[name='bom_match_choice']");
+
+        [codeInput, nameInput, unitInput].forEach((input) => setInputEditable(input, false));
+
+        const rowSource = rowEl.dataset.source || loadedSource || "bom";
+        if (rowSource === "forecast_run") {
+          [makerInput].forEach((input) => setInputEditable(input, editable));
+          [dimInput, lossInput].forEach((input) => setInputEditable(input, false));
+          if (matchSelect) {
+            if (editable && !matchSelect.classList.contains("hidden")) {
+              matchSelect.removeAttribute("disabled");
+            } else {
+              matchSelect.setAttribute("disabled", "disabled");
+            }
+          }
+        } else {
+          [makerInput, dimInput, lossInput].forEach((input) => setInputEditable(input, editable));
+          if (matchSelect) matchSelect.setAttribute("disabled", "disabled");
+        }
+      }
+
+      function renderBomRows(rows, meta = {}) {
+        if (!bomBody) return;
+        bomBody.innerHTML = "";
 
         if (!Array.isArray(rows) || rows.length === 0) {
           setBomIdle("No registered BOM materials found for this part code.");
           return;
         }
 
-        bomCount.textContent = `${rows.length} material${rows.length === 1 ? "" : "s"}`;
-        bomStatus.classList.add("hidden");
-        bomWrap.classList.remove("hidden");
+        loadedSource = meta.source || loadedSource || "bom";
+        loadedRunId = meta.runId || loadedRunId || "";
 
-        bomBody.innerHTML = rows.map((row) => {
-          const matCode = row.mat_partcode || row.material_code || "—";
-          const matName = row.mat_partname || row.material_name || "—";
-          const dimQty = row.dim_qty ?? row.per_unit_qty ?? "—";
-          const unit = row.unit || "—";
+        const uniqueMakers = Array.from(new Set((rows || []).map((row) => String(row.mat_maker || "").trim()).filter(Boolean))).sort();
 
-          return `
-            <tr>
-              <td class="px-4 py-3 font-medium text-slate-900">${escapeHtml(String(matCode))}</td>
-              <td class="px-4 py-3 text-slate-700">${escapeHtml(String(matName))}</td>
-              <td class="px-4 py-3 text-right text-slate-700 tabular-nums">${escapeHtml(String(dimQty))}</td>
-              <td class="px-4 py-3 text-slate-700">${escapeHtml(String(unit))}</td>
-            </tr>
+        rows.forEach((row, index) => {
+          const tr = document.createElement("tr");
+          tr.className = "hover:bg-slate-50 align-middle";
+          tr.dataset.source = row.source || loadedSource || "bom";
+          tr.dataset.rowIndex = String(index);
+          tr.dataset.resolveTimer = "";
+          tr.dataset.lastResolvedMaker = String(row.mat_maker || "").trim();
+
+          const makerListId = `bom-maker-list-${index}`;
+          const makerOptions = uniqueMakers.map((maker) => `<option value="${escapeHtml(maker)}"></option>`).join("");
+
+          tr.innerHTML = `
+            <td class="px-4 py-3">
+              <input type="hidden" name="forecast_line_id" value="${escapeHtml(row.line_id || "")}" />
+              <input type="hidden" name="bom_resolved_partcode" value="${escapeHtml(row.mat_partcode || "")}" />
+              <input type="text" name="bom_mat_partcode" value="${escapeHtml(row.mat_partcode || "")}" class="bom-mat-code w-full px-2 py-1 border border-transparent rounded text-sm bg-transparent" readonly />
+              <select name="bom_match_choice" class="bom-match-choice hidden mt-2 w-full px-2 py-1 border border-slate-300 rounded text-sm bg-white"></select>
+              <div class="bom-match-hint hidden mt-1 text-xs text-amber-600"></div>
+            </td>
+            <td class="px-4 py-3">
+              <input type="text" name="bom_mat_partname" value="${escapeHtml(row.mat_partname || "")}" class="bom-mat-name w-full px-2 py-1 border border-transparent rounded text-sm bg-transparent" readonly />
+            </td>
+            <td class="px-4 py-3">
+              <input type="text" name="bom_mat_maker" value="${escapeHtml(row.mat_maker || "")}" data-original-maker="${escapeHtml(row.mat_maker || "")}" list="${makerListId}" autocomplete="off" class="bom-mat-maker w-full px-2 py-1 border border-transparent rounded text-sm bg-transparent" readonly />
+              <datalist id="${makerListId}">${makerOptions}</datalist>
+            </td>
+            <td class="px-4 py-3 text-right">
+              <input type="number" name="bom_dim_qty" value="${escapeHtml(row.dim_qty ?? 0)}" step="0.00001" class="w-full px-2 py-1 border border-transparent rounded text-sm text-right bg-transparent" readonly />
+            </td>
+            <td class="px-4 py-3 text-right">
+              <input type="number" name="bom_loss_percent" value="${escapeHtml(row.loss_percent ?? 0)}" step="0.01" class="w-full px-2 py-1 border border-transparent rounded text-sm text-right bg-transparent" readonly />
+            </td>
+            <td class="px-4 py-3">
+              <input type="text" name="bom_unit" value="${escapeHtml(row.unit || "")}" class="bom-mat-unit w-full px-2 py-1 border border-transparent rounded text-sm bg-transparent" readonly />
+            </td>
           `;
-        }).join("");
+          bomBody.appendChild(tr);
+        });
+
+        if (bomCount) bomCount.textContent = `${rows.length} material${rows.length === 1 ? "" : "s"}`;
+        if (bomStatus) bomStatus.classList.add("hidden");
+        if (bomWrap) bomWrap.classList.remove("hidden");
+        if (editBomBtn) editBomBtn.classList.remove("hidden");
+        if (editButtons) editButtons.classList.add("hidden");
+        if (runForecastBtn) runForecastBtn.disabled = false;
+        bomEditMode = false;
       }
 
-      function escapeHtml(value) {
-        return value
-          .replaceAll("&", "&amp;")
-          .replaceAll("<", "&lt;")
-          .replaceAll(">", "&gt;")
-          .replaceAll('"', "&quot;")
-          .replaceAll("'", "&#39;");
+      function applyBomMatchToRow(rowEl, match) {
+        if (!rowEl || !match) return;
+        const resolvedInput = rowEl.querySelector("input[name='bom_resolved_partcode']");
+        const codeInput = rowEl.querySelector("input[name='bom_mat_partcode']");
+        const nameInput = rowEl.querySelector("input[name='bom_mat_partname']");
+        const makerInput = rowEl.querySelector("input[name='bom_mat_maker']");
+        const unitInput = rowEl.querySelector("input[name='bom_unit']");
+        const dimInput = rowEl.querySelector("input[name='bom_dim_qty']");
+        const lossInput = rowEl.querySelector("input[name='bom_loss_percent']");
+        if (resolvedInput) resolvedInput.value = match.mat_partcode || "";
+        if (codeInput) codeInput.value = match.mat_partcode || "";
+        if (nameInput) nameInput.value = match.mat_partname || nameInput.value || "";
+        if (makerInput) makerInput.value = match.mat_maker || makerInput.value || "";
+        if (unitInput) unitInput.value = match.unit || unitInput.value || "";
+        if (dimInput && loadedSource !== "forecast_run") dimInput.value = match.dim_qty ?? dimInput.value;
+        if (lossInput && loadedSource !== "forecast_run") lossInput.value = match.loss_percent ?? lossInput.value;
+      }
+
+      function setMatchOptions(rowEl, matches) {
+        const select = rowEl?.querySelector("select[name='bom_match_choice']");
+        const hint = rowEl?.querySelector(".bom-match-hint");
+        const resolvedInput = rowEl?.querySelector("input[name='bom_resolved_partcode']");
+        if (!select || !hint) return;
+
+        select.innerHTML = "";
+        select.dataset.hasMultiple = "0";
+        if (!Array.isArray(matches) || matches.length <= 1) {
+          select.classList.add("hidden");
+          select.setAttribute("disabled", "disabled");
+          hint.classList.add("hidden");
+          hint.textContent = "";
+          return;
+        }
+
+        if (resolvedInput) resolvedInput.value = "";
+        select.dataset.hasMultiple = "1";
+
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = "Choose matching material part code";
+        select.appendChild(placeholder);
+
+        matches.forEach((match) => {
+          const opt = document.createElement("option");
+          opt.value = JSON.stringify(match);
+          opt.textContent = `${match.mat_partcode || ""} • ${match.mat_partname || ""}`;
+          select.appendChild(opt);
+        });
+
+        select.value = "";
+        select.classList.remove("hidden");
+        if (bomEditMode) select.removeAttribute("disabled");
+        hint.textContent = "Multiple BOM matches found for this maker. Choose the correct material part code.";
+        hint.classList.remove("hidden");
+      }
+
+      async function resolveMakerChange(rowEl, options = {}) {
+        if (!rowEl || loadedSource !== "forecast_run") return { ok: true, skipped: true };
+        const makerInput = rowEl.querySelector("input[name='bom_mat_maker']");
+        const nameInput = rowEl.querySelector("input[name='bom_mat_partname']");
+        const select = rowEl.querySelector("select[name='bom_match_choice']");
+        const resolvedInput = rowEl.querySelector("input[name='bom_resolved_partcode']");
+        const csrfToken = form.querySelector("input[name='csrfmiddlewaretoken']")?.value || "";
+        const maker = makerInput?.value?.trim() || "";
+        const matPartname = nameInput?.value?.trim() || "";
+        const partCode = partInput?.value?.trim() || "";
+        const silent = !!options.silent;
+
+        if (!maker || !partCode) {
+          if (resolvedInput) resolvedInput.value = "";
+          setMatchOptions(rowEl, []);
+          return { ok: false, message: "Maker and part code are required." };
+        }
+
+        if (rowEl.dataset.lastResolvedMaker === maker && resolvedInput?.value) {
+          return { ok: true, skipped: true };
+        }
+
+        const postData = new FormData();
+        if (csrfToken) postData.append("csrfmiddlewaretoken", csrfToken);
+        postData.append("action", "resolve_forecast_modal_maker");
+        postData.append("part_code", partCode);
+        postData.append("mat_partname", matPartname);
+        postData.append("mat_maker", maker);
+
+        try {
+          const response = await fetch(window.location.href, {
+            method: "POST",
+            body: postData,
+            headers: {
+              "X-Requested-With": "XMLHttpRequest",
+              "X-CSRFToken": csrfToken,
+            }
+          });
+          const result = await response.json();
+          if (!response.ok || !result?.ok) {
+            throw new Error(result?.message || result?.error || "Failed to resolve BOM match.");
+          }
+          const matches = result.matches || [];
+          if (matches.length === 1) {
+            applyBomMatchToRow(rowEl, matches[0]);
+            setMatchOptions(rowEl, []);
+            rowEl.dataset.lastResolvedMaker = maker;
+            return { ok: true, status: "single" };
+          }
+          setMatchOptions(rowEl, matches);
+          rowEl.dataset.lastResolvedMaker = maker;
+          return { ok: true, status: "multiple", matches };
+        } catch (error) {
+          if (resolvedInput) resolvedInput.value = "";
+          setMatchOptions(rowEl, []);
+          rowEl.dataset.lastResolvedMaker = "";
+          if (!silent) alert(error.message || "Failed to resolve BOM match.");
+          return { ok: false, message: error.message || "Failed to resolve BOM match." };
+        }
+      }
+
+      function queueMakerResolution(rowEl) {
+        if (!rowEl) return;
+        const prev = rowEl.dataset.resolveTimer ? Number(rowEl.dataset.resolveTimer) : 0;
+        if (prev) window.clearTimeout(prev);
+        const timer = window.setTimeout(() => {
+          resolveMakerChange(rowEl, { silent: true });
+          rowEl.dataset.resolveTimer = "";
+        }, 300);
+        rowEl.dataset.resolveTimer = String(timer);
+      }
+
+      async function validateForecastRunRowsBeforeSave() {
+        if (loadedSource !== "forecast_run" || !bomBody) return { ok: true };
+        const rows = Array.from(bomBody.querySelectorAll("tr"));
+        for (const rowEl of rows) {
+          const makerInput = rowEl.querySelector("input[name='bom_mat_maker']");
+          const select = rowEl.querySelector("select[name='bom_match_choice']");
+          const resolvedInput = rowEl.querySelector("input[name='bom_resolved_partcode']");
+          const maker = makerInput?.value?.trim() || "";
+          if (!maker) {
+            return { ok: false, message: "Maker is required for all rows." };
+          }
+          const result = await resolveMakerChange(rowEl, { silent: true });
+          if (!result?.ok) {
+            return result || { ok: false, message: "Failed to resolve maker." };
+          }
+          if (select && select.dataset.hasMultiple === "1" && !select.value) {
+            const materialName = rowEl.querySelector("input[name='bom_mat_partname']")?.value || "the selected material";
+            return { ok: false, message: `Choose the material part code for ${materialName}.` };
+          }
+          if (!resolvedInput?.value) {
+            return { ok: false, message: "A resolved material part code is required before saving." };
+          }
+        }
+        return { ok: true };
+      }
+
+      function enableBomEdit() {
+        if (!bomBody) return;
+        const inputs = bomBody.querySelectorAll("input[name^='bom_']:not([type='hidden'])");
+        if (!inputs.length) return;
+
+        inputs.forEach((input) => {
+          if (!input.hasAttribute("data-original")) {
+            input.setAttribute("data-original", input.value);
+          }
+        });
+
+        bomBody.querySelectorAll("tr").forEach((rowEl) => {
+          setBomRowEditability(rowEl, true);
+        });
+
+        if (editBomBtn) editBomBtn.classList.add("hidden");
+        if (editButtons) editButtons.classList.remove("hidden");
+        if (runForecastBtn) runForecastBtn.disabled = true;
+        bomEditMode = true;
+      }
+
+      function disableBomEdit(restoreOriginal = true) {
+        if (!bomBody) return;
+        const inputs = bomBody.querySelectorAll("input[name^='bom_']:not([type='hidden'])");
+        inputs.forEach((input) => {
+          if (restoreOriginal) {
+            const original = input.getAttribute("data-original");
+            if (original !== null) {
+              input.value = original;
+            }
+          } else {
+            input.setAttribute("data-original", input.value);
+          }
+          setInputEditable(input, false);
+        });
+
+        if (editBomBtn && inputs.length) editBomBtn.classList.remove("hidden");
+        if (editButtons) editButtons.classList.add("hidden");
+        if (runForecastBtn) runForecastBtn.disabled = false;
+        bomEditMode = false;
       }
 
       async function loadForecastQty() {
@@ -2470,7 +2868,6 @@
             headers: { "X-Requested-With": "XMLHttpRequest" }
           });
           const data = await res.json();
-
           if (data.ok) {
             qtyInput.value = data.quantity || 0;
           }
@@ -2494,11 +2891,18 @@
         }
         if (bomWrap) bomWrap.classList.add("hidden");
         if (bomBody) bomBody.innerHTML = "";
+        loadedSource = "bom";
+        loadedRunId = "";
         if (bomCount) bomCount.textContent = "Loading…";
+        if (editBomBtn) editBomBtn.classList.add("hidden");
+        if (editButtons) editButtons.classList.add("hidden");
 
+        const customerId = customerSelect?.value?.trim() || "";
+        const month = monthInput?.value?.trim() || "";
         const urls = [
+          `/api/part-bom/?part_code=${encodeURIComponent(part)}&customer_id=${encodeURIComponent(customerId)}&schedule_month=${encodeURIComponent(month)}`,
+          `/api/part-bom/?part_number=${encodeURIComponent(part)}&customer_id=${encodeURIComponent(customerId)}&schedule_month=${encodeURIComponent(month)}`,
           `/api/part-bom/?part_code=${encodeURIComponent(part)}`,
-          `/api/part-bom/?part_number=${encodeURIComponent(part)}`,
         ];
 
         let data = null;
@@ -2508,29 +2912,147 @@
               headers: { "X-Requested-With": "XMLHttpRequest" }
             });
             data = await res.json();
-            if (data) break;
+            if (data && data.ok) break;
           } catch (e) {
             console.log("bom lookup failed", e);
           }
         }
 
         if (!data || data.ok === false) {
-          setBomIdle((data && data.message) ? data.message : "No registered BOM materials found for this part code.");
+          setBomIdle((data && (data.message || data.error)) ? (data.message || data.error) : "No registered BOM materials found for this part code.");
           return;
         }
 
-        const rows = data.rows || data.materials || data.items || [];
-        renderBomRows(rows);
+        renderBomRows(data.rows || data.materials || data.items || [], { source: data.source || "bom", runId: data.run_id || "" });
       }
 
-      let bomTimer = null;
+      async function saveBomChanges() {
+        if (!form || !partInput || !bomBody) return;
+
+        const partCode = partInput.value.trim();
+        if (!partCode) {
+          alert("Part code is required.");
+          return;
+        }
+
+        const postData = new FormData();
+        const csrfToken = form.querySelector("input[name='csrfmiddlewaretoken']")?.value || "";
+
+        if (csrfToken) postData.append("csrfmiddlewaretoken", csrfToken);
+        const customerId = customerSelect?.value?.trim() || "";
+        const scheduleMonth = monthInput?.value?.trim() || "";
+        const useForecastRunSave = loadedSource === "forecast_run" && !!loadedRunId;
+
+        postData.append("action", useForecastRunSave ? "update_registered_forecast_modal" : "update_bom_from_forecast_modal");
+        postData.append("part_code", partCode);
+        if (customerId) postData.append("customer_id", customerId);
+        if (scheduleMonth) postData.append("schedule_month", scheduleMonth);
+        if (loadedRunId) postData.append("run_id", loadedRunId);
+
+        const rows = Array.from(bomBody.querySelectorAll("tr"));
+        rows.forEach((rowEl) => {
+          postData.append("forecast_line_id", rowEl.querySelector("input[name='forecast_line_id']")?.value || "");
+          postData.append("bom_resolved_partcode", rowEl.querySelector("input[name='bom_resolved_partcode']")?.value || "");
+          postData.append("bom_mat_partcode", rowEl.querySelector("input[name='bom_mat_partcode']")?.value || "");
+          postData.append("bom_mat_partname", rowEl.querySelector("input[name='bom_mat_partname']")?.value || "");
+          postData.append("bom_mat_maker", rowEl.querySelector("input[name='bom_mat_maker']")?.value || "");
+          postData.append("bom_dim_qty", rowEl.querySelector("input[name='bom_dim_qty']")?.value || "0");
+          postData.append("bom_loss_percent", rowEl.querySelector("input[name='bom_loss_percent']")?.value || "0");
+          postData.append("bom_unit", rowEl.querySelector("input[name='bom_unit']")?.value || "");
+        });
+
+        const validation = await validateForecastRunRowsBeforeSave();
+        if (!validation?.ok) {
+          alert(validation?.message || "Please complete all maker selections before saving.");
+          return;
+        }
+
+        const originalLabel = saveBomChangesBtn?.textContent || "Save BOM Changes";
+        if (saveBomChangesBtn) {
+          saveBomChangesBtn.disabled = true;
+          saveBomChangesBtn.textContent = "Saving...";
+        }
+
+        try {
+          const response = await fetch(window.location.href, {
+            method: "POST",
+            body: postData,
+            headers: {
+              "X-Requested-With": "XMLHttpRequest",
+              "X-CSRFToken": csrfToken
+            }
+          });
+
+          const raw = await response.text();
+          let result = null;
+          try {
+            result = raw ? JSON.parse(raw) : null;
+          } catch (parseError) {
+            const htmlMessage = /<title>(.*?)<\/title>/i.exec(raw)?.[1]
+              || /<pre[^>]*>([\s\S]*?)<\/pre>/i.exec(raw)?.[1]
+              || "The server returned an HTML error page instead of JSON.";
+            throw new Error(htmlMessage);
+          }
+
+          if (!response.ok || !result?.ok) {
+            throw new Error(result?.message || result?.error || "Failed to save BOM changes.");
+          }
+
+          disableBomEdit(false);
+          renderBomRows(result.rows || [], { source: result.source || loadedSource || "bom", runId: result.run_id || loadedRunId || "" });
+          alert(result.message || "BOM changes saved successfully.");
+        } catch (error) {
+          alert(error.message || "Failed to save BOM changes.");
+        } finally {
+          if (saveBomChangesBtn) {
+            saveBomChangesBtn.disabled = false;
+            saveBomChangesBtn.textContent = originalLabel;
+          }
+        }
+      }
+
+      if (bomBody) {
+        bomBody.addEventListener("input", function (event) {
+          const rowEl = event.target.closest("tr");
+          if (!rowEl) return;
+
+          if (event.target.matches("input[name='bom_mat_maker']") && loadedSource === "forecast_run" && bomEditMode) {
+            const resolvedInput = rowEl.querySelector("input[name='bom_resolved_partcode']");
+            const select = rowEl.querySelector("select[name='bom_match_choice']");
+            if (resolvedInput) resolvedInput.value = "";
+            if (select) {
+              select.value = "";
+              select.dataset.hasMultiple = "0";
+            }
+            queueMakerResolution(rowEl);
+          }
+        });
+
+        bomBody.addEventListener("change", function (event) {
+          const rowEl = event.target.closest("tr");
+          if (!rowEl) return;
+
+          if (event.target.matches("input[name='bom_mat_maker']") && loadedSource === "forecast_run" && bomEditMode) {
+            resolveMakerChange(rowEl, { silent: true });
+          }
+
+          if (event.target.matches("select[name='bom_match_choice']")) {
+            if (!event.target.value) return;
+            try {
+              const match = JSON.parse(event.target.value);
+              applyBomMatchToRow(rowEl, match);
+              rowEl.dataset.lastResolvedMaker = rowEl.querySelector("input[name='bom_mat_maker']")?.value?.trim() || "";
+            } catch (e) {
+              console.log("invalid match option", e);
+            }
+          }
+        });
+      }
 
       if (partInput) {
         partInput.addEventListener("input", function () {
           clearTimeout(bomTimer);
-          bomTimer = setTimeout(() => {
-            loadBomPreview();
-          }, 250);
+          bomTimer = setTimeout(loadBomPreview, 250);
         });
 
         partInput.addEventListener("change", function () {
@@ -2544,25 +3066,22 @@
         });
       }
 
-      if (monthInput) {
-        monthInput.addEventListener("change", loadForecastQty);
-      }
-
-      if (customerSelect) {
-        customerSelect.addEventListener("change", loadForecastQty);
-      }
+      if (monthInput) monthInput.addEventListener("change", loadForecastQty);
+      if (customerSelect) customerSelect.addEventListener("change", loadForecastQty);
+      if (editBomBtn) editBomBtn.addEventListener("click", enableBomEdit);
+      if (cancelBomEditBtn) cancelBomEditBtn.addEventListener("click", function () { disableBomEdit(true); });
+      if (saveBomChangesBtn) saveBomChangesBtn.addEventListener("click", saveBomChanges);
 
       setBomIdle("Type a part code to load its registered BOM materials.");
     });
 
-    // ADD THIS: File input display functionality for Forecast CSV modal
     document.addEventListener("DOMContentLoaded", function() {
       const fileInput = document.getElementById("csv-file-input");
       const selectedFileDiv = document.getElementById("selected-file-name");
       const fileNameSpan = document.getElementById("file-name-text");
-      
+
       if (fileInput && selectedFileDiv && fileNameSpan) {
-        fileInput.addEventListener("change", function(e) {
+        fileInput.addEventListener("change", function() {
           if (this.files && this.files.length > 0) {
             fileNameSpan.textContent = this.files[0].name;
             selectedFileDiv.classList.remove("hidden");
